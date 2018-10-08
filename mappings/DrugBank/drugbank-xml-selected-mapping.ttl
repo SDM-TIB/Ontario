@@ -1,0 +1,643 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix rml: <http://semweb.mmlab.be/ns/rml#> .
+@prefix ql: <http://semweb.mmlab.be/ns/ql#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rev: <http://purl.org/stuff/rev#> .
+@prefix schema: <http://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <http://tib.de/ontario/mapping#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix lsdl: <http://lsdl.tib.eu/vocab/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+###############################################
+############### Drug ##########################
+##############################################
+:drugbank_drug
+  	rml:logicalSource [
+              rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+  						rml:referenceFormulation ql:XPath;
+              rml:iterator "drugbank.xml$/drugbank/drug"
+  						];
+  	rr:subjectMap [
+  		      rr:template "http://lsdl.tib.eu/Drug/{drugbank-id[*][_primary=true]}";
+        		rr:class lsdl:Drug
+  	];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:name;
+      rr:objectMap [
+        rml:reference "name"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:description;
+      rr:objectMap [
+        rml:reference "description"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:casNumber;
+      rr:objectMap [
+        rml:reference "cas-number"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:unii;
+      rr:objectMap [
+        rml:reference "unii"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:metabolism;
+      rr:objectMap [
+        rml:reference "metabolism"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:routeOfElimination;
+      rr:objectMap [
+        rml:reference "route-of-elimination"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:volumeOfDistribution;
+      rr:objectMap [
+        rml:reference "volume-of-distribution"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:state;
+      rr:objectMap [
+        rml:reference "state"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:indication;
+      rr:objectMap [
+        rml:reference "indication"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:toxicity;
+      rr:objectMap [
+        rml:reference "toxicity"
+      ]
+    ];
+  	rr:predicateObjectMap [
+      		rr:predicate lsdl:drugType;
+          rr:objectMap [
+            rml:reference "_type"
+          ]
+  	];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pharmacology;
+      rr:objectMap [
+        rml:reference "pharmacodynamics"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:mechanismOfAction;
+      rr:objectMap [
+        rml:reference "mechanism-of-action"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:absorption;
+      rr:objectMap [
+        rml:reference "absorption"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:halfLife;
+      rr:objectMap [
+        rml:reference "half-life"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:clearance;
+      rr:objectMap [
+        rml:reference "clearance"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:updateDate;
+      rr:objectMap [
+        rml:reference "_updated"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:creationDate;
+      rr:objectMap [
+        rml:reference "_created"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate rdfs:label;
+      rr:objectMap [
+        rml:reference "name"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate foaf:page;
+      rr:objectMap [
+        rr:template "http://www.drugbank.ca/drugs/{drugbank-id[*][_primary=true]}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate owl:sameAs;
+      rr:objectMap [
+        rr:template "http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugs/{drugbank-id[*][_primary=true]}";
+        rr:class <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/drugs>
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:synonym;
+      rr:objectMap [
+        rml:reference "synonyms/synonym[*]/_VALUE"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:averageMass;
+      rr:objectMap [
+        rml:reference "average-mass"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:foodInteraction;
+      rr:objectMap [
+         rml:reference  "food-interactions/food-interaction[*]"
+      ]
+    ];
+
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pharmgkbId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=PharmGKB]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:dpdDrugIdNumber;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=Drugs Product Database (DPD)]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pubchemCompoundId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=PubChem Compound]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pubchemSubstanceId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=PubChem Substance]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:uniprotId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=UniProtKB]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:ttdId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=Therapeutic Targets Database]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:keggDrugId;
+      rr:objectMap [
+         rr:template  "http://bio2rdf.org/kegg:{external-identifiers/external-identifier[*][resource=KEGG Drug]/identifier}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:wikipediaId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=Wikipedia]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:chemblId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=ChEMBL]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:chebiId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=ChEBI]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:genbankId;
+      rr:objectMap [
+         rml:reference  "external-identifiers/external-identifier[*][resource=GenBank Gene Database]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:keggCompoundId;
+      rr:objectMap [
+         rr:template  "http://bio2rdf.org/cpd:{external-identifiers/external-identifier[*][resource=KEGG Compound]/identifier}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:reference;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_drug_article_reference
+      ]
+    ];
+
+    rr:predicateObjectMap [
+      rr:predicate lsdl:enzyme;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_drug_enzyme
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:target;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_drug_target
+      ]
+    ];
+
+    rr:predicateObjectMap [
+      rr:predicate lsdl:transporter;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_drug_transporter
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:carrier;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_drug_carrier
+      ]
+    ].
+
+###############################################
+############### Drug Interaction #############
+##############################################
+:drugbank_drug_drug_interaction
+      rml:logicalSource [
+                rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+                rml:referenceFormulation ql:XPath;
+                rml:iterator "drugbank.xml$/drugbank/drug"
+                ];
+      rr:subjectMap [
+              rr:template "http://lsdl.tib.eu/DrugInteraction/{drugbank-id[@primary=true]}_{drug-interactions/drug-interaction[*]/drugbank-id}";
+              rr:class lsdl:DrugInteraction
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:drug2;
+        rr:objectMap [
+          rr:template  "http://lsdl.tib.eu/Drug/{drug-interactions/drug-interaction[*]/drugbank-id}"
+        ]
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:drug1;
+        rr:objectMap [
+          rr:template  "http://lsdl.tib.eu/Drug/{drugbank-id[@primary=true]}"
+        ]
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:name;
+        rr:objectMap [
+          rml:reference "drug-interactions/drug-interaction[*]/name"
+        ]
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:description;
+        rr:objectMap [
+          rml:reference "drug-interactions/drug-interaction[*]/description"
+        ]
+      ].
+
+
+###############################################
+############### drug Reference ###############
+##############################################
+:drugbank_drug_article_reference
+      rml:logicalSource [
+                rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+                rml:referenceFormulation ql:XPath;
+                rml:iterator "drugbank.xml$/drugbank/drug"
+                ];
+      rr:subjectMap [
+              rr:template "http://lsdl.tib.eu/ArticleReference/{general-references/articles.article[*]/pubmed-id}";
+              rr:class lsdl:ArticleReference
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:pubmedId;
+        rr:objectMap [
+          rml:reference "general-references/articles.article[*]/pubmed-id"
+        ]
+      ];
+      rr:predicateObjectMap [
+        rr:predicate lsdl:title;
+        rr:objectMap [
+          rml:reference "general-references/articles.article[*]/citation"
+        ]
+      ].
+
+########################################
+########### Target ###################
+#######################################
+:drugbank_drug_target
+        rml:logicalSource [
+                  rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+                  rml:referenceFormulation ql:XPath;
+                  rml:iterator "drugbank.xml$/drugbank/drug/targets/target"
+                  ];
+        rr:subjectMap [
+                rr:template "http://lsdl.tib.eu/Target/{id}";
+                rr:class lsdl:Target
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:name;
+          rr:objectMap [
+            rml:reference "name"
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:organism;
+          rr:objectMap [
+            rml:reference "organism"
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:protein;
+          rr:objectMap [
+            rr:parentTriplesMap :drugbank_drug_target_polypeptide
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:reference;
+          rr:objectMap [
+            rr:parentTriplesMap :drugbank_target_article_reference
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:reference;
+          rr:objectMap [
+            rr:parentTriplesMap :drugbank_target_link_reference
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:reference;
+          rr:objectMap [
+            rr:parentTriplesMap :drugbank_target_textbook_reference
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate lsdl:action;
+          rr:objectMap [
+            rml:reference "actions/action[*]"
+          ]
+        ];
+
+###############################################
+############### Polypeptide #####################
+##############################################
+:drugbank_drug_target_polypeptide
+    rml:logicalSource [
+              rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+              rml:referenceFormulation ql:XPath;
+              rml:iterator "drugbank.xml$/drugbank/drug/targets/target/polypeptide"
+              ];
+    rr:subjectMap [
+            rr:template "http://lsdl.tib.eu/Protein/{_id}";
+            rr:class lsdl:Protein
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:name;
+      rr:objectMap [
+        rml:reference "name"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:source;
+      rr:objectMap [
+        rml:reference "_source"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:swissprotId;
+      rr:objectMap [
+        rr:template "http://www.uniprot.org/uniprot/{_id}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:swissprotPage;
+      rr:objectMap [
+        rr:template "http://bio2rdf.org/uniprot:{_id}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:swissprotName;
+      rr:objectMap [
+        rml:reference "name}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:generalFunction;
+      rr:objectMap [
+        rml:reference "general-function"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:specificFunction;
+      rr:objectMap [
+        rml:reference "specific-function"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:locus;
+      rr:objectMap [
+        rml:reference "locus"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:cellularLocation;
+      rr:objectMap [
+        rml:reference "cellular-location"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:signal;
+      rr:objectMap [
+        rml:reference "signal-regions"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:theoreticalPi;
+      rr:objectMap [
+        rml:reference "theoretical-pi"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:molecularWeight;
+      rr:objectMap [
+        rml:reference "molecular-weight"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:chromosomeLocation;
+      rr:objectMap [
+        rml:reference "chromosome-location"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:proteinSequence;
+      rr:objectMap [
+        rml:reference "amino-acid-sequence[*]/_VALUE"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:goClassificationComponent;
+      rr:objectMap [
+        rml:reference "go-classifiers/go-classifier[*][category=component]/description"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:goClassificationProcess;
+      rr:objectMap [
+        rml:reference "go-classifiers/go-classifier[*][category=process]/description"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:goClassificationFunction;
+      rr:objectMap [
+        rml:reference "go-classifiers/go-classifier[*][category=function]/description"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pfamDomainFunction;
+      rr:objectMap [
+        rr:template "http://bio2rdf.org/pfam:{pfams/pfam[*]/identifier}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:pfamDomainFunctionPage;
+      rr:objectMap [
+        rr:template "http://pfam.sanger.ac.uk/family?acc={pfams/pfam[*]/identifier}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:synonym;
+      rr:objectMap [
+        rml:reference "synonyms/synonym[*]"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:transmembraneRegions;
+      rr:objectMap [
+        rml:reference "transmembrane-regions"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:organism;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_target_organism
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:hgncId;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=HUGO Gene Nomenclature Committee (HGNC)]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:genatlasId;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=GenAtlas]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:genbankIdGene;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=GenBank Gene Database]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:genbankIdProtein;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=GenBank Protein Database]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:uniprotId;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=UniProtKB]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:uniprotAccession;
+      rr:objectMap [
+        rml:reference "external-identifiers/external-identifier[*][resource=UniProt Accession]/identifier"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:gene;
+      rr:objectMap [
+        rr:parentTriplesMap :drugbank_target_gene
+      ]
+    ].
+
+###############################################
+############### Organism #####################
+##############################################
+:drugbank_target_organism
+    rml:logicalSource [
+              rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+              rml:referenceFormulation ql:XPath;
+              rml:iterator "drugbank.xml$/drugbank/drug/targets/target/polypeptide/organism"
+              ];
+    rr:subjectMap [
+            rr:template "http://lsdl.tib.eu/Organism/{_ncbi-taxonomy-id}";
+            rr:class lsdl:Organism
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:name;
+      rr:objectMap [
+        rml:reference "_VALUE"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:ncbiTaxonomyId;
+      rr:objectMap [
+        rml:reference "_ncbi-taxonomy-id"
+      ]
+    ].
+
+###############################################
+############### Gene #########################
+##############################################
+:drugbank_target_gene
+    rml:logicalSource [
+              rml:source <http://ontario.tib.eu/drugbankxml/datasource/Drugbank>;
+              rml:referenceFormulation ql:XPath;
+              rml:iterator "drugbank.xml$/drugbank/drug/targets/target/polypeptide"
+              ];
+    rr:subjectMap [
+            rr:template "http://lsdl.tib.eu/Gene/{gene-name}";
+            rr:class lsdl:Gene
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:name;
+      rr:objectMap [
+        rml:reference "gene-name"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:geneSequence;
+      rr:objectMap [
+        rml:reference "gene-sequence[*]/_VALUE"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:action;
+      rr:objectMap [
+        rml:reference "actions/action[*]"
+      ]
+    ].
