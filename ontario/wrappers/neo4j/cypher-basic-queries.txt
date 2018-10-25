@@ -1,0 +1,8 @@
+
+1. Total number of labels:
+    $ CALL db.labels() YIELD label RETURN count(label) AS numLabels
+2.  Labels count (list[], count)
+    $ MATCH (n) RETURN distinct labels(n), count(*)
+3. Count number of nodes per label, lbl:
+    $ MATCH (n) WHERE lbl in labels(n) RETURN DISTINCT count(*)
+

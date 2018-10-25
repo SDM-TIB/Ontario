@@ -1,0 +1,127 @@
+{
+  "templates": [
+     {
+        "rootType": "http://bio2rdf.org/intact_vocabulary:Resource",
+        "datasources": [
+                      {
+                        "datasource": "http://bio2rdf.org",
+                        "predicates": [
+                          "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+                          "http://www.w3.org/2000/01/rdf-schema#label",
+                          "http://rdfs.org/ns/void#inDataset",
+                          "http://purl.org/dc/terms/identifier",
+                          "http://purl.org/dc/terms/title",
+                          "http://bio2rdf.org/bio2rdf_vocabulary:identifier",
+                          "http://bio2rdf.org/bio2rdf_vocabulary:namespace",
+                          "http://bio2rdf.org/bio2rdf_vocabulary:uri",
+                          "http://bio2rdf.org/goa_vocabulary:component",
+                          "http://bio2rdf.org/goa_vocabulary:function",
+                          "http://bio2rdf.org/goa_vocabulary:go-annotation",
+                          "http://bio2rdf.org/goa_vocabulary:not-has-function",
+                          "http://bio2rdf.org/goa_vocabulary:process",
+                          "http://bio2rdf.org/goa_vocabulary:symbol",
+                          "http://bio2rdf.org/goa_vocabulary:synonym",
+                          "http://bio2rdf.org/goa_vocabulary:x-taxonomy",
+                          "http://bio2rdf.org/bio2rdf_vocabulary:x-identifiers.org"
+                        ]
+                      }
+          ],
+        "predicates": [
+      {
+        "predicate": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        "range": [
+          "http://bio2rdf.org/goa_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+        "range": []
+      },
+      {
+        "predicate": "http://rdfs.org/ns/void#inDataset",
+        "range": []
+      },
+      {
+        "predicate": "http://purl.org/dc/terms/identifier",
+        "range": []
+      },
+      {
+        "predicate": "http://purl.org/dc/terms/title",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/bio2rdf_vocabulary:identifier",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/bio2rdf_vocabulary:namespace",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/bio2rdf_vocabulary:uri",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:component",
+        "range": [
+          "http://bio2rdf.org/go_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:function",
+        "range": [
+          "http://bio2rdf.org/go_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:go-annotation",
+        "range": [
+          "http://bio2rdf.org/goa_vocabulary:GO-Annotation",
+          "http://bio2rdf.org/goa_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:not-has-function",
+        "range": [
+          "http://bio2rdf.org/go_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:process",
+        "range": [
+          "http://bio2rdf.org/go_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:symbol",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:synonym",
+        "range": []
+      },
+      {
+        "predicate": "http://bio2rdf.org/goa_vocabulary:x-taxonomy",
+        "range": [
+          "http://bio2rdf.org/taxonomy_vocabulary:Resource"
+        ]
+      },
+      {
+        "predicate": "http://bio2rdf.org/bio2rdf_vocabulary:x-identifiers.org",
+        "range": []
+      }
+    ]
+     }
+  ],
+  "datasources": [
+      {
+        "name": "Bio2RDF",
+        "ID": "http://bio2rdf.org",
+        "url": "http://localhost:18891/sparql",
+        "params": {},
+        "type": "SPARQL_Endpoint",
+        "mappings": []
+      }
+  ]
+
+}

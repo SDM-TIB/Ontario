@@ -1,0 +1,9 @@
+flask
+hdfs
+pyspark
+pymongo
+mysql-connector-python
+neo4j-driver
+rdflib
+networkx
+ply
