@@ -36,39 +36,118 @@
 	rr:predicateObjectMap [
 		rr:predicate iasis:semanticType;
 		rr:objectMap [
-			rml:reference "semantic_types"
+			rml:reference "semantic_types[*]"
 		]
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:provenance;
-		rr:object <http://project-iasis.eu/SourceName/UMLS>
+		rr:predicate iasis:snomedct_us;
+		rr:objectMap [
+			rml:reference "SNOMEDCT_US"
 		]
-].
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:hpo;
+		rr:objectMap [
+			rml:reference "HPO"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:drugbankId;
+		rr:objectMap [
+			rml:reference "DRUGBANK"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:hgnc;
+		rr:objectMap [
+			rml:reference "HGNC"
+		]
+	];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:causes;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:mentionedIn;
+      rr:objectMap [
+        rr:parentTriplesMap :Publication
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:associatedWith;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:predisposes;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:stimulates;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:interactsWith;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate lsdl:inhibits;
+      rr:objectMap [
+        rr:parentTriplesMap :Annotation
+      ]
+    ].
 
-:MentionedIn
-	rml:logicalSource [ rml:source "MENTIONED_IN";
+:Publication
+	rml:logicalSource [ rml:source "Publication";
 						rml:referenceFormulation ql:Cypher;
-						rml:iterator "(left.Annotation)-[r:MENTIONED_IN]->(right.Annotation)"
+						rml:iterator "node"
 						];
 	rr:subjectMap [
-		rr:template "http://project-iasis.eu/Relation/{left.id}_MENTIONED_IN_{right.id}";
-		rr:class "http://project-iasis.eu/MENTIONED_IN"
+		rr:template "http://project-iasis.eu/Publication/{pmid}";
+		rr:class iasis:Publication
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:confidence;
+		rr:predicate iasis:pmid;
 		rr:objectMap [
-			rml:reference "r.confidence"
+			rml:reference "pmid"
 		]
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:relation_isRelatedTo_annotation;
+		rr:predicate iasis:title;
 		rr:objectMap [
-			rr:template "http://project-iasis.eu/Annotation/{left.id}"
+			rml:reference "title"
 		]
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:relation_isRelatedTo_annotation;
+		rr:predicate iasis:year;
 		rr:objectMap [
-			rr:template "http://project-iasis.eu/Annotation/{left.id}"
+			rr:template "year"
 		]
-].
+    ];
+	rr:predicateObjectMap [
+		rr:predicate iasis:journal;
+		rr:objectMap [
+			rr:template "journal"
+		]
+    ];
+	rr:predicateObjectMap [
+		rr:predicate iasis:authors;
+		rr:objectMap [
+			rr:template "authors"
+		]
+    ];
+	rr:predicateObjectMap [
+		rr:predicate iasis:hasTopic;
+		rr:objectMap [
+			rr:parentTriplesMap :Annotation
+		]
+    ].
