@@ -6,39 +6,38 @@
 @prefix rev: <http://purl.org/stuff/rev#> .
 @prefix schema: <http://schema.org/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix : <http://tib.de/ontario/mapping#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
-@prefix chebi: <http://bio2rdf.org/ns/chebi#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix chebi: <http://www.ebi.ac.uk/chebi/> .
+@prefix : <http://tib.de/ontario/mapping#> .
 
 :chebi_compound
   	rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-  						rml:referenceFormulation ql:TSV;
-              rml:iterator "compounds.tsv"
-  						];
+              rml:source "compounds.tsv";
+  			  rml:referenceFormulation ql:TSV;
+              rml:iterator "*"
+  			 ];
   	rr:subjectMap [
-  		      rr:template "http://bio2rdf.org/chebi:{ID}";
-        		rr:class chebi:Compound
+  		    rr:template "http://www.ebi.ac.uk/chebi/{ID}";
+        	rr:class chebi:Compound
   	];
-    rr:predicateObjectMap [
-      rr:predicate chebi:url;
+  	rr:predicateObjectMap [
+      rr:predicate chebi:id;
       rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:{ID}";
-        rr:datatype xsd:string
+        rml:reference "ID"
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate chebi:xSource;
+      rr:predicate chebi:accession;
       rr:objectMap [
-        rr:template "http://bio2rdf.org/chebi:source-{SOURCE}"
+        rml:reference "CHEBI_ACCESSION"
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate chebi:Status;
+      rr:predicate dc:identifier;
       rr:objectMap [
-        rr:template "http://bio2rdf.org/chebi:status-{STATUS}"
+        rml:reference "CHEBI_ACCESSION"
       ]
     ];
     rr:predicateObjectMap [
@@ -48,7 +47,7 @@
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate dc:title;
+      rr:predicate chebi:name;
       rr:objectMap [
         rml:reference "NAME"
       ]
@@ -66,12 +65,6 @@
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate dc:identifier;
-      rr:objectMap [
-        rml:reference "CHEBI_ACCESSION"
-      ]
-    ];
-    rr:predicateObjectMap [
       rr:predicate chebi:definition;
       rr:objectMap [
         rml:reference "DEFINITION"
@@ -82,17 +75,35 @@
       rr:objectMap [
         rml:reference "PARENT_ID"
       ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:url;
+      rr:objectMap [
+        rr:template "http://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:{ID}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:source;
+      rr:objectMap [
+        rr:template "http://www.ebi.ac.uk/chebi/source-{SOURCE}"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:status;
+      rr:objectMap [
+        rr:template "http://www.ebi.ac.uk/chebi/status-{STATUS}"
+      ]
     ].
 
 :chebi_compound_names
   	rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-  						rml:referenceFormulation ql:TSV;
-              rml:iterator "names.tsv"
-  						];
+              rml:source "names.tsv";
+  			  rml:referenceFormulation ql:TSV;
+              rml:iterator "*"
+  			];
   	rr:subjectMap [
-  		      rr:template "http://bio2rdf.org/chebi:{COMPOUND_ID}";
-        		rr:class chebi:Compound
+  		    rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+        	rr:class chebi:Compound
   	];
     rr:predicateObjectMap [
       rr:predicate chebi:synonym;
@@ -104,15 +115,14 @@
 
 :chebi_compound_comments
   	rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-  						rml:referenceFormulation ql:TSV;
-              rml:iterator "comments.tsv"
-  						];
+              rml:source "comments.tsv";
+  			  rml:referenceFormulation ql:TSV;
+              rml:iterator "*"
+  			];
   	rr:subjectMap [
-  		      rr:template "http://bio2rdf.org/chebi:{COMPOUND_ID}";
+  		      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
         		rr:class chebi:Compound
   	];
-
     rr:predicateObjectMap [
       rr:predicate rdfs:comment;
       rr:objectMap [
@@ -120,17 +130,86 @@
       ]
     ].
 
+:chebi_compound_chemical_data
+    rml:logicalSource [
+              rml:source "chemical_data.tsv";
+              rml:referenceFormulation ql:TSV;
+              rml:iterator "*"
+              ];
+    rr:subjectMap [
+            rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+            rr:class chebi:Compound
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:formula;
+      rr:objectMap [
+        rml:reference "CHEMICAL_DATA[TYPE=FORMULA]"
+      ]
+    ].
+
+:chebi_ontology
+      rml:logicalSource [
+                rml:source "ontology.tsv";
+                rml:referenceFormulation ql:TSV;
+                rml:iterator "*"
+                ];
+      rr:subjectMap [
+              rr:template "http://www.ebi.ac.uk/chebi/{TITLE}";
+              rr:class rdfs:Class
+      ].
+
+:chebi_compound_vertice
+    rml:logicalSource [
+              rml:source "vertice.tsv";
+              rml:referenceFormulation ql:TSV;
+              rml:iterator "*"
+              ];
+    rr:subjectMap [
+            rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_CHILD_ID}";
+            rr:class chebi:Compound
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:verticeRef;
+      rr:objectMap [
+        rml:reference "VERTICE_REF"
+      ]
+    ];
+    rr:predicateObjectMap [
+      rr:predicate chebi:verticeOntologyId;
+      rr:objectMap [
+        rr:parentTriplesMap :chebi_ontology
+      ]
+    ].
+
+:chebi_compound_relation
+      rml:logicalSource [
+                rml:source "relation.tsv";
+                rml:referenceFormulation ql:TSV;
+                rml:iterator "*"
+                ];
+      rr:subjectMap [
+              rr:template "http://www.ebi.ac.uk/chebi/{INIT_ID}";
+              rr:class chebi:Compound
+      ];
+      rr:predicateObjectMap [
+        rr:predicate chebi:is_a;
+        rr:objectMap [
+        rr:template "http://www.ebi.ac.uk/chebi/{FINAL_ID[TYPE=is_a]}";
+        rr:class chebi:Compound
+        ]
+      ].
+
+
 :chebi_compound_db_accession
   	rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
+              rml:source "database_accession.tsv";
   						rml:referenceFormulation ql:TSV;
-              rml:iterator "database_accession.tsv"
+              rml:iterator "*"
   						];
   	rr:subjectMap [
-  		      rr:template "http://bio2rdf.org/chebi/accession/{ID}";
-        		rr:class chebi:Accession
+  		    rr:template "http://www.ebi.ac.uk/chebi/accession/{ID}";
+        	rr:class chebi:Accession
   	];
-
     rr:predicateObjectMap [
       rr:predicate chebi:accType;
       rr:objectMap [
@@ -144,15 +223,15 @@
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate chebi:xSource;
+      rr:predicate chebi:source;
       rr:objectMap [
-        rr:template "http://bio2rdf.org/chebi:source-{SOURCE}"
+        rr:template "http://www.ebi.ac.uk/chebi/source-{SOURCE}"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:compound;
       rr:objectMap [
-      rr:template "http://bio2rdf.org/chebi:{COMPOUND_ID}";
+      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
       rr:class chebi:Compound
       ]
     ].
@@ -164,10 +243,9 @@
               rml:iterator "reference.tsv"
   						];
   	rr:subjectMap [
-  		      rr:template "http://bio2rdf.org/chebi/reference/{COMPOUND_ID}";
+  		      rr:template "http://www.ebi.ac.uk/chebi/reference/{REFERENCE_ID}";
         		rr:class chebi:Reference
   	];
-
     rr:predicateObjectMap [
       rr:predicate chebi:refDBName;
       rr:objectMap [
@@ -195,78 +273,7 @@
     rr:predicateObjectMap [
       rr:predicate chebi:compound;
       rr:objectMap [
-      rr:template "http://bio2rdf.org/chebi:{COMPOUND_ID}";
+      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
       rr:class chebi:Compound
       ]
     ].
-
-:chebi_compound_chemical_data
-    rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-              rml:referenceFormulation ql:TSV;
-              rml:iterator "chemical_data.tsv"
-              ];
-    rr:subjectMap [
-            rr:template "http://bio2rdf.org/chebi:{COMPOUND_ID}";
-            rr:class chebi:Compound
-    ];
-    rr:predicateObjectMap [
-      rr:predicate chebi:formula;
-      rr:objectMap [
-        rml:reference "CHEMICAL_DATA[TYPE=FORMULA]"
-      ]
-    ] .
-
-:chebi_ontology
-      rml:logicalSource [
-                rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-                rml:referenceFormulation ql:TSV;
-                rml:iterator "ontology.tsv"
-                ];
-      rr:subjectMap [
-              rr:template "http://bio2rdf.org/chebi:{TITLE}";
-              rr:class rdfs:Class
-      ].
-
-:chebi_compound_vertice
-    rml:logicalSource [
-              rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-              rml:referenceFormulation ql:TSV;
-              rml:iterator "vertice.tsv"
-              ];
-    rr:subjectMap [
-            rr:template "http://bio2rdf.org/chebi:{COMPOUND_CHILD_ID}";
-            rr:class chebi:Compound
-    ];
-
-    rr:predicateObjectMap [
-      rr:predicate chebi:verticeRef;
-      rr:objectMap [
-        rml:reference "VERTICE_REF"
-      ]
-    ];
-    rr:predicateObjectMap [
-      rr:predicate chebi:verticeOntologyId;
-      rr:objectMap [
-        rr:parentTriplesMap :chebi_ontology
-      ]
-    ].
-
-
-:chebi_compound_relation
-      rml:logicalSource [
-                rml:source <http://ontario.tib.eu/Federation1/datasource/CheBI>;
-                rml:referenceFormulation ql:TSV;
-                rml:iterator "relation.tsv"
-                ];
-      rr:subjectMap [
-              rr:template "http://bio2rdf.org/chebi:{INIT_ID}";
-              rr:class chebi:Compound
-      ];
-      rr:predicateObjectMap [
-        rr:predicate chebi:is_a;
-        rr:objectMap [
-        rr:template "http://bio2rdf.org/chebi:{FINAL_ID[TYPE=is_a]}";
-        rr:class chebi:Compound
-        ]
-      ].
