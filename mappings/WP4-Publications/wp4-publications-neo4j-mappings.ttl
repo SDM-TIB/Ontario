@@ -1,0 +1,74 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#>.
+@prefix rml: <http://semweb.mmlab.be/ns/rml#>.
+@prefix ql: <http://semweb.mmlab.be/ns/ql#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix rev: <http://purl.org/stuff/rev#> .
+@prefix schema: <http://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <http://tib.eu/ontario/mapping#> .
+@prefix iasis: <http://project-iasis.eu/vocab/> .
+
+
+:Annotation
+	rml:logicalSource [ rml:source "Annotation";
+						rml:referenceFormulation ql:Cypher;
+						rml:iterator "node"
+						];
+	rr:subjectMap [
+		rr:template "http://project-iasis.eu/Annotation/{id}";
+		rr:class iasis:Annotation
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:annID;
+		rr:objectMap [
+			rml:reference "id"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:annLabel;
+		rr:objectMap [
+			rml:reference "label"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:semanticType;
+		rr:objectMap [
+			rml:reference "semantic_types"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:provenance;
+		rr:object <http://project-iasis.eu/SourceName/UMLS>
+		]
+].
+
+:MentionedIn
+	rml:logicalSource [ rml:source "MENTIONED_IN";
+						rml:referenceFormulation ql:Cypher;
+						rml:iterator "(left.Annotation)-[r:MENTIONED_IN]->(right.Annotation)"
+						];
+	rr:subjectMap [
+		rr:template "http://project-iasis.eu/Relation/{left.id}_MENTIONED_IN_{right.id}";
+		rr:class "http://project-iasis.eu/MENTIONED_IN"
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:confidence;
+		rr:objectMap [
+			rml:reference "r.confidence"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:relation_isRelatedTo_annotation;
+		rr:objectMap [
+			rr:template "http://project-iasis.eu/Annotation/{left.id}"
+		]
+	];
+	rr:predicateObjectMap [
+		rr:predicate iasis:relation_isRelatedTo_annotation;
+		rr:objectMap [
+			rr:template "http://project-iasis.eu/Annotation/{left.id}"
+		]
+].
