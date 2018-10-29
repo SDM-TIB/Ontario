@@ -56,83 +56,136 @@ def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
 
     coltotemplate = dict()
     res = dict()
-    relationprops = []
+    relationprops = {}
     for s in mapping:
         if rdfmt not in mapping[s]:
             continue
         smap = mapping[s][rdfmt]
-        subject = smap['subject']
+        subject = smap.subject
+        predintersects = set(starpredicates).intersection(set(list(smap.predicateObjMap.keys())))
+        if len(predintersects) != len(set(starpredicates)):
+            continue
         # TODO: for now only template subject types are supported.
         # Pls. include Reference (in case col values are uris) and Costants (in case collection is about one subject)
-        if smap['subjtype'] == TermType.TEMPLATE:
+        if smap.subjectType == TermType.TEMPLATE or smap.subjectType == TermType.REFERENCE:
             varmap = {}
             predmaps = {}
-            subj = smap['subjectCol']
-            predicates = smap['predConsts']
-            predObjMap = smap['predObjMap']
-            predmap = {p: predObjMap[p] for p in predicates}
+            predobjConsts = {}
+            subjectCols = smap.subjectCols
 
             for t in triples:
-                coltotemplate[t.subject.name[1:]] = subject
-                if subj not in varmap and not t.subject.constant:
-                    varmap[t.subject.name] = str(subj)
+                if not t.subject.constant:
+                    coltotemplate[t.subject.name[1:]] = subject
+                # for subj in subjectCols:
+                if t.subject.name not in varmap and not t.subject.constant:
+                    varmap[t.subject.name] = subjectCols
                 if t.predicate.constant and not t.theobject.constant:
                     pred = getUri(t.predicate, prefixes)[1:-1]
-                    pp = [predmap[p]['object'] for p in predmap if
-                          p == pred and predmap[p]['objType'] == TermType.REFERENCE]
-                    pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')] \
-                               for p in predmap if p == pred and predmap[p]['objType'] == TermType.TEMPLATE])
-                    if len(pp) > 0:
-                        varmap[t.theobject.name] = pp[0]
-                        predmaps[pred] = pp[0]
+                    predobj = smap.predicateObjMap[pred]
+
+                    if predobj.objectType == TermType.REFERENCE:
+                        pp = predobj.object
+                    elif predobj.objectType == TermType.TEMPLATE:
+                        pp = predobj.object[predobj.object.find('{') + 1: predobj.object.find('}')]
+
+                    elif predobj.objectType == TermType.CONSTANT:
+                        predobjConsts[pred] = predobj.object
+                        continue
                     else:
-                        tpm = [predmap[p]['object'] for p in predmap if
-                               p == pred and predmap[p]['objType'] == TermType.TRIPLEMAP]
-                        for tp in tpm:
-                            rmol = list(mapping[tp].keys())[0]
-                            rsubject = mapping[tp][rmol]['subject']
-                            rsubj = rsubject[rsubject.find('{') + 1: rsubject.find('}')]
-                            pp.append(rsubj)
-                            coltotemplate[t.theobject.name[1:]] = rsubject
-                        if len(pp) > 0:
-                            varmap[t.theobject.name] = pp[0]
-                            predmaps[pred] = pp[0]
-                            relationprops.append(pp[0])
+
+                        tpm = predobj.object
+                        rmol = list(mapping[tpm].keys())[0]
+                        rsubject = mapping[tpm][rmol].subject
+
+                        if predobj.joinChild is not None:
+                            rsubj = predobj.joinChild
+                            relationprops[rsubj] = mapping[tpm][rmol].source
+                            rsubject = rsubject.replace(predobj.joinParent, rsubj)
+                            pp = rsubj
                         else:
-                            varmap = {}
-                            break
+                            rsubject = mapping[tpm][rmol].subject
+                            pp = mapping[tpm][rmol].subjectCols
+                            relationprops.update({p: mapping[tpm][rmol].source for p in pp})
+                        coltotemplate[t.theobject.name[1:]] = rsubject
+                    if pp is not None:
+                        varmap[t.theobject.name] = pp
+                        predmaps[pred] = pp
 
             if len(varmap) > 0:
-                res.setdefault(smap['ls']['iterator'], {})['varmap'] = varmap
-                res[smap['ls']['iterator']]['coltotemp'] = coltotemplate
-                res[smap['ls']['iterator']]['subjcol'] = subj
-                res[smap['ls']['iterator']]['triples'] = triples
-                res[smap['ls']['iterator']]['predmap'] = predmaps
-                res[smap['ls']['iterator']]['relationprops'] = relationprops
+                res.setdefault(smap.source, {})['varmap'] = varmap
+                res[smap.source]['coltotemp'] = coltotemplate
+                res[smap.source]['subjcol'] = subjectCols
+                res[smap.source]['triples'] = triples
+                res[smap.source]['predmap'] = predmaps
+                res[smap.source]['predObjConsts'] = predobjConsts
+                res[smap.source]['relationprops'] = relationprops
 
     return res
 
 
-def getReturnClause(variablemap, sparqlprojected, relationprops):
+def getReturnClause(mappings, variablemap, sparqlprojected, relationprops):
     firstprojection = True
     projections = " RETURN "
     projFilter = []
     projvartocol = {}
     for var in sparqlprojected:
         if var in variablemap:
-            column = variablemap[var].strip()
-            if not firstprojection:
-                projections += ","
-            projvartocol[var[1:]] = column
-            if column not in relationprops:
-                projections += " n." + column + " AS " + var[1:]
-                projFilter.append('n.' + column + " IS NOT NULL ")
+            if isinstance(variablemap[var], list):
+                for column in variablemap[var]:
+                    column = column.strip()
+
+                    if not firstprojection:
+                        projections += ","
+                    projvartocol[var[1:]] = column
+                    if column not in relationprops:
+                        projections += " n." + column + " AS " + var[1:]
+                        projFilter.append('EXISTS(n.' + column + ")")
+                        projFilter.append('n.' + column + " IS NOT NULL ")
+                    else:
+                        rel = relationprops[column]
+
+                        mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                        if len(mapping) > 0:
+                            mapping = mapping[0]
+                            if len(mapping.subjectCol) > 1:
+                                subjs = { column: " " + rel + "_" + column + "." + s for s in mapping.subjectCol}
+                                projections += " colelct(" + str(subjs) + ") AS " + var[1:]
+                                for s in mapping.subjectCol:
+                                    projFilter.append('EXISTS(' + rel + "_" + column + '.' + s + ")")
+                                    projFilter.append(
+                                        " " + rel + "_" + column + '.' + s + " IS NOT NULL ")
+                            else:
+                                projections += " " + rel + "_" + column + "." + mapping.subjectCol[0] + " AS " + var[1:]
+                                projFilter.append('EXISTS(' + rel + "_" + column + '.' + mapping.subjectCol[0] + ")")
+                                projFilter.append(" " + rel + "_" + column + '.' + mapping.subjectCol[0] + " IS NOT NULL ")
+                    firstprojection = False
             else:
-                projections += " o." + column + " AS " + var[1:]
-                projFilter.append('o.' + column + " IS NOT NULL ")
-            firstprojection = False
-            # else:
-            #    print sparqlprojected, var
+                column = variablemap[var].strip()
+                if not firstprojection:
+                    projections += ","
+                projvartocol[var[1:]] = column
+                if column not in relationprops:
+                    projections += " n." + column + " AS " + var[1:]
+                    projFilter.append('EXISTS(n.' + column + ")")
+                    projFilter.append('n.' + column + " IS NOT NULL ")
+                else:
+                    rel = relationprops[column]
+                    mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                    if len(mapping) > 0:
+                        mapping = mapping[0]
+                        if len(mapping.subjectCols) > 1:
+                            subjs = {column: " " + rel + "_" + column + "." + s for s in mapping.subjectCols}
+                            projections += " colelct(" + str(subjs) + ") AS " + var[1:]
+                            for s in mapping.subjectCol:
+                                projFilter.append('EXISTS(' + rel + "_" + column + '.' + s + ")")
+                                projFilter.append(
+                                    " " + rel + "_" + column + '.' + s + " IS NOT NULL ")
+                        else:
+                            projections += " " + rel + "_" + column + "." + mapping.subjectCols[0] + " AS " + var[1:]
+                            projFilter.append('EXISTS(' + rel + "_" + column + '.' + mapping.subjectCols[0] + ")")
+                            projFilter.append(" " + rel + "_" + column + '.' + mapping.subjectCols[0] + " IS NOT NULL ")
+
+                firstprojection = False
 
     projections += " "
 
@@ -176,7 +229,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, maxnumofobj, sparqlpr
     nontnulls = []
     predmap = varmaps['predmap']
     subjcols = varmaps['subjcol']
-
+    print(varmaps['relationprops'])
     predvars = get_pred_vars(triples, prefixes)
     filters = get_filters(triples, prefixes)
     firstfilter = True
@@ -200,21 +253,90 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, maxnumofobj, sparqlpr
 
     for v in filtersmap:
         for idx, val in zip(range(1, len(filtersmap[v]) + 1), filtersmap[v]):
-            if predmap[v] not in varmaps['relationprops']:
-                objectfilters.append(' n.' + predmap[v].strip() + " = " + ' "' + val + '" ')
+            if isinstance(predmap[v], list):
+                for col in predmap[v]:
+                    if col not in varmaps['relationprops']:
+                        col = col.strip()
+                        objectfilters.append('EXISTS(n.' + col + ")")
+                        objectfilters.append(' n.' + col + " = " + ' "' + val + '" ')
+                    else:
+                        rel = varmaps['relationprops'][predmap[v]]
+                        mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                        if len(mapping) > 0:
+                            mapping = mapping[0]
+                            if len(mapping.subjectCols) > 1:
+                                column = col.strip()
+                                subjs = {column: " " + rel + "_" + column + "." + s for s in mapping.subjectCols}
+
+                                objectfilters.append(' ' + rel + "_" + col.strip() + '.' + mapping.subjectCols[0].strip() + " = " + ' "' + val + '" ')
+                            else:
+                                objectfilters.append(' ' + rel + "_" + col.strip() + '.' + mapping.subjectCols[0].strip() + " = " + ' "' + val + '" ')
             else:
-                objectfilters.append(' o.' + predmap[v].strip() + " = " + ' "' + val + '" ')
+                if predmap[v] not in varmaps['relationprops']:
+                    objectfilters.append('EXISTS(n.' + predmap[v].strip() + ")")
+                    objectfilters.append(' n.' + predmap[v].strip() + " = " + ' "' + val + '" ')
+                else:
+                    rel = varmaps['relationprops'][predmap[v]]
+                    mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                    if len(mapping) > 0:
+                        mapping = mapping[0]
+                        if len(mapping.subjectCols) > 1:
+                            column = predmap[v].strip()
+                            subjs = {column: " " + rel + "_" + column + "." + s for s in mapping.subjectCols}
+
+                            objectfilters.append(' ' + rel + "_" + column + '.' + mapping.subjectCols[
+                                0].strip() + " = " + ' "' + val + '" ')
+                        else:
+                            objectfilters.append(' ' + rel + "_" + predmap[v].strip() + '.' + mapping.subjectCols[ 0].strip() + " = " + ' "' + val + '" ')
 
     for v in set(nans):
-        if predmap[v] in subjcols:
-            continue
-        if predmap[v] not in varmaps["relationprops"]:
-            nontnulls.append('n.' + predmap[v].strip() + " IS NOT NULL ")
+        if isinstance(predmap[v], list):
+            for col in predmap[v]:
+                if col in subjcols:
+                    continue
+                if col not in varmaps["relationprops"]:
+                    nontnulls.append('EXISTS(n.' + col + ")")
+                    nontnulls.append('n.' + col.strip() + " IS NOT NULL ")
+                else:
+                    rel = varmaps['relationprops'][predmap[v]]
+                    mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                    if len(mapping) > 0:
+                        mapping = mapping[0]
+                        if len(mapping.subjectCols) > 1:
+                            column = col.strip()
+                            for s in mapping.subjectCols:
+                                nontnulls.append(
+                                    ' ' + rel + "_" + col.strip() + '.' + s + " IS NOT NULL ")
+                        else:
+                            nontnulls.append(' ' + rel + "_" + col.strip() + '.' + mapping.subjectCols[0] + " IS NOT NULL ")
+
         else:
-            nontnulls.append('o.' + predmap[v].strip() + " IS NOT NULL ")
+            if predmap[v] in subjcols:
+                continue
+            if predmap[v] not in varmaps["relationprops"]:
+                nontnulls.append('EXISTS(n.' + predmap[v].strip() + ")")
+                nontnulls.append('n.' + predmap[v].strip() + " IS NOT NULL ")
+            else:
+                rel = varmaps['relationprops'][predmap[v]]
+                mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
+                if len(mapping) > 0:
+                    mapping = mapping[0]
+                    if len(mapping.subjectCols) > 1:
+                        column = predmap[v].strip()
+                        for s in mapping.subjectCol:
+                            nontnulls.append(
+                                ' ' + rel + "_" + column + '.' + s + " IS NOT NULL ")
+                    else:
+                        nontnulls.append(' ' + rel + "_" + predmap[v].strip() + '.' + mapping.subjectCols[0] + " IS NOT NULL ")
 
     for subj in subjcols:
-        nontnulls.append('n.' + subj.strip() + " IS NOT NULL ")
+        if isinstance(subj, list):
+            for s in subj:
+                nontnulls.append('EXISTS(n.' + s.strip() + ")")
+                nontnulls.append('n.' + s.strip() + " IS NOT NULL ")
+        else:
+            nontnulls.append('EXISTS(n.' + subj.strip() + ")")
+            nontnulls.append('n.' + subj.strip() + " IS NOT NULL ")
 
     return objectfilters, nontnulls
 
@@ -239,7 +361,6 @@ def getPredObjDict(triplepatterns, prefixes):
                 predobjdict[pred] = t
 
     return predobjdict, needselfjoin, maxnumofobj
-
 
 
 def getVars(sg):

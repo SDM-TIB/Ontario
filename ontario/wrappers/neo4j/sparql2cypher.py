@@ -154,9 +154,10 @@ class SPARQL2Cypher(object):
                             password = params[1]
 
         self.neo_client = Neo4jClient(self.datasource.url, username, password)
-
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
-                         for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
+        print(self.datasource)
+        self.mappings = self.datasource.mappings
+        # {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+        #  for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
 
@@ -244,7 +245,7 @@ class SPARQL2Cypher(object):
         if len(qcols) == 1:
             dbcol = list(qcols.keys())[0]
             varmaps = qcols[dbcol]
-            db, lbl = dbcol.split('.')
+            lbl = dbcol
             cypher, projvartocols = self.translate_4_col(varmaps, lbl)
 
             coltotemplates = varmaps['coltotemp']
@@ -258,7 +259,7 @@ class SPARQL2Cypher(object):
         filters = self.get_filters(triples)
         sparqlprojected = [c.name for c in self.query.args]
         print("projections:", sparqlprojected)
-        creturn, projvartocol, projFilter = getReturnClause(varmaps['varmap'], sparqlprojected, varmaps['relationprops'])
+        creturn, projvartocol, projFilter = getReturnClause(self.mappings, varmaps['varmap'], sparqlprojected, varmaps['relationprops'])
 
         '''
           Case I: If subject is constant
@@ -277,14 +278,24 @@ class SPARQL2Cypher(object):
                                                       sparqlprojected,
                                                       self.query)
 
-        cypher = " MATCH (n:" + lbl + ") "
+        cypher = " MATCH "
         cwhere = ""
         relfilter = []
         if len(varmaps['relationprops']) > 0:
-            cypher += " - [r] -> (o) "
-            for re in varmaps['relationprops']:
-                relfilter.append("o." + re.strip() + " IS NOT NULL ")
-
+            firstrel = True
+            i = 0
+            for rel in varmaps['relationprops']:
+                if not firstrel:
+                    cypher += ", "
+                cypher += "(n:" + lbl + ") - [r" + str(i) + ":" + rel + "] -> (" + varmaps['relationprops'][rel] + "_" + rel + ":" + varmaps['relationprops'][rel] + ") "
+                firstrel = False
+                i += 1
+                # relfilter.append("o." + rel.strip() + " IS NOT NULL ")
+            # cypher += " - [r] -> (o) "
+            # for re in varmaps['relationprops']:
+            #     relfilter.append("o." + re.strip() + " IS NOT NULL ")
+        else:
+            cypher += "(n:" + lbl + ")"
         projFilter += relfilter
         projFilter += nontnulls
 
@@ -321,7 +332,7 @@ class SPARQL2Cypher(object):
                     col2temp = var2maps[m][col]['coltotemp']
                     for c in col2temp:
                         qcols[col]['coltotemp'][c] = col2temp[c]
-                    qcols[col]['subjcol'].append(var2maps[m][col]['subjcol'])
+                    qcols[col]['subjcol'].extend(var2maps[m][col]['subjcol'])
                     varmap = var2maps[m][col]['varmap']
                     for v in varmap:
                         # TODO: this overwrites variables from previous star (try to prevent that)
@@ -335,19 +346,25 @@ class SPARQL2Cypher(object):
                         qcols[col]['predmap'][p] = predmap[p]
                 else:
                     qcols[col] = var2maps[m][col]
-                    qcols[col]['subjcol'] = [qcols[col]['subjcol']]
+                    qcols[col]['subjcol'] = qcols[col]['subjcol']
 
         return qcols
 
 
-if __name__ == "__main__":
-    neo = Neo4jClient("bolt://node3.research.tib.eu:7687", "neo4j", "1234")
+def check_neo4j_client():
+    neo = Neo4jClient("bolt://localhost:7688", "neo4j", "1234")
     results = neo.list_labels()
     # pprint(results)
     for r in results:
         print("===================")
-        print(r['label'], ': ', r['count'])
+        print(r)
+        print(r['document'], ': ', r['count'])
         print("===================")
         print("Properties:")
-        pprint(neo.list_properties(r['label']))
-        pprint(neo.get_sample(r['label']))
+        pprint(neo.list_properties(r['document']))
+        pprint(neo.get_sample(r['document']))
+
+
+if __name__ == "__main__":
+    check_neo4j_client()
+
