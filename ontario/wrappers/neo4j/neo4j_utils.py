@@ -79,7 +79,7 @@ def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
                 # for subj in subjectCols:
                 if t.subject.name not in varmap and not t.subject.constant:
                     varmap[t.subject.name] = subjectCols
-                if t.predicate.constant and not t.theobject.constant:
+                if t.predicate.constant:
                     pred = getUri(t.predicate, prefixes)[1:-1]
                     predobj = smap.predicateObjMap[pred]
 
@@ -87,7 +87,7 @@ def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
                         pp = predobj.object
                     elif predobj.objectType == TermType.TEMPLATE:
                         pp = predobj.object[predobj.object.find('{') + 1: predobj.object.find('}')]
-
+                        coltotemplate[t.theobject.name[1:]] = predobj.object
                     elif predobj.objectType == TermType.CONSTANT:
                         predobjConsts[pred] = predobj.object
                         continue
@@ -136,26 +136,25 @@ def getReturnClause(mappings, variablemap, sparqlprojected, relationprops):
 
                     if not firstprojection:
                         projections += ","
-                    projvartocol[var[1:]] = column
+                    projvartocol.setdefault(var[1:], []).append(column)
                     if column not in relationprops:
-                        projections += " n." + column + " AS " + var[1:]
+                        projections += " n." + column + " AS " + var[1:] + "_" + column
                         projFilter.append('EXISTS(n.' + column + ")")
                         projFilter.append('n.' + column + " IS NOT NULL ")
                     else:
                         rel = relationprops[column]
-
                         mapping = [mappings[s][mt] for s in mappings for mt in mappings[s] if mappings[s][mt].source == rel]
                         if len(mapping) > 0:
                             mapping = mapping[0]
                             if len(mapping.subjectCol) > 1:
-                                subjs = { column: " " + rel + "_" + column + "." + s for s in mapping.subjectCol}
-                                projections += " colelct(" + str(subjs) + ") AS " + var[1:]
+                                subjs = {column: " " + rel + "_" + column + "." + s for s in mapping.subjectCol}
+                                projections += " collect(" + str(subjs) + ") AS " + var[1:] + "_" + column
                                 for s in mapping.subjectCol:
                                     projFilter.append('EXISTS(' + rel + "_" + column + '.' + s + ")")
                                     projFilter.append(
                                         " " + rel + "_" + column + '.' + s + " IS NOT NULL ")
                             else:
-                                projections += " " + rel + "_" + column + "." + mapping.subjectCol[0] + " AS " + var[1:]
+                                projections += " " + rel + "_" + column + "." + mapping.subjectCol[0] + " AS " + var[1:] + "_" + column
                                 projFilter.append('EXISTS(' + rel + "_" + column + '.' + mapping.subjectCol[0] + ")")
                                 projFilter.append(" " + rel + "_" + column + '.' + mapping.subjectCol[0] + " IS NOT NULL ")
                     firstprojection = False

@@ -173,14 +173,14 @@ class SPARQL2Cypher(object):
             self.query.limit = limit
             self.query.offset = offset
         cypher, coltotemplates, projvartocols = self.translate()
-        print("Cypher: ")
-        print(cypher)
+        print("Cypher: ", cypher)
         print(coltotemplates, '||', projvartocols)
         if cypher is not None and len(cypher) > 5:
             session = self.neo_client.driver.session()
             results = session.run(cypher)
             for r in results:
                 rr = dict(r)
+                # check if collect is used in one of the variables
                 lstps = []
                 for p in rr:
                     if isinstance(rr[p], list):
@@ -197,16 +197,42 @@ class SPARQL2Cypher(object):
                         reslist = resulsts
                         resulsts = []
                     resulsts = reslist
-                    for res in resulsts:
-                        for p in res:
-                            if p in projvartocols and p in coltotemplates:
-                                res[p] = coltotemplates[p].replace('{' + projvartocols[p] + '}', res[p].replace(" ", '_'))
+                    for row in resulsts:
+                        res = {}
+                        for r in row:
+                            if '_' in r and r[:r.find("_")] in projvartocols:
+                                s = r[:r.find("_")]
+                                if s in res:
+                                    val = res[s]
+                                    res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                                else:
+                                    res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                                       row[r].replace(" ", '_'))
+
+                            elif r in projvartocols and r in coltotemplates:
+                                res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}',
+                                                                   row[r].replace(" ", '_'))
+                            else:
+                                res[r] = row[r]
                         queue.put(res)
                 else:
-                    for p in rr:
-                        if p in projvartocols and p in coltotemplates:
-                            rr[p] = coltotemplates[p].replace('{' + projvartocols[p] + '}', rr[p].replace(" ", '_'))
-                    queue.put(rr)
+                    res = {}
+                    row = rr
+                    for r in row:
+                        if '_' in r and r[:r.find("_")] in projvartocols:
+                            s = r[:r.find("_")]
+                            if s in res:
+                                val = res[s]
+                                res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            else:
+                                res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                                   row[r].replace(" ", '_'))
+
+                        elif r in projvartocols and r in coltotemplates:
+                            res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                        else:
+                            res[r] = row[r]
+                    queue.put(res)
 
         queue.put("EOF")
         return []
