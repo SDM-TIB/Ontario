@@ -1,7 +1,81 @@
 from ontario.config.model import *
-from ontario.wrappers import *
 from ontario.sparql.utilities import *
-from pyspark.sql.types import *
+
+
+def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
+
+    coltotemplate = dict()
+    res = dict()
+    for s in mapping:
+        if rdfmt not in mapping[s]:
+            continue
+        smap = mapping[s][rdfmt]
+        subject = smap.subject
+        predintersects = set(starpredicates).intersection(set(list(smap.predicateObjMap.keys())))
+        if len(predintersects) == 0:
+            continue
+        # if len(predintersects) != len(set(starpredicates)):
+        #     continue
+        # TODO: for now only template subject types are supported.
+        # Pls. include Reference (in case col values are uris) and Costants (in case collection is about one subject)
+        if smap.subjectType == TermType.TEMPLATE or smap.subjectType == TermType.REFERENCE:
+            varmap = {}
+            predmaps = {}
+            predobjConsts = {}
+            subjectCols = smap.subjectCols
+            matchingtriples = []
+            for t in triples:
+                if t.predicate.constant:
+                    pred = getUri(t.predicate, prefixes)[1:-1]
+                    if pred not in smap.predicateObjMap:
+                        continue
+
+                if t.predicate.constant:
+                    pred = getUri(t.predicate, prefixes)[1:-1]
+                    predobj = smap.predicateObjMap[pred]
+
+                    if predobj.objectType == TermType.REFERENCE:
+                        pp = predobj.object
+                    elif predobj.objectType == TermType.TEMPLATE:
+                        pp = predobj.object[predobj.object.find('{') + 1: predobj.object.find('}')]
+                        coltotemplate[t.theobject.name[1:]] = predobj.object
+                    elif predobj.objectType == TermType.CONSTANT:
+                        predobjConsts[pred] = predobj.object
+                        continue
+                    else:
+                        tpm = predobj.object
+                        rmol = list(mapping[tpm].keys())[0]
+                        rsubject = mapping[tpm][rmol].subject
+
+                        if predobj.joinChild is not None:
+                            rsubj = predobj.joinChild
+                            rsubject = rsubject.replace(predobj.joinParent, rsubj)
+                            pp = rsubj
+                        else:
+                            rsubject = mapping[tpm][rmol].subject
+                            pp = mapping[tpm][rmol].subjectCols
+                        coltotemplate[t.theobject.name[1:]] = rsubject
+                    if pp is not None:
+                        varmap[t.theobject.name] = pp
+                        predmaps[pred] = pp
+
+                if not t.subject.constant:
+                    coltotemplate[t.subject.name[1:]] = subject
+                # for subj in subjectCols:
+                if t.subject.name not in varmap and not t.subject.constant:
+                    varmap[t.subject.name] = subjectCols
+                matchingtriples.append(t)
+            if len(varmap) > 0:
+                res.setdefault(smap.source+"_"+smap.iterator, {})['varmap'] = varmap
+                res[smap.source+"_"+smap.iterator]['coltotemp'] = coltotemplate
+                res[smap.source+"_"+smap.iterator]['subjcol'] = subjectCols
+                res[smap.source+"_"+smap.iterator]['triples'] = matchingtriples
+                res[smap.source+"_"+smap.iterator]['predmap'] = predmaps
+                res[smap.source+"_"+smap.iterator]['predObjConsts'] = predobjConsts
+                res[smap.source+"_"+smap.iterator]['iterator'] = smap.iterator
+                res[smap.source + "_" + smap.iterator]['source'] = smap.source
+
+    return res
 
 
 def getPredObjDict(triplepatterns, query):
@@ -47,21 +121,30 @@ def getProjectionClause(variablemap, sparqlprojected, tablealias):
     projvartocol = {}
     for var in sparqlprojected:
         if var in variablemap:
-            colname = variablemap[var].strip().split('[*]')
-            if '[' in variablemap[var].strip():
-                column = variablemap[var].strip()
-                column = "`" + column[:column.find('[')] + ("`._VALUE" if '_VALUE' not in column else "")
-                projvartocol[var[1:]] = variablemap[var].strip()
-            elif '/' in variablemap[var].strip() and '[*]' not in variablemap[var].strip():
-                column = variablemap[var].strip().replace('/', '.')
-                column = "`" + column[:column.find('.')] + '`' + column[column.find('.'):]
-                col = variablemap[var].strip()
-                projvartocol[var[1:]] = col[col.find('/')+1:]
+            if isinstance(variablemap[var], list):
+                for column in variablemap[var]:
+                    column = column.strip()
+                    if var[1:] in projections:
+                        projections[var[1:]] += " , " + tablealias + "." + column + " AS " + var[1:] + "_" + column
+                    else:
+                        projections[var[1:]] = tablealias + "." + column + " AS " + var[1:] + "_" + column
+                    projvartocol.setdefault(var[1:], []).append(column)
             else:
-                column = "`" + variablemap[var].strip() + '`'
-                projvartocol[var[1:]] = variablemap[var].strip()
+                # colname = variablemap[var].strip().split('[*]')
+                col = variablemap[var].strip()
+                if '[' in col:
+                    column = col
+                    column = "`" + column[:column.find('[')] + ("`._VALUE" if '_VALUE' not in column else "")
+                    projvartocol[var[1:]] = col
+                elif '/' in col and '[*]' not in col:
+                    column = col.replace('/', '.')
+                    column = "`" + column[:column.find('.')] + '`' + column[column.find('.'):]
+                    projvartocol[var[1:]] = col[col.find('/')+1:]
+                else:
+                    column = "`" + col + '`'
+                    projvartocol[var[1:]] = col
 
-            projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
+                projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
 
     return projections, projvartocol
 
@@ -268,66 +351,120 @@ def getLVFROMClause(tablename, alias):
     return fromcaluse
 
 
+def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull, lateralviews, schema, var, l):
+    conds = {}
+
+    if len(colnames) == 1:
+        columns = [c for c in variablemap[var].strip().split('/') if len(c) > 0]
+        if len(columns) > 1:
+            nested = getnextStruct(columns)
+            if isinstance(nested, dict):
+                schema.setdefault(columns[0], {}).setdefault(columns[0], {}).update(nested)
+            else:
+                schema[columns[0]] = nested
+        else:
+            schema[columns[0]] = columns[0]
+
+        column = "`" + '`.`'.join(columns) + '`'
+        projvartocol[var[1:]] = variablemap[var].strip().replace('/', '.')
+        pp = ""
+        if l == 1:
+            pp = "_" + column.replace("`", '').replace('.', '_')
+        if var[1:] in projections:
+            projections[var[1:]] += ", " + column + " AS `" + var[1:] + pp+ '`'
+        else:
+            projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
+
+        wherenotnull.append(column + " is not null ")
+    elif len(colnames) == 2:
+        val = colnames[1].strip()
+        columns = [c for c in colnames[0].strip().split('/') if len(c) > 0]
+        if len(columns) > 1:
+            nested = getnextStruct(columns)
+            if isinstance(nested, dict):
+                schema.setdefault(columns[0], {}).update(nested)
+            else:
+                schema[columns[0]] = nested
+        else:
+
+            if '[' in val:
+                values = val[val.find(']')+1:].split('/')
+                if '=' in val:
+                    col = val[1:-1].split('=')[0]
+                    schema[columns[0]] = {columns[0]: [col, "_VALUE" if len(values) == 1 else values[1]]}
+            else:
+                schema[columns[0]] = columns[0]
+
+        column = "`" + '_'.join(columns) + '`'
+        columnexp = "`" + '`.`'.join(columns) + '`'
+        lateralviews['`exp_' + column[1:]] = "explode(" + columnexp + ")"
+        column = '`' + 'exp_' + column[1:]
+        if len(val) > 0:
+            if '[' not in val:
+                columns = [c for c in val.split('/') if len(c) > 0]
+                col = "`" + '`.`'.join(columns) + '`'
+                column += "." + col
+            else:
+                columns = [c for c in val.split('/') if len(c) > 0]
+                cols = []
+
+                for c in columns:
+                    if c[0] == '[' and c[-1] == ']':
+                        conds.setdefault(column, []).append(c[1:-1])
+                    else:
+                        cols.append(c)
+
+                if len(cols) > 0:
+                    col = "`" + '`.`'.join(cols) + '`'
+                    column += "." + col
+                if len(cols) == 0 and "_VALUE" not in column:
+                    column += "._VALUE"
+
+        pp = ""
+        if l == 1:
+            pp = "_" + column.replace("`", '').replace('.', '_')
+
+        if var[1:] in projections:
+            projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
+        else:
+            projections[var[1:]] = column + " AS `" + var[1:] + pp+ '`'
+
+        wherenotnull.append(column + " is not null ")
+        if l == 1:
+            projvartocol.setdefault(var[1:], []).append(column.replace('`', '').replace('.', '_'))
+        else:
+            projvartocol[var[1:]] = column.replace('`', '').replace('.', '_')
+
+    if len(conds) > 0:
+        for c in conds:
+            for d in conds[c]:
+                cceq = d.split('=')
+                ccneq = d.split('!=')
+                if len(cceq) > 1:
+                    if cceq[1] != 'null':
+                        wherenotnull.append(c + '.' + cceq[0].strip() + '=' + "\"" + cceq[1].strip() + '"')
+                elif len(ccneq) > 1:
+                    wherenotnull.append(c + '.' + ccneq[0].strip() + '!=' + "\"" + ccneq[1].strip() + '"')
+
+
 def getLVProjectionClause(variablemap, sparqlprojected, tablealias):
     projections = {}
     projvartocol = {}
     lateralviews = {}
     wherenotnull = []
+    schema = {}
     for var in sparqlprojected:
         if var in variablemap:
-            colnames = variablemap[var].strip().split('[*]')
-            column = colnames[0]
-            conds = {}
-            if len(colnames) == 1:
-                columns = [c for c in variablemap[var].strip().split('/') if len(c) > 0]
-                column = "`" + '`.`'.join(columns) + '`'
-                projvartocol[var[1:]] = variablemap[var].strip().replace('/', '.')
-                projections[var[1:]] = column + " AS " + var[1:]
-                wherenotnull.append(column + " is not null ")
-            elif len(colnames) == 2:
-                val = colnames[1].strip()
-                columns = [c for c in colnames[0].strip().split('/') if len(c) > 0]
-                column = "`" + '_'.join(columns) + '`'
-                columnexp = "`" + '`.`'.join(columns) + '`'
-                lateralviews['`exp_' + column[1:]] = "explode(" + columnexp + ")"
-                column = '`' + 'exp_' + column[1:]
-                if len(val) > 0:
-                    if '[' not in val:
-                        columns = [c for c in val.split('/') if len(c) > 0]
-                        col = "`" + '`.`'.join(columns) + '`'
-                        column += "." + col
-                    else:
-                        columns = [c for c in val.split('/') if len(c) > 0]
-                        cols = []
+            if isinstance(variablemap[var], list):
+                for column in variablemap[var]:
+                    colnames = column.strip().split('[*]')
+                    addprojection(colnames, variablemap, projvartocol, projections, wherenotnull, lateralviews, schema, var, 1)
 
-                        for c in columns:
-                            if c[0] == '[' and c[-1] == ']':
-                                conds.setdefault(column, []).append(c[1:-1])
-                            else:
-                                cols.append(c)
+            else:
+                colnames = variablemap[var].strip().split('[*]')
+                addprojection(colnames, variablemap, projvartocol, projections, wherenotnull, lateralviews, schema, var, 0)
 
-                        if len(cols) > 0:
-                            col = "`" + '`.`'.join(cols) + '`'
-                            column += "." + col
-                        if "_VALUE" not in column:
-                            column += "._VALUE"
-
-                projections[var[1:]] = column + " AS " + var[1:]
-                wherenotnull.append(column + " is not null ")
-                projvartocol[var[1:]] = column.replace('`', '')
-
-            if len(conds) > 0:
-                for c in conds:
-                    for d in conds[c]:
-                        cceq = d.split('=')
-                        ccneq = d.split('!=')
-                        if len(cceq) > 1:
-                            if cceq[1] != 'null':
-                                wherenotnull.append(c + '.' + cceq[0].strip() + '=' + "\"" + cceq[1].strip().lower() + '"')
-                        elif len(ccneq) > 1:
-                            wherenotnull.append(c + '.' + ccneq[0].strip() + '!=' + "\"" + ccneq[1].strip().lower() + '"')
-
-    return projections, wherenotnull, projvartocol, lateralviews
+    return projections, wherenotnull, projvartocol, lateralviews, schema
 
 
 def getnextStruct(cols):
@@ -400,7 +537,7 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
             if len(columns) > 1:
                 nested = getnextStruct(columns)
                 if isinstance(nested, dict):
-                    schema.setdefault(columns[0], {}).update(nested)
+                    schema.setdefault(columns[0], {}).setdefault(columns[0], {}).update(nested)
                 else:
                     schema[columns[0]] = nested
             else:
@@ -444,12 +581,25 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
                     for c in postcolumns:
                         if c[0] == '[' and c[-1] == ']':
                             conds.setdefault(column, []).append(c[1:-1])
-                            arrayc[cc] = {}
-                            arrayc[cc][columns[-1]] = ['_VALUE', c[1:-1].split('=')[0]]
+                            if isinstance(arrayc[cc], str):
+                                arrayc[cc] = {}
+                                if cc == columns[-1]:
+                                    arrayc[cc].setdefault(columns[-1], []).append(c[1:-1].split('=')[0])
+                                else:
+                                    arrayc[cc][cc] = {}
+                                    arrayc[cc][cc].setdefault(columns[-1], []).append(c[1:-1].split('=')[0])
+                            elif cc in arrayc[cc]:
+                                if isinstance(arrayc[cc][cc], str):
+                                    arrayc[cc][cc] = {}
+                                arrayc[cc][cc].setdefault(columns[-1], []).append(c[1:-1].split('=')[0])
+                            else:
+                                arrayc[cc].setdefault(cc, {}).setdefault(columns[-1], []).append(c[1:-1].split('=')[0])
                         else:
+                            arrayc.setdefault(cc, {}).setdefault(cc, {}).setdefault(columns[-1], []).append(c)
                             cols.append(c)
 
-                    if predmap[v] in subjcols:
+                    if predmap[v] in subjcols and len(cols) == 0 :
+                        arrayc.setdefault(cc, {}).setdefault(columns[-1], []).append("_VALUE")
                         cols.append('_VALUE')
 
                     if len(cols) > 0:
@@ -470,9 +620,9 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
                     ccneq = d.split('!=')
                     if len(cceq) > 1:
                         if cceq[1] != 'null':
-                            objectfilters.append(c + '.' + cceq[0].strip() + '=' + "\"" + cceq[1].strip().lower() + '"')
+                            objectfilters.append(c + '.' + cceq[0].strip() + '=' + "\"" + cceq[1].strip() + '"')
                     elif len(ccneq) > 1:
-                        objectfilters.append(c + '.' + ccneq[0].strip() + '!=' + "\"" + ccneq[1].strip().lower() + '"')
+                        objectfilters.append(c + '.' + ccneq[0].strip() + '!=' + "\"" + ccneq[1].strip() + '"')
 
     return objectfilters, projvartocol, lateralviews, schema
 

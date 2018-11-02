@@ -1,15 +1,11 @@
 import hashlib
-import json
 from pyspark.sql import SparkSession
 from ontario.sparql.parser import queryParser as qp
-from hdfs import Config
-from multiprocessing import Process, Queue
-from ontario.config.model import DataSourceType
+from multiprocessing import Queue
 from ontario.wrappers.spark.utils import *
 from pyspark.sql.types import *
 from ontario.wrappers.hadoop import SparkHDFSClient
 from pprint import pprint
-
 
 class SPARKXMLWrapper(object):
 
@@ -54,7 +50,7 @@ class SPARKXMLWrapper(object):
             params = {
                 "spark.driver.cores": "4",
                 "spark.executor.cores": "4",
-                "spark.cores.max": "6",
+                "spark.cores.max": "8",
                 "spark.default.parallelism": "4",
                 "spark.executor.memory": "6g",
                 "spark.driver.memory": "12g",
@@ -63,25 +59,35 @@ class SPARKXMLWrapper(object):
                 "spark.local.dir": "/tmp" # /data/kemele/tmp
             }
             # self.config['params']
-            self.spark = SparkSession.builder.master(url) \
-                .appName("OntarioSparkCSVTSVWrapper" + str(self.datasource) + querytxt)
+            self.spark = SparkSession.builder.master('local[*]') \
+                .appName("OntarioSparkXMLWrapper" + str(self.datasource) + querytxt)
             for p in params:
                 self.spark = self.spark.config(p, params[p])
 
             self.spark = self.spark.getOrCreate()
         print("Spark XML init time:", time()-start)
-        sqlquery, coltotemplates, projvartocols, filenametablenamemap, schemas = self.translate()
+        sqlquery, coltotemplates, projvartocols, filenametablenamemap, schemas, filenameiteratormap = self.translate()
         print(sqlquery)
         # print(coltotemplates, projvartocols, tablename)
         print("_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_")
         start = time()
 
         for filename, tablename in filenametablenamemap.items():
+            pprint(schemas)
             schema = self.make_schema(schemas[filename])
-            rowTag = filename[filename.rfind('/') + 1:]
-            filename = "hdfs://node3.research.tib.eu:9000" + filename[:filename.find('$/')]
-            df = self.spark.read.format("com.databricks.spark.xml").option("rootTag", "*").option("rowTag",
-                                                                                                  rowTag).load(filename, schema=schema )
+            iterator = filenameiteratormap[filename]['iterator']
+            if "/" in iterator:
+                rowTag = iterator[iterator.rfind('/') + 1:]
+            else:
+                rowTag = iterator
+
+            # filename = "hdfs://node3.research.tib.eu:9000" + filename[:filename.find('$/')]
+            filename = self.datasource.url + "/" + filenameiteratormap[filename]['source']
+            df = self.spark.read.format("com.databricks.spark.xml")\
+                .option("rootTag", "*")\
+                .option("rowTag", rowTag)\
+                .load(filename, schema=schema)
+
             df.createOrReplaceTempView(tablename)
         print("Spark XML reading file time:", time() - start)
         if len(sqlquery) == 0:
@@ -93,11 +99,46 @@ class SPARKXMLWrapper(object):
         i = 0
         for row in result.toLocalIterator():
             row = json.loads(row)
+            res = {}
             for r in row:
-                if r in projvartocols and r in coltotemplates:
-                    plh = coltotemplates[r][coltotemplates[r].find('{')+1: coltotemplates[r].find('}')]
-                    row[r] = coltotemplates[r].replace('{' + plh + '}', row[r].replace(" ", '_'))
-            queue.put(row)
+                #
+                # if r in projvartocols and r in coltotemplates:
+                #     plh = coltotemplates[r][coltotemplates[r].find('{')+1: coltotemplates[r].find('}')]
+                #     row[r] = coltotemplates[r].replace('{' + plh + '}', row[r].replace(" ", '_'))
+
+                if '_' in r and r[:r.find("_")] in projvartocols:
+                    s = r[:r.find("_")]
+                    p = r[r.find("_")+1:]
+                    if '__VALUE' in p:
+                        p = p[:p.find('__VALUE')]
+                    if 'exp_' in p:
+                        p = p[p.find("exp_")+4:]
+                    if s in res:
+                        val = res[s]
+                        res[s] = val.replace('{' + p + '}', row[r].replace(" ", '_'))
+                    else:
+                        if '[' in coltotemplates[s]:
+                            coltotemplates[s] = coltotemplates[s].replace(
+                                coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1], '')
+                        if '[' in coltotemplates[s]:
+                            coltotemplates[s] = coltotemplates[s].replace(
+                                coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1], '')
+                        res[s] = coltotemplates[s].replace('{' + p + '}', row[r].replace(" ", '_'))
+                elif r in projvartocols and r in coltotemplates:
+                    if '[' in coltotemplates[r]:
+                        coltotemplates[r] = coltotemplates[r].replace(
+                            coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+                    if '[' in coltotemplates[r]:
+                        coltotemplates[r] = coltotemplates[r].replace(
+                            coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+
+                    p = coltotemplates[r][coltotemplates[r].find('{')+1: coltotemplates[r].find('}')]
+
+                    res[r] = coltotemplates[r].replace('{' + p + '}', row[r].replace(" ", '_'))
+                else:
+                    res[r] = row[r]
+
+            queue.put(res)
             i += 1
         self.spark.stop()
         queue.put("EOF")
@@ -127,11 +168,7 @@ class SPARKXMLWrapper(object):
 
     def translate(self):
         var2maps = {}
-        sqlquery = ""
-        coltotemplates = {}
-        projvartocols = {}
         print("Spark translate ------------------------------------")
-        # pprint(self.star)
         if 'startriples' in self.star:
             for s in self.star['startriples']:
                 star = self.star['startriples'][s]
@@ -156,12 +193,12 @@ class SPARKXMLWrapper(object):
         if len(qcols) == 0:
             print("Cannot get mappings for this subquery", self.query)
             return []
-        sqlquery, projvartocols, coltotemplates, filenametablenamemap, schema = self.translate_4_msql_df(qcols)
+        sqlquery, projvartocols, coltotemplates, filenametablenamemap, schema, filenameiteratormap = self.translate_4_msql_df(qcols)
 
         print(coltotemplates)
         print(projvartocols)
         pprint(schema)
-        return sqlquery, coltotemplates, projvartocols, filenametablenamemap, schema
+        return sqlquery, coltotemplates, projvartocols, filenametablenamemap, schema, filenameiteratormap
 
     def translate_4_msql_df(self, qcols):
         ifilters = []
@@ -176,19 +213,23 @@ class SPARKXMLWrapper(object):
         subjtablemap = {}
         coltotemplates = {}
         filenametablenamemap = {}
+        filenameiteratormap = {}
         schemas = {}
         for filename, varmaps in qcols.items():
             triples = varmaps['triples']
             tablename = str(hashlib.md5(str(filename).encode()).hexdigest())
             variablemap = varmaps['varmap']
             coltotemplates.update(varmaps['coltotemp'])
+
             filenametablenamemap[filename] = tablename
+            filenameiteratormap[filename] = {'iterator': varmaps['iterator'], 'source': varmaps['source']}
+
             tablealias = 'TandemT' + str(i)
             fromcaluse = getLVFROMClause(tablename, tablealias)
             fromclauses.append(fromcaluse)
             subjtablemap[tablealias] = varmaps['subjcol']
             # fprojections, projvartocol = getProjectionClause(variablemap, sparqlprojected, tablealias)
-            fprojections, wherenotnull, projvartocol, flateralviews = getLVProjectionClause(variablemap, sparqlprojected,
+            fprojections, wherenotnull, projvartocol, flateralviews, schema = getLVProjectionClause(variablemap, sparqlprojected,
                                                                                           tablealias)
             if wherenotnull is not None:
                 objectfilters.extend(wherenotnull)
@@ -198,6 +239,8 @@ class SPARKXMLWrapper(object):
                 projvartocols.update(projvartocol)
             if flateralviews is not None:
                 lateralviews.update(flateralviews)
+            if schema is not None and len(schema) > 0:
+                schemas[filename] = schema
             '''
               Case I: If subject is constant
             '''
@@ -217,7 +260,7 @@ class SPARKXMLWrapper(object):
                 objectfilters.extend(objectfilter)
             if lateralviewsobj is not None:
                 lateralviews.update(lateralviewsobj)
-            schemas[filename] = schema
+            schemas.setdefault(filename, {}).update(schema)
             i += 1
 
         if len(subjtablemap) > 1:
@@ -270,7 +313,7 @@ class SPARKXMLWrapper(object):
                 lateral += " LATERAL VIEW " + l + " "
         sqlquery = projections + " " + fromcaluse + lateral + " " + whereclause
 
-        return sqlquery, projvartocols, coltotemplates, filenametablenamemap, schemas
+        return sqlquery, projvartocols, coltotemplates, filenametablenamemap, schemas, filenameiteratormap
 
     def translate_4_sql_df(self, varmaps, filename):
         ifilters = []
@@ -382,7 +425,7 @@ class SPARKCSVTSVWrapper(object):
             self.query.limit = limit
             self.query.offset = offset
 
-        sqlquery, coltotemplates, projvartocols, filenametablename, schemadict = self.translate()
+        sqlquery, coltotemplates, projvartocols, filenametablename, filenameiteratormap, schemadict = self.translate()
         print(sqlquery)
         # print(coltotemplates, projvartocols, tablename)
         print("_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_")
@@ -393,7 +436,7 @@ class SPARKCSVTSVWrapper(object):
             params = {
                 "spark.driver.cores": "4",
                 "spark.executor.cores": "4",
-                "spark.cores.max": "6",
+                "spark.cores.max": "8",
                 "spark.default.parallelism": "4",
                 "spark.executor.memory": "6g",
                 "spark.driver.memory": "12g",
@@ -404,7 +447,7 @@ class SPARKCSVTSVWrapper(object):
 
             start = time()
             # self.config['params']
-            self.spark = SparkSession.builder.master(url) \
+            self.spark = SparkSession.builder.master('local[*]') \
                 .appName("OntarioSparkCSVTSVWrapper" + str(self.datasource) + query)
             for p in params:
                 self.spark = self.spark.config(p, params[p])
@@ -414,9 +457,15 @@ class SPARKCSVTSVWrapper(object):
         start = time()
 
         for filename, tablename in filenametablename.items():
-            schema = self.make_schema(schemadict[filename])
-            filename = "hdfs://node3.research.tib.eu:9000" + filename
-            df = self.spark.read.csv(filename, sep='\t' if ds.dstype == DataSourceType.SPARK_TSV else ',', header=True)
+            # schema = self.make_schema(schemadict[filename])
+            # filename = "hdfs://node3.research.tib.eu:9000" + filename
+            #filename = self.datasource.url + "/" + filename
+            filename = self.datasource.url + "/" + filenameiteratormap[filename]['source']
+            print(filename)
+            df = self.spark.read.csv(filename, sep='\t' if ds.dstype == DataSourceType.LOCAL_TSV or \
+                                                           ds.dstype == DataSourceType.HADOOP_TSV or \
+                                                           ds.dstype == DataSourceType.SPARK_TSV else ',',
+                                     header=True)
             df.createOrReplaceTempView(tablename)
         print("time for reading file", time() - start)
         if len(sqlquery) == 0:
@@ -424,20 +473,37 @@ class SPARKCSVTSVWrapper(object):
             return
         # sqlquery = """{0}""".format(sqlquery)
         # print(sqlquery)
-        result = self.spark.sql(sqlquery).toJSON()
-        i = 0
-        for row in result.toLocalIterator():
-            row = json.loads(row)
-            skip = False
-            for r in row:
-                if row[r] == 'null':
-                    skip = True
-                    break
-                if r in projvartocols and r in coltotemplates:
-                    row[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}',  row[r].replace(" ", '_'))
-            if not skip:
-                queue.put(row)
-                i += 1
+        try:
+            result = self.spark.sql(sqlquery).toJSON()
+            i = 0
+            for row in result.toLocalIterator():
+                row = json.loads(row)
+                skip = False
+                res = {}
+                for r in row:
+                    if row[r] == 'null':
+                        skip = True
+                        break
+                    if '_' in r and r[:r.find("_")] in projvartocols:
+                        s = r[:r.find("_")]
+                        if s in res:
+                            val = res[s]
+                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                        else:
+                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                    elif r in projvartocols and r in coltotemplates:
+                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}',  row[r].replace(" ", '_'))
+                    else:
+                        res[r] = row[r]
+                if not skip:
+                    queue.put(res)
+                    i += 1
+        except Exception as ex:
+            self.spark.stop()
+            print(ex)
+        except ConnectionError as er:
+            self.spark.stop()
+            print(er)
 
         self.spark.stop()
         queue.put("EOF")
@@ -491,11 +557,11 @@ class SPARKCSVTSVWrapper(object):
             print("Cannot get mappings for this subquery", self.query)
             return []
 
-        sqlquery, projvartocols, coltotemplates, filenametablenamemap, schema = self.translate_4_msql_df(qcols)
+        sqlquery, projvartocols, coltotemplates, filenametablenamemap, filenameiteratormap, schema = self.translate_4_msql_df(qcols)
 
         print(coltotemplates)
         print(projvartocols)
-        return sqlquery, coltotemplates, projvartocols, filenametablenamemap, schema
+        return sqlquery, coltotemplates, projvartocols, filenametablenamemap, filenameiteratormap, schema
 
     def translate_4_msql_df(self, qcols):
         ifilters = []
@@ -509,14 +575,18 @@ class SPARKCSVTSVWrapper(object):
         subjtablemap = {}
         coltotemplates = {}
         filenametablenamemap = {}
-
+        filenameiteratormap = {}
         schemas = {}
         for filename, varmaps in qcols.items():
             triples = varmaps['triples']
             tablename = str(hashlib.md5(str(filename).encode()).hexdigest())
             variablemap = varmaps['varmap']
+
             coltotemplates.update(varmaps['coltotemp'])
+
             filenametablenamemap[filename] = tablename
+            # filenameiteratormap[filename] = varmaps['iterator']
+            filenameiteratormap[filename] = {'iterator': varmaps['iterator'], 'source': varmaps['source']}
             tablealias = 'TandemT' + str(i)
             fromcaluse = getFROMClause(tablename, tablealias)
             fromclauses.append(fromcaluse)
@@ -548,31 +618,34 @@ class SPARKCSVTSVWrapper(object):
             raliases = aliases.copy()
             raliases.reverse()
             compared = []
-            for a1, a2 in zip(aliases, raliases):
-                if a1+a2 in compared:
-                    continue
-                compared.append(a1+a2)
-                compared.append(a2+a1)
-                subj1 = subjtablemap[a1][0].strip()
-                subj2 = subjtablemap[a2][0].strip()
-                column1 = subj1
-                column2 = subj2
-                if '[' in subj1:
-                    column1 = '`' + subj1[:subj1.find('[')] + "`._VALUE"
-                elif '/' in subj1 and '[*]' not in subj1:
-                    column1 = subj1.replace('/', '.')
-                    column1 = "`" + column1[:column1.find('.')] + '`' + column1[column1.find('.'):]
-                else:
-                    column1 = '`' + column1 + '`'
-                if '[' in subj2:
-                    column2 = '`' + subj2[:subj2.find('[')] + "`._VALUE"
-                elif '/' in subj2 and '[*]' not in subj2:
-                    column2 = subj2.replace('/', '.')
-                    column2 = "`" + column2[:column2.find('.')] + '`' + column2[column2.find('.'):]
-                else:
-                    column2 = '`' + column2 + '`'
+            for a1 in aliases:
+                for a2 in aliases:
+                    if a1 + a2 in compared:
+                        continue
+                    if a1 == a2:
+                        continue
+                    compared.append(a1 + a2)
+                    compared.append(a2 + a1)
+                    subj1 = subjtablemap[a1][0].strip()
+                    subj2 = subjtablemap[a2][0].strip()
+                    column1 = subj1
+                    column2 = subj2
+                    if '[' in subj1:
+                        column1 = '`' + subj1[:subj1.find('[')] + "`._VALUE"
+                    elif '/' in subj1 and '[*]' not in subj1:
+                        column1 = subj1.replace('/', '.')
+                        column1 = "`" + column1[:column1.find('.')] + '`' + column1[column1.find('.'):]
+                    else:
+                        column1 = '`' + column1 + '`'
+                    if '[' in subj2:
+                        column2 = '`' + subj2[:subj2.find('[')] + "`._VALUE"
+                    elif '/' in subj2 and '[*]' not in subj2:
+                        column2 = subj2.replace('/', '.')
+                        column2 = "`" + column2[:column2.find('.')] + '`' + column2[column2.find('.'):]
+                    else:
+                        column2 = '`' + column2 + '`'
 
-                objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
+                    objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
 
         fromcaluse = " FROM " + ", ".join(fromclauses)
         projections = " SELECT " + ", ".join(list(projections.values()))
@@ -585,7 +658,7 @@ class SPARKCSVTSVWrapper(object):
                 whereclause += subjfilter
 
         sqlquery = projections + " " + fromcaluse + " " + whereclause
-        return sqlquery, projvartocols, coltotemplates, filenametablenamemap, schemas
+        return sqlquery, projvartocols, coltotemplates, filenametablenamemap, filenameiteratormap, schemas
 
     def get_varmaps(self, var2maps):
         qcols = {}
@@ -612,68 +685,6 @@ class SPARKCSVTSVWrapper(object):
                     qcols[col]['subjcol'] = qcols[col]['subjcol']
 
         return qcols
-
-
-def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
-
-    coltotemplate = dict()
-    res = dict()
-    for s in mapping:
-        if rdfmt not in mapping[s]:
-            continue
-        smap = mapping[s][rdfmt]
-        subject = smap.subject
-        predintersects = set(starpredicates).intersection(set(list(smap.predicateObjMap.keys())))
-        if len(predintersects) != len(set(starpredicates)):
-            continue
-        # TODO: for now only template subject types are supported.
-        # Pls. include Reference (in case col values are uris) and Costants (in case collection is about one subject)
-        if smap.subjectType == TermType.TEMPLATE or smap.subjectType == TermType.REFERENCE:
-            varmap = {}
-            predmaps = {}
-            predobjConsts = {}
-            subjectCols = smap.subjectCols
-
-            for t in triples:
-                if not t.subject.constant:
-                    coltotemplate[t.subject.name[1:]] = subject
-                for subj in subjectCols:
-                    if subj not in varmap and not t.subject.constant:
-                        varmap[t.subject.name] = str(subj)
-                if t.predicate.constant and not t.theobject.constant:
-                    pred = getUri(t.predicate, prefixes)[1:-1]
-                    predobj = smap.predicateObjMap[pred]
-
-                    if predobj.objectType == TermType.REFERENCE:
-                        pp = predobj.object
-                    elif predobj.objectType == TermType.TEMPLATE:
-                        pp = predobj.object[predobj.object.find('{') + 1: predobj.object.find('}')]
-
-                    elif predobj.objectType == TermType.CONSTANT:
-                        predobjConsts[pred] = predobj.object
-                        continue
-                    else:
-                        tpm = predobj.object
-                        rmol = list(mapping[tpm].keys())[0]
-                        rsubject = mapping[tpm][rmol].subject
-
-                        rsubj = mapping[tpm][rmol].joinChild
-                        rsubject = rsubject.replace(mapping[tpm][rmol].joinParent, rsubj)
-                        pp = rsubj
-                        coltotemplate[t.theobject.name[1:]] = rsubject
-                    if pp is not None:
-                        varmap[t.theobject.name] = pp
-                        predmaps[pred] = pp
-
-            if len(varmap) > 0:
-                res.setdefault(smap.source, {})['varmap'] = varmap
-                res[smap.source]['coltotemp'] = coltotemplate
-                res[smap.source]['subjcol'] = subjectCols
-                res[smap.source]['triples'] = triples
-                res[smap.source]['predmap'] = predmaps
-                res[smap.source]['predObjConsts'] = predobjConsts
-
-    return res
 
 
 def var2mapx(mapping, rdfmt, starpredicates, triples, prefixes):
