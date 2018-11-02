@@ -134,7 +134,7 @@ class RMLMapping(object):
                         # if subject type is reference there will be only one value in the list
                         splits.append(sp)
 
-                self.subjectCols = splits
+                self.subjectCols = splits if len(self.subject.split('{')) <=2 else splits[1:]
 
 
 class RDFMPredicateObjMap(object):
@@ -149,13 +149,13 @@ class RDFMPredicateObjMap(object):
         self.objectCols = []
         if self.objectType == TermType.TEMPLATE or self.objectType == TermType.REFERENCE:
             if len(self.object.split('{')) == 2:
-                self.subjectCols.append(self.object[self.object.find("{") + 1:self.object.find("}")])
+                self.objectCols.append(self.object[self.object.find("{") + 1:self.object.find("}")])
             else:
                 splits = []
                 for sp in self.object.split('{'):
                     if "}" in sp:
                         splits.append(sp[:sp.rfind("}")])
-                self.subjectCols = splits
+                self.objectCols = splits
 
         self.joinChild = jchild
         self.joinParent = jparent

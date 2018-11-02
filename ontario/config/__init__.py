@@ -14,6 +14,10 @@ if not logger.handlers:
     fileHandler.setLevel(logging.INFO)
     fileHandler.setFormatter(logFormatter)
     logger.addHandler(fileHandler)
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setLevel(logging.INFO)
+    consoleHandler.setFormatter(logFormatter)
+    logger.addHandler(consoleHandler)
 
 
 class OntarioConfiguration(object):
@@ -26,17 +30,17 @@ class OntarioConfiguration(object):
         self.read_config()
 
     def read_config(self):
-        try:
-            with open(self.filename, "r", encoding='utf8') as f:
-                confdata = json.load(f)
-                # read data sources first and templates next
-                self.ext_datasources(confdata)
-                self.ext_templates(confdata)
-        except Exception as ex:
-            logger.error("cannot process configurations file. Please check if the file is properly formated!")
-            logger.error(ex.__traceback__)
-            logger.error(ex)
-            pass
+        # try:
+        with open(self.filename, "r", encoding='utf8') as f:
+            confdata = json.load(f)
+            # read data sources first and templates next
+            self.ext_datasources(confdata)
+            self.ext_templates(confdata)
+        # except Exception as ex:
+        #     logger.error("cannot process configurations file. Please check if the file is properly formated!")
+        #     logger.error(ex)
+        #     traceback.print_exc()
+        #     pass
 
     def ext_templates(self, confdata):
         if 'templates' in confdata:
@@ -64,6 +68,16 @@ class OntarioConfiguration(object):
                                               mappings)
 
         return datasources
+
+    # def check_triplemap_refs(self, mappings):
+    #     for tm in mappings:
+    #         for rdfmt in mappings[tm]:
+    #             for pred in mappings[tm][rdfmt].predicateObjMap:
+    #                 predobj = mappings[tm][rdfmt].predicateObjMap[pred]
+    #                 if predobj.objectType == TermType.TRIPLEMAP:
+    #                     rml = mappings[predobj.object]
+    #                     rml = rml[list(rml.keys)[0]]
+    #                     predobj.object = rml.subject
 
     def ext_mappings(self, mappingslist):
         mappings = {}
@@ -110,18 +124,20 @@ class OntarioConfiguration(object):
         results = {}
 
         for row in res:
-            tm = row['tm']
-            rdfmt = row['rdfmt']
-            source = row['sourceFile']
-            iterators = row['iterator'] if 'iterator' in row else "*"
-            subjectType = TermType.CONSTANT if 'subject' in row or 'constsubject' in row \
-                                                   else TermType.TEMPLATE if 'smtemplate' in row \
-                                                   else TermType.REFERENCE if 'smreference' in row \
-                                                   else None
-            subject = row['subject'] if 'subject' in row \
-                                                   else row['smtemplate'] if 'smtemplate' in row \
-                                                   else row['constsubject'] if 'constsubject' in row \
-                                                   else row['smreference'] if 'smreference' in row \
+
+            tm = row['tm'].n3()[1:-1]
+            rdfmt = row['rdfmt'].n3()[1:-1]
+            source = row['sourceFile'].n3()[1:-1]
+            iterators = row['iterator'].n3()[1:-1] if row['iterator'] is not None else "*"
+            subjectType = TermType.CONSTANT if row['subject'] is not None or \
+                                                row['constsubject'] is not None else \
+                            TermType.TEMPLATE if row['smtemplate'] is not None else \
+                            TermType.REFERENCE if row['smreference'] is not None else None
+
+            subject = row['subject'] if row['subject'] is not None \
+                                                   else row['smtemplate'].n3()[1:-1] if row['smtemplate'] is not None \
+                                                   else row['constsubject'].n3()[1:-1] if row['constsubject'] is not None \
+                                                   else row['smreference'].n3()[1:-1] if row['smreference'] is not None \
                                                    else None
             if subjectType is None or subject is None or len(source.strip()) == 0:
                 continue
@@ -130,33 +146,39 @@ class OntarioConfiguration(object):
 
             if tm not in results:
                 results[tm] = {}
-                results[rdfmt] = mapping
+                results[tm][rdfmt] = mapping
             else:
                 if rdfmt not in results[tm]:
                     results[tm][rdfmt] = mapping
                 else:
                     mapping = results[tm][rdfmt]
 
-            predicate = row['predicate']
+            predicate = row['predicate'].n3()[1:-1]
 
-            objdtype = row['pomobjmapdatatype'] if 'pomobjmapdatatype' in row else None
-            objrdfclass = row['pomobjmaprdfmt'] if 'pomobjmaprdfmt' in row else None
+            objdtype = row['pomobjmapdatatype'].n3() if row['pomobjmapdatatype'] is not None else None
+            objrdfclass = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
 
-            objtype =  TermType.CONSTANT if 'objconst' in row or 'constobject' in row \
-                                                   else TermType.TEMPLATE if 'predobjmaptemplate' in row \
-                                                   else TermType.REFERENCE if 'pomomapreference' in row \
-                                                   else TermType.TRIPLEMAP if 'parentTPM' in row \
+            objtype = TermType.CONSTANT if row['objconst'] is not None or row['constobject'] is not None \
+                                                   else TermType.TEMPLATE if row['predobjmaptemplate'] is not None \
+                                                   else TermType.REFERENCE if row['pomomapreference'] is not None \
+                                                   else TermType.TRIPLEMAP if row['parentTPM'] is not None \
                                                    else None
-            object = row['objconst'] if 'objconst' in row \
-                                    else row['constobject'] if 'constobject' in row \
-                                    else row['predobjmaptemplate'] if 'predobjmaptemplate' in row \
-                                    else row['pomomapreference'] if 'pomomapreference' in row \
-                                    else row['parentTPM'] if 'parentTPM' in row \
+            object = row['objconst'].n3()[1:-1] if row['objconst'] is not None \
+                                    else row['constobject'].n3()[1:-1] if row['constobject'] is not None \
+                                    else row['predobjmaptemplate'].n3()[1:-1] if row['predobjmaptemplate'] is not None \
+                                    else row['pomomapreference'].n3()[1:-1] if row['pomomapreference'] is not None \
+                                    else row['parentTPM'].n3()[1:-1] if row['parentTPM'] is not None \
                                     else None
-            jchild = row['jchild'] if 'jchild' in row else None
-            jparent = row['jparent'] if 'jparent' in row else None
+            jchild = row['jcchild'].n3()[1:-1] if row['jcchild'] is not None else None
+            jparent = row['jcparent'].n3()[1:-1] if row['jcparent'] is not None else None
 
-            mapping.predicateObjMap[predicate] = RDFMPredicateObjMap(predicate, object, objtype, objdtype, objrdfclass, jchild, jparent)
+            mapping.predicateObjMap[predicate] = RDFMPredicateObjMap(predicate,
+                                                                                object,
+                                                                                objtype,
+                                                                                objdtype,
+                                                                                objrdfclass,
+                                                                                jchild,
+                                                                                jparent)
 
         return results
 
