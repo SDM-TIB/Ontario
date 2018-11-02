@@ -22,13 +22,13 @@
 		rr:class iasis:Annotation
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:annID;
+		rr:predicate iasis:id;
 		rr:objectMap [
 			rml:reference "id"
 		]
 	];
 	rr:predicateObjectMap [
-		rr:predicate iasis:annLabel;
+		rr:predicate rdfs:label;
 		rr:objectMap [
 			rml:reference "label"
 		]
@@ -36,7 +36,7 @@
 	rr:predicateObjectMap [
 		rr:predicate iasis:semanticType;
 		rr:objectMap [
-			rml:reference "semantic_types[*]"
+			rml:reference "semantic_types"
 		]
 	];
 	rr:predicateObjectMap [
@@ -64,45 +64,73 @@
 		]
 	];
     rr:predicateObjectMap [
-      rr:predicate lsdl:causes;
+      rr:predicate iasis:causes;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "CAUSES";
+			    rr:parent "id"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:mentionedIn;
+      rr:predicate iasis:mentionedIn;
       rr:objectMap [
-        rr:parentTriplesMap :Publication
+        rr:parentTriplesMap :Publication;
+			rr:joinCondition [
+			    rr:child "MENTIONED_IN";
+			    rr:parent "pmid"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:associatedWith;
+      rr:predicate iasis:associatedWith;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "ASSOCIATED_WITH";
+			    rr:parent "id"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:predisposes;
+      rr:predicate iasis:predisposes;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "PREDISPOSES";
+			    rr:parent "id"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:stimulates;
+      rr:predicate iasis:stimulates;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "STIMULATES";
+			    rr:parent "id"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:interactsWith;
+      rr:predicate iasis:interactsWith;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "INTERACTS_WITH";
+			    rr:parent "id"
+			]
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate lsdl:inhibits;
+      rr:predicate iasis:inhibits;
       rr:objectMap [
-        rr:parentTriplesMap :Annotation
+        rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "INHIBITS";
+			    rr:parent "id"
+			]
       ]
     ].
 
@@ -128,26 +156,36 @@
 		]
 	];
 	rr:predicateObjectMap [
+		rr:predicate rdfs:label;
+		rr:objectMap [
+			rml:reference "title"
+		]
+	];
+	rr:predicateObjectMap [
 		rr:predicate iasis:year;
 		rr:objectMap [
-			rr:template "year"
+			rml:reference "year"
 		]
     ];
 	rr:predicateObjectMap [
 		rr:predicate iasis:journal;
 		rr:objectMap [
-			rr:template "journal"
+			rml:reference "journal"
 		]
     ];
 	rr:predicateObjectMap [
 		rr:predicate iasis:authors;
 		rr:objectMap [
-			rr:template "authors"
+			rml:reference "authors"
 		]
     ];
 	rr:predicateObjectMap [
 		rr:predicate iasis:hasTopic;
 		rr:objectMap [
-			rr:parentTriplesMap :Annotation
+			rr:parentTriplesMap :Annotation;
+			rr:joinCondition [
+			    rr:child "HAS_TOPIC";
+			    rr:parent "id"
+			]
 		]
     ].

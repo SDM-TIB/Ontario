@@ -14,8 +14,8 @@
 
 :chebi_compound
   	rml:logicalSource [
-              rml:source "compounds.tsv";
-  			  rml:referenceFormulation ql:TSV;
+              rml:source "compounds";
+  			  rml:referenceFormulation ql:Mongo;
               rml:iterator "*"
   			 ];
   	rr:subjectMap [
@@ -97,7 +97,7 @@
 
 :chebi_compound_names
   	rml:logicalSource [
-              rml:source "names.tsv";
+              rml:source "names";
   			  rml:referenceFormulation ql:TSV;
               rml:iterator "*"
   			];
@@ -115,7 +115,7 @@
 
 :chebi_compound_comments
   	rml:logicalSource [
-              rml:source "comments.tsv";
+              rml:source "comments";
   			  rml:referenceFormulation ql:TSV;
               rml:iterator "*"
   			];
@@ -132,7 +132,7 @@
 
 :chebi_compound_chemical_data
     rml:logicalSource [
-              rml:source "chemical_data.tsv";
+              rml:source "chemical_data";
               rml:referenceFormulation ql:TSV;
               rml:iterator "*"
               ];
@@ -149,7 +149,7 @@
 
 :chebi_ontology
       rml:logicalSource [
-                rml:source "ontology.tsv";
+                rml:source "ontology";
                 rml:referenceFormulation ql:TSV;
                 rml:iterator "*"
                 ];
@@ -166,7 +166,7 @@
 
 :chebi_compound_vertice
     rml:logicalSource [
-              rml:source "vertice.tsv";
+              rml:source "vertice";
               rml:referenceFormulation ql:TSV;
               rml:iterator "*"
               ];
@@ -189,7 +189,7 @@
 
 :chebi_compound_relation
       rml:logicalSource [
-                rml:source "relation.tsv";
+                rml:source "relation";
                 rml:referenceFormulation ql:TSV;
                 rml:iterator "*"
                 ];
@@ -208,7 +208,7 @@
 
 :chebi_compound_db_accession
   	rml:logicalSource [
-              rml:source "database_accession.tsv";
+              rml:source "database_accession";
   						rml:referenceFormulation ql:TSV;
               rml:iterator "*"
   						];
@@ -244,7 +244,7 @@
 
 :chebi_compound_reference
   	rml:logicalSource [
-              rml:source "reference.tsv";
+              rml:source "reference";
   						rml:referenceFormulation ql:TSV;
               rml:iterator "*"
   						];
