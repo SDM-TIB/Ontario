@@ -1,0 +1,174 @@
+{
+  "templates": [
+     {
+        "rootType": "http://project-iasis.eu/vocab/Annotation",
+        "datasources": [
+                      {
+                        "datasource": "http://iasis.eu/wp4_publicationsv",
+                        "predicates": [
+                            "http://project-iasis.eu/vocab/id",
+                            "http://www.w3.org/2000/01/rdf-schema#label",
+                            "http://project-iasis.eu/vocab/semanticType",
+                            "http://project-iasis.eu/vocab/snomedct_us",
+                            "http://project-iasis.eu/vocab/hpo",
+                            "http://project-iasis.eu/vocab/drugbankId",
+                            "http://project-iasis.eu/vocab/hgnc",
+                            "http://project-iasis.eu/vocab/causes",
+                            "http://project-iasis.eu/vocab/mentionedIn",
+                            "http://project-iasis.eu/vocab/associatedWith",
+                            "http://project-iasis.eu/vocab/predisposes",
+                            "http://project-iasis.eu/vocab/stimulates",
+                            "http://project-iasis.eu/vocab/inhibits",
+                            "http://project-iasis.eu/vocab/interactsWith"
+
+                        ]
+                      }
+          ],
+        "predicates": [
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/id",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/semanticType",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/snomedct_us",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/hpo",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/drugbankId",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/hgnc",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/causes",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/mentionedIn",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Publication"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/associatedWith",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/predisposes",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/stimulates",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/interactsWith",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/inhibits",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    }
+                ]
+     },
+    {
+        "rootType": "http://project-iasis.eu/vocab/Publication",
+        "datasources": [
+                      {
+                        "datasource": "http://iasis.eu/wp4_publications",
+                        "predicates": [
+                            "http://project-iasis.eu/vocab/pmid",
+                            "http://www.w3.org/2000/01/rdf-schema#label",
+                            "http://project-iasis.eu/vocab/title",
+                            "http://project-iasis.eu/vocab/year",
+                            "http://project-iasis.eu/vocab/journal",
+                            "http://project-iasis.eu/vocab/authors",
+                            "http://project-iasis.eu/vocab/hasTopic"
+                        ]
+                      }
+          ],
+        "predicates": [
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/pmid",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/title",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/year",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/journal",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/authors",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://project-iasis.eu/vocab/hasTopic",
+                      "range": [
+                          "http://project-iasis.eu/vocab/Annotation"
+                      ]
+                    }
+                ]
+     }
+  ],
+  "datasources": [
+      {
+        "name": "WP4_Publication",
+        "ID": "http://iasis.eu/wp4_publications",
+        "url": "bolt://localhost:7688",
+        "params": {"username": "neo4j", "password": "1234"},
+        "type": "Neo4j",
+        "mappings": ["/home/kemele/git/SDM/Ontario/mappings/WP4-Publications/wp4-publications-neo4j-mappings.ttl"]
+      }
+  ]
+
+}
