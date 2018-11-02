@@ -27,6 +27,7 @@ class Catalyst(object):
                 for s in m:
 
                     ds = self.config.datasources[s]
+
                     m[s]['triples'] = list(set(m[s]['triples']))
                     m[s]['datasource'] = ds
 
@@ -240,21 +241,93 @@ if __name__ == "__main__":
 
     start = time()
     query = """
+            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
             SELECT DISTINCT * WHERE {
-                  ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
-                  ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label .
-                  ?s <http://rdfs.org/ns/void#inDataset> ?dataset .
-                  ?s <http://purl.org/dc/terms/identifier> ?identifier .
-                  ?s <http://purl.org/dc/terms/title> ?title .                  
-                  ?s2 <http://www.w3.org/2000/01/rdf-schema#label> ?label2 .
-                  ?s2 <http://rdfs.org/ns/void#inDataset> ?dataset2 .
-                  ?s2 <http://purl.org/dc/terms/identifier> ?identifier .
-                  ?s2 <http://purl.org/dc/terms/title> ?title2 .
+                    ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label  .
+                    ?s <http://project-iasis.eu/vocab/semanticType> ?semType  .
+                    ?s <http://project-iasis.eu/vocab/snomedct_us> ?snomedct  .
+                    ?s <http://project-iasis.eu/vocab/hpo> ?hpo  .
+                    ?s <http://project-iasis.eu/vocab/drugbankId> ?drugbankId  .
+                    ?s <http://project-iasis.eu/vocab/hgnc> ?hgnc  .
+                    ?s <http://project-iasis.eu/vocab/causes> ?causes  .
+                    ?s <http://project-iasis.eu/vocab/mentionedIn> ?publication  .
+                    ?publication <http://project-iasis.eu/vocab/pmid> ?pmid .                    
+                    ?publication <http://project-iasis.eu/vocab/title> ?title .
+                    ?publication <http://project-iasis.eu/vocab/year> ?year .
+                    ?publication <http://project-iasis.eu/vocab/journal> ?journal .
                   
               }
         """
-    configuration = OntarioConfiguration('/home/kemele/git/SDM/Ontario/configurations/biomed-configuration.json')
-    print("reading config finished!")
+    query = """
+                prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                SELECT DISTINCT * WHERE {
+                        ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label  .
+                        ?s <http://project-iasis.eu/vocab/semanticType> ?semType  .
+                        ?s <http://project-iasis.eu/vocab/snomedct_us> ?snomedct  .
+                        ?s <http://project-iasis.eu/vocab/causes> ?causes  .
+                        ?s <http://project-iasis.eu/vocab/mentionedIn> ?publication  .
+                        ?publication <http://project-iasis.eu/vocab/pmid> ?pmid .                    
+                        ?publication <http://project-iasis.eu/vocab/title> ?title .
+                        ?publication <http://project-iasis.eu/vocab/year> ?year .
+                        ?publication <http://project-iasis.eu/vocab/journal> ?journal .
+
+                  }
+            """
+
+    query = """
+            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            SELECT DISTINCT * WHERE {
+                    ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label  .
+                    ?s <http://www.ebi.ac.uk/chebi/status> ?status .
+                    ?s <http://www.ebi.ac.uk/chebi/source> ?source .
+                    ?s <http://www.ebi.ac.uk/chebi/url> ?url .
+                    ?s <http://www.ebi.ac.uk/chebi/definition> ?definition. 
+                    ?s <http://www.ebi.ac.uk/chebi/name> ?name .
+                    ?s <http://www.ebi.ac.uk/chebi/accession> ?accession .
+                    ?s <http://www.ebi.ac.uk/chebi/synonym> ?synonym .
+                    ?s rdfs:comment ?comment.
+              } limit 10
+        """
+
+    query = """
+            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            prefix owl: <http://www.w3.org/2002/07/owl#>
+            SELECT DISTINCT * WHERE {
+                    ?s owl:sameAs ?drugbank .
+                    ?s <http://drugbank.ca/vocab/chebiId> ?chebiId .
+                    ?s <http://drugbank.ca/vocab/description> ?description .
+                    ?s <http://drugbank.ca/vocab/casNumber> ?casNumber .
+                    ?s <http://drugbank.ca/vocab/unii> ?unii .
+                    ?s <http://drugbank.ca/vocab/metabolism> ?metabolism .
+                    ?s <http://drugbank.ca/vocab/state> ?state .
+                    ?s <http://drugbank.ca/vocab/indication> ?indication .
+              } limit 10
+        """
+    query = """
+                prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                SELECT DISTINCT ?refn WHERE {
+                        ?s <http://www.ebi.ac.uk/chebi/refDBName> ?refn .
+                        ?s <http://www.ebi.ac.uk/chebi/refId> ?refId .
+                        ?s <http://www.ebi.ac.uk/chebi/refName> ?refName .
+                        ?s <http://www.ebi.ac.uk/chebi/compound> ?compound. 
+                  }
+                """
+    query = """
+                prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                prefix owl: <http://www.w3.org/2002/07/owl#>
+                SELECT DISTINCT * WHERE {
+                        ?s owl:sameAs ?drugbank .
+                        ?s <http://drugbank.ca/vocab/chebiId> ?chebiId .
+                        ?s <http://drugbank.ca/vocab/description> ?description .
+                        ?s <http://drugbank.ca/vocab/casNumber> ?casNumber .
+                        ?s <http://drugbank.ca/vocab/name> ?drugname .
+                        ?s2 <http://www.ebi.ac.uk/chebi/url> ?url .
+                        ?s2 <http://www.ebi.ac.uk/chebi/name> ?compoundname. 
+                        ?s2 <http://www.ebi.ac.uk/chebi/id> ?chebiId .
+                  } limit 10
+            """
+    configuration = OntarioConfiguration('/home/kemele/git/SDM/Ontario/configurations/chebi_drugbank_config.json')
+    print("reading config finished!", configuration.datasources)
     dc = Catalyst(query, configuration)
     # pprint.pprint(configuration.metadata)
     decomp = LakeCatalyst(dc.query, dc.config)
@@ -281,21 +354,21 @@ if __name__ == "__main__":
     plan = pl.make_plan()
     pprint.pprint(plan)
 
-    # from multiprocessing import Queue
-    # out = Queue()
-    # processqueue = Queue()
-    # plan.execute(out, processqueue)
-    # r = out.get()
-    # processqueue.put('EOF')
-    # i = 0
-    #
-    # while r != 'EOF':
-    #     pprint.pprint(r)
-    #     r = out.get()
-    #     i += 1
-    #
-    # exetime = time() - start
-    # print("total: ", i)
-    # print("exe time:", exetime)
-    # finalize(processqueue)
+    from multiprocessing import Queue
+    out = Queue()
+    processqueue = Queue()
+    plan.execute(out, processqueue)
+    r = out.get()
+    processqueue.put('EOF')
+    i = 0
+
+    while r != 'EOF':
+        pprint.pprint(r)
+        r = out.get()
+        i += 1
+
+    exetime = time() - start
+    print("total: ", i)
+    print("exe time:", exetime)
+    finalize(processqueue)
 

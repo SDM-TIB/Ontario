@@ -236,28 +236,27 @@ class LeafOperator(object):
 
     def execute(self, outputqueue, processqueue=Queue()):
 
-        if self.datasource[0].dstype == DataSourceType.SPARQL_ENDPOINT and self.tree.service.limit == -1:
+        if self.datasource.dstype == DataSourceType.SPARQL_ENDPOINT and self.tree.service.limit == -1:
             self.tree.service.limit = 10000
 
         # Evaluate the independent operator.
         self.q = None
         self.q = Queue()
 
-        p = Process(target=self.get_wrapper_fun(self.datasource[0]).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit,-1,))
+        p = Process(target=self.get_wrapper_fun(self.datasource).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit,-1,))
         p.start()
         processqueue.put(p.pid)
 
     def get_wrapper_fun(self, datasource):
-        print(type(datasource), type(self.config))
         if datasource.dstype == DataSourceType.MONGODB:
             return SPARQL2Mongo(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.LOCAL_TSV or datasource.dstype == DataSourceType.LOCAL_CSV:
-            return SPARKCSVTSVWrapper(self.config.federation, datasource, self.config, self.rdfmts, self.star, self.config)
+            return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.NEO4J:
-            return SPARQL2Cypher(self.config.federation, datasource, self.config, self.rdfmts, self.star, self.config)
+            return SPARQL2Cypher(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARQL_ENDPOINT:
             return RDFStore(datasource, self.config)
         elif datasource.dstype == DataSourceType.SPARK_XML or datasource.dstype == DataSourceType.LOCAL_XML:
-            return SPARKXMLWrapper(self.config.federation, datasource, self.config, self.rdfmts, self.star, self.config)
+            return SPARKXMLWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARK_TSV or datasource.dstype == DataSourceType.SPARK_CSV:
-            return SPARKCSVTSVWrapper(self.config.federation, datasource, self.config, self.rdfmts, self.star, self.config)
+            return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
