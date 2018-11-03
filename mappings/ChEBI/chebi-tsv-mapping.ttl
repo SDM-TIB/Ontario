@@ -181,9 +181,13 @@
       ]
     ];
     rr:predicateObjectMap [
-      rr:predicate chebi:verticeOntologyId;
+      rr:predicate chebi:ontologyId;
       rr:objectMap [
-        rr:parentTriplesMap :chebi_ontology
+        rr:parentTriplesMap :chebi_ontology;
+        rr:joinCondition [
+			    rr:child "ONTOLOGY_ID";
+			    rr:parent "ID"
+			]
       ]
     ].
 

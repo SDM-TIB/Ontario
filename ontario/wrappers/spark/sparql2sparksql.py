@@ -7,6 +7,7 @@ from pyspark.sql.types import *
 from ontario.wrappers.hadoop import SparkHDFSClient
 from pprint import pprint
 
+
 class SPARKXMLWrapper(object):
 
     def __init__(self, datasource, config, rdfmts, star):
@@ -475,7 +476,7 @@ class SPARKCSVTSVWrapper(object):
         # print(sqlquery)
         try:
             result = self.spark.sql(sqlquery).toJSON()
-            i = 0
+
             for row in result.toLocalIterator():
                 row = json.loads(row)
                 skip = False
@@ -497,7 +498,6 @@ class SPARKCSVTSVWrapper(object):
                         res[r] = row[r]
                 if not skip:
                     queue.put(res)
-                    i += 1
         except Exception as ex:
             self.spark.stop()
             print(ex)

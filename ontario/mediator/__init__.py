@@ -326,7 +326,19 @@ if __name__ == "__main__":
                         ?s2 <http://www.ebi.ac.uk/chebi/id> ?chebiId .
                   } limit 10
             """
-    configuration = OntarioConfiguration('/home/kemele/git/SDM/Ontario/configurations/chebi_drugbank_config.json')
+    query = """
+                prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                SELECT DISTINCT * WHERE {
+                        ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label  .
+                        ?s <http://www.ebi.ac.uk/chebi/status> ?status .
+                        ?s <http://www.ebi.ac.uk/chebi/source> ?source .
+                        ?s <http://www.ebi.ac.uk/chebi/url> ?url .
+                        ?s <http://www.ebi.ac.uk/chebi/definition> ?definition. 
+                        ?s <http://www.ebi.ac.uk/chebi/name> ?name .
+                        ?s <http://www.ebi.ac.uk/chebi/accession> ?accession .
+                  } limit 10
+            """
+    configuration = OntarioConfiguration('../../configurations/chebi-mysql-config.json')
     print("reading config finished!", configuration.datasources)
     dc = Catalyst(query, configuration)
     # pprint.pprint(configuration.metadata)

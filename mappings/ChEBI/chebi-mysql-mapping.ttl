@@ -15,83 +15,83 @@
 :chebi_compound
   	rml:logicalSource [
               rml:source "compounds";
-  			  rml:referenceFormulation ql:Mongo;
+  			  rml:referenceFormulation ql:SQL;
               rml:iterator "*"
   			 ];
   	rr:subjectMap [
-  		    rr:template "http://www.ebi.ac.uk/chebi/{ID}";
+  		    rr:template "http://www.ebi.ac.uk/chebi/{id[star=3]}";
         	rr:class chebi:Compound
   	];
   	rr:predicateObjectMap [
       rr:predicate chebi:id;
       rr:objectMap [
-        rml:reference "ID"
+        rml:reference "id"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:accession;
       rr:objectMap [
-        rml:reference "CHEBI_ACCESSION"
+        rml:reference "chebi_accession"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate dc:identifier;
       rr:objectMap [
-        rml:reference "CHEBI_ACCESSION"
+        rml:reference "chebi_accession"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate rdfs:label;
       rr:objectMap [
-        rml:reference "NAME"
+        rml:reference "name"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:name;
       rr:objectMap [
-        rml:reference "NAME"
+        rml:reference "name"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate dc:modified;
       rr:objectMap [
-        rml:reference "MODIFIED_ON"
+        rml:reference "modified_on"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate dc:createdBy;
       rr:objectMap [
-        rml:reference "CREATED_BY"
+        rml:reference "created_by"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:definition;
       rr:objectMap [
-        rml:reference "DEFINITION"
+        rml:reference "definition"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate rdfs:seeAlso;
       rr:objectMap [
-        rml:reference "PARENT_ID"
+        rml:reference "parent_id"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:url;
       rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:{ID}"
+        rr:template "http://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:{id}"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:source;
       rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/source-{SOURCE}"
+        rr:template "http://www.ebi.ac.uk/chebi/source-{source}"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:status;
       rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/status-{STATUS}"
+        rr:template "http://www.ebi.ac.uk/chebi/status-{status}"
       ]
     ].
 
@@ -102,14 +102,14 @@
               rml:iterator "*"
   			];
   	rr:subjectMap [
-  		    rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+  		    rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
         	rr:class chebi:Compound
   	];
     rr:predicateObjectMap [
       rr:predicate chebi:synonym;
       rr:objectMap [
-        rml:reference "NAME";
-        rr:language "LANGUAGE"
+        rml:reference "name";
+        rr:language "language"
       ]
     ].
 
@@ -120,13 +120,13 @@
               rml:iterator "*"
   			];
   	rr:subjectMap [
-  		      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+  		      rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
         		rr:class chebi:Compound
   	];
     rr:predicateObjectMap [
       rr:predicate rdfs:comment;
       rr:objectMap [
-        rml:reference "TEXT"
+        rml:reference "text"
       ]
     ].
 
@@ -137,13 +137,13 @@
               rml:iterator "*"
               ];
     rr:subjectMap [
-            rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+            rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
             rr:class chebi:Compound
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:formula;
       rr:objectMap [
-        rml:reference "CHEMICAL_DATA[TYPE=FORMULA]"
+        rml:reference "chemical_data[type=FORMULA]"
       ]
     ].
 
@@ -154,13 +154,19 @@
                 rml:iterator "*"
                 ];
       rr:subjectMap [
-              rr:template "http://www.ebi.ac.uk/chebi/{TITLE}";
+              rr:template "http://www.ebi.ac.uk/chebi/{title}";
               rr:class rdfs:Class
       ];
         rr:predicateObjectMap [
           rr:predicate chebi:title;
           rr:objectMap [
-            rml:reference "TITLE"
+            rml:reference "title"
+          ]
+        ];
+        rr:predicateObjectMap [
+          rr:predicate chebi:id;
+          rr:objectMap [
+            rml:reference "id"
           ]
         ].
 
@@ -171,13 +177,13 @@
               rml:iterator "*"
               ];
     rr:subjectMap [
-            rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_CHILD_ID}";
+            rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
             rr:class chebi:Compound
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:verticeRef;
       rr:objectMap [
-        rml:reference "VERTICE_REF"
+        rml:reference "vertice_ref"
       ]
     ];
     rr:predicateObjectMap [
@@ -185,8 +191,8 @@
       rr:objectMap [
         rr:parentTriplesMap :chebi_ontology;
         rr:joinCondition [
-			    rr:child "ONTOLOGY_ID";
-			    rr:parent "ID"
+			    rr:child "ontology_id";
+			    rr:parent "id"
 			]
       ]
     ].
@@ -198,13 +204,13 @@
                 rml:iterator "*"
                 ];
       rr:subjectMap [
-              rr:template "http://www.ebi.ac.uk/chebi/{INIT_ID}";
+              rr:template "http://www.ebi.ac.uk/chebi/{init_id}";
               rr:class chebi:Compound
       ];
       rr:predicateObjectMap [
         rr:predicate chebi:is_a;
         rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/{FINAL_ID[TYPE=is_a]}";
+        rr:template "http://www.ebi.ac.uk/chebi/{final_id[type=is_a]}";
         rr:class chebi:Compound
         ]
       ].
@@ -217,31 +223,31 @@
               rml:iterator "*"
   						];
   	rr:subjectMap [
-  		    rr:template "http://www.ebi.ac.uk/chebi/accession/{ID}";
+  		    rr:template "http://www.ebi.ac.uk/chebi/accession/{id}";
         	rr:class chebi:Accession
   	];
     rr:predicateObjectMap [
       rr:predicate chebi:accType;
       rr:objectMap [
-        rml:reference "TYPE"
+        rml:reference "type"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:accessionNumber;
       rr:objectMap [
-        rml:reference "ACCESSION_NUMBER"
+        rml:reference "accession_number"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:source;
       rr:objectMap [
-        rr:template "http://www.ebi.ac.uk/chebi/source-{SOURCE}"
+        rr:template "http://www.ebi.ac.uk/chebi/source-{source}"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:compound;
       rr:objectMap [
-      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+      rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
       rr:class chebi:Compound
       ]
     ].
@@ -253,37 +259,37 @@
               rml:iterator "*"
   						];
   	rr:subjectMap [
-  		      rr:template "http://www.ebi.ac.uk/chebi/reference/{REFERENCE_DB_NAME}_{REFERENCE_ID}";
+  		      rr:template "http://www.ebi.ac.uk/chebi/reference/{reference_db_name}_{reference_id}";
         		rr:class chebi:Reference
   	];
     rr:predicateObjectMap [
       rr:predicate chebi:refDBName;
       rr:objectMap [
-        rml:reference "REFERENCE_DB_NAME"
+        rml:reference "reference_db_name"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:refId;
       rr:objectMap [
-        rml:reference "REFERENCE_ID"
+        rml:reference "reference_id"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:refName;
       rr:objectMap [
-        rml:reference "REFERENCE_NAME"
+        rml:reference "reference_name"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:locationInRef;
       rr:objectMap [
-      rml:reference "LOCATION_IN_REF"
+      rml:reference "location_in_ref"
       ]
     ];
     rr:predicateObjectMap [
       rr:predicate chebi:compound;
       rr:objectMap [
-      rr:template "http://www.ebi.ac.uk/chebi/{COMPOUND_ID}";
+      rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
       rr:class chebi:Compound
       ]
     ].

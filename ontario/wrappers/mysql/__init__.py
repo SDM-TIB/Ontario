@@ -63,17 +63,19 @@ class MySQLClient(object):
         cursor.execute("select * from " + tablename + " LIMIT " + str(limit))
         header = [h[0] for h in cursor._description]
         results =[{header[i]: str(line[i]) for i in range(len(line))} for line in cursor]
-        return results, limit
+        return results, len(results)
 
 
 if __name__ == "__main__":
-    neo = MySQLClient("node3.research.tib.eu:13307", "root", "1234")
+    neo = MySQLClient("node3.research.tib.eu:13308", "root", "1234")
     results = neo.list_tables()
     from pprint import pprint
     # pprint(results)
     for r in results:
         print("===================")
-        pprint(r['document'])
-        pprint(neo.get_samples(r['document']))
+        pprint(r)
+        res, card = neo.get_samples(r["db"], r['document'])
+        print("samples ... ")
+        pprint(res)
         break
 

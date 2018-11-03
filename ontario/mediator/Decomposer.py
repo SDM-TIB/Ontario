@@ -5,7 +5,7 @@ import logging
 import ontario.sparql.utilities as utils
 from ontario.sparql.parser import queryParser
 from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
-from ontario.sparql.tree import Tree
+from ontario.mediator.Tree import Tree
 from ontario.config import OntarioConfiguration
 
 

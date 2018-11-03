@@ -5,6 +5,7 @@ from ontario.wrappers.triplestore import RDFStore
 from ontario.wrappers.neo4j.sparql2cypher import SPARQL2Cypher
 from ontario.wrappers.spark.sparql2sparksql import SPARKCSVTSVWrapper
 from ontario.wrappers.spark.sparql2sparksql import SPARKXMLWrapper
+from ontario.wrappers.mysql.sparql2sql import MySQLWrapper
 
 
 class NodeOperator(object):
@@ -260,3 +261,5 @@ class LeafOperator(object):
             return SPARKXMLWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARK_TSV or datasource.dstype == DataSourceType.SPARK_CSV:
             return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
+        elif datasource.dstype == DataSourceType.MYSQL:
+            return MySQLWrapper(datasource, self.config, self.rdfmts, self.star)

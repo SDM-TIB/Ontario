@@ -1,0 +1,176 @@
+{
+  "templates": [
+     {
+        "rootType": "http://www.ebi.ac.uk/chebi/Compound",
+        "datasources": [
+                      {
+                         "datasource": "http://iasis.eu/chebi-MySQL",
+                         "predicates": [
+                             "http://www.ebi.ac.uk/chebi/id",
+                             "http://www.ebi.ac.uk/chebi/is_a",
+                             "http://www.ebi.ac.uk/chebi/verticeRef",
+                             "http://www.ebi.ac.uk/chebi/formula",
+                             "http://www.ebi.ac.uk/chebi/synonym",
+                             "http://www.w3.org/2000/01/rdf-schema#comment",
+                             "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+                             "http://purl.org/dc/elements/1.1/createdBy",
+                             "http://purl.org/dc/elements/1.1/modified",
+                             "http://purl.org/dc/elements/1.1/identifier",
+                             "http://www.ebi.ac.uk/chebi/status",
+                             "http://www.ebi.ac.uk/chebi/source",
+                             "http://www.ebi.ac.uk/chebi/url",
+                             "http://www.ebi.ac.uk/chebi/definition",
+                             "http://www.ebi.ac.uk/chebi/name",
+                             "http://www.ebi.ac.uk/chebi/accession",
+                             "http://www.w3.org/2000/01/rdf-schema#label"
+                        ]
+                      }
+                    ],
+        "predicates": [
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/id",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/accession",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/name",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/definition",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/url",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/source",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/status",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://purl.org/dc/elements/1.1/identifier",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://purl.org/dc/elements/1.1/modified",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://purl.org/dc/elements/1.1/createdBy",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.w3.org/2000/01/rdf-schema#comment",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/synonym",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/formula",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/verticeRef",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/is_a",
+                      "range": [
+                         "http://www.ebi.ac.uk/chebi/Compound"
+                      ]
+                    }
+                ]
+     },
+    {
+        "rootType": "http://www.ebi.ac.uk/chebi/Reference",
+        "datasources": [
+                       {
+                        "datasource": "http://iasis.eu/chebi-MySQL",
+                        "predicates": [
+                          "http://www.ebi.ac.uk/chebi/refDBName",
+                          "http://www.ebi.ac.uk/chebi/refId",
+                          "http://www.ebi.ac.uk/chebi/refName",
+                          "http://www.ebi.ac.uk/chebi/locationInRef",
+                          "http://www.ebi.ac.uk/chebi/compound"
+                          ]
+                       }
+          ],
+        "predicates": [
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/refDBName",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/refId",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/refName",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/locationInRef",
+                      "range": [
+                      ]
+                    },
+                    {
+                      "predicate": "http://www.ebi.ac.uk/chebi/compound",
+                      "range": [
+                          "http://www.ebi.ac.uk/chebi/Compound"
+                      ]
+                    }
+                ]
+     }
+  ],
+  "datasources": [
+      {
+        "name": "ChEBI-MySQL",
+        "ID": "http://iasis.eu/chebi-MySQL",
+        "url": "node3.research.tib.eu:13308",
+        "params": {
+            "username": "root",
+            "password": "1234"
+        },
+        "type": "MySQL",
+        "mappings": ["/home/kemele/git/SemanticDataLake/Ontario/mappings/ChEBI/chebi-mysql-mapping.ttl"]
+      }
+  ]
+
+}
