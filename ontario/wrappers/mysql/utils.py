@@ -91,17 +91,20 @@ def getProjectionClause(variablemap, sparqlprojected, tablealias):
             if isinstance(variablemap[var], list):
                 for column in variablemap[var]:
                     column = column.strip()
+                    if '[' in column:
+                        column = column[:column.find('[')]
                     if var[1:] in projections:
-                        projections[var[1:]] += " , " + tablealias + "." + column + " AS " + var[1:] + "_" + column
+
+                        projections[var[1:]] += " , " + tablealias + ".`" + column + "` AS " + var[1:] + "_" + column
                     else:
-                        projections[var[1:]] = tablealias + "." + column + " AS " + var[1:] + "_" + column
+                        projections[var[1:]] = tablealias + ".`" + column + "` AS " + var[1:] + "_" + column
                     projvartocol.setdefault(var[1:], []).append(column)
             else:
                 # colname = variablemap[var].strip().split('[*]')
                 col = variablemap[var].strip()
                 if '[' in col:
                     column = col
-                    column = "`" + column[:column.find('[')] + ("`._VALUE" if '_VALUE' not in column else "")
+                    column = "`" + column[:column.find('[')]
                     projvartocol[var[1:]] = col
                 elif '/' in col and '[*]' not in col:
                     column = col.replace('/', '.')
@@ -174,8 +177,8 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
             if '[' in column:
                 column = column[:column.find('[')]
             if '[' in column:
-                objectfilters.append(tablealias + '.`' + column + "`._VALUE" + " = " + ' "' + val + '" ')
-                objectfilters.append(tablealias +  '.`' + column + '`._' + (subj[subj.find('@') + 1: subj.find('=')]).strip() + " = " + ' "' + (
+                objectfilters.append(tablealias + '.`' + column + " = " + ' "' + val + '" ')
+                objectfilters.append(tablealias +  '.' + (subj[subj.find('[') + 1: subj.find('=')]).strip() + " = " + ' "' + (
                     subj[subj.find('=') + 1: subj.find(']')]).strip() + '" ')
             elif '/' in subj and '[*]' not in subj:
                 column = subj.replace('/', '.')
@@ -190,12 +193,12 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
 
         column = predmap[v].strip()
         subj = predmap[v].strip()
-        if '[' in column:
-            column = column[:column.find('[')]
 
         if '[' in column:
-            objectfilters.append(tablealias + '.`' + column + "`._VALUE" + " is not null ")
-            objectfilters.append(tablealias + '.`' + column + '`._' + (subj[subj.find('@')+1: subj.find('=')]).strip() + " = " + ' "' + (subj[subj.find('=')+1: subj.find(']')]).strip() + '" ')
+            column = column[:column.find('[')]
+            objectfilters.append(tablealias + '.`' + column + "`" + " is not null ")
+
+            objectfilters.append(tablealias + '.' + (subj[subj.find('[')+1: subj.find('=')]).strip() + " = " + ' "' + (subj[subj.find('=')+1: subj.find(']')]).strip() + '" ')
         elif '/' in subj and '[*]' not in subj:
             columns = [c for c in subj.strip().split('/') if len(c) > 0]
 
@@ -210,8 +213,8 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
         subj = subj.strip()
         if '[' in column:
             column = column[:column.find('[')]
-            objectfilters.append(tablealias + '.`' + column + "`._VALUE" + " is not null ")
-            objectfilters.append(tablealias + '.`' + column + '`._' + (subj[subj.find('@') + 1: subj.find('=')]).strip() + " = " + ' "' + (
+            objectfilters.append(tablealias + '.`' + column + "`" + " is not null ")
+            objectfilters.append(tablealias + '.' + (subj[subj.find('[') + 1: subj.find('=')]).strip() + " = " + ' "' + (
                 subj[subj.find('=') + 1: subj.find(']')]).strip() + '" ')
         elif '/' in subj and '[*]' not in subj:
             columns = [c for c in subj.strip().split('/') if len(c) > 0]

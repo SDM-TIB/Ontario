@@ -84,8 +84,12 @@ class MySQLWrapper(object):
         ds = self.star['datasource']
 
         sqlquery, coltotemplates, projvartocols, filenametablename, filenameiteratormap = self.translate()
-
+        print(sqlquery)
         cursor = self.mysql.cursor()
+        db = ""
+        for fn in filenameiteratormap:
+            db = filenameiteratormap[fn]['iterator']
+        cursor.execute("use " + db)
         cursor.execute(sqlquery)
         header = [h[0] for h in cursor._description]
 

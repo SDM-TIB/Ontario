@@ -16,7 +16,7 @@
   	rml:logicalSource [
               rml:source "compounds";
   			  rml:referenceFormulation ql:SQL;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
   			 ];
   	rr:subjectMap [
   		    rr:template "http://www.ebi.ac.uk/chebi/{id[star=3]}";
@@ -99,7 +99,7 @@
   	rml:logicalSource [
               rml:source "names";
   			  rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
   			];
   	rr:subjectMap [
   		    rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
@@ -117,7 +117,7 @@
   	rml:logicalSource [
               rml:source "comments";
   			  rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
   			];
   	rr:subjectMap [
   		      rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
@@ -134,7 +134,7 @@
     rml:logicalSource [
               rml:source "chemical_data";
               rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
               ];
     rr:subjectMap [
             rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
@@ -151,7 +151,7 @@
       rml:logicalSource [
                 rml:source "ontology";
                 rml:referenceFormulation ql:TSV;
-                rml:iterator "*"
+                rml:iterator "chebi_3star"
                 ];
       rr:subjectMap [
               rr:template "http://www.ebi.ac.uk/chebi/{title}";
@@ -174,7 +174,7 @@
     rml:logicalSource [
               rml:source "vertice";
               rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
               ];
     rr:subjectMap [
             rr:template "http://www.ebi.ac.uk/chebi/{compound_id}";
@@ -201,7 +201,7 @@
       rml:logicalSource [
                 rml:source "relation";
                 rml:referenceFormulation ql:TSV;
-                rml:iterator "*"
+                rml:iterator "chebi_3star"
                 ];
       rr:subjectMap [
               rr:template "http://www.ebi.ac.uk/chebi/{init_id}";
@@ -220,7 +220,7 @@
   	rml:logicalSource [
               rml:source "database_accession";
   						rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
   						];
   	rr:subjectMap [
   		    rr:template "http://www.ebi.ac.uk/chebi/accession/{id}";
@@ -256,7 +256,7 @@
   	rml:logicalSource [
               rml:source "reference";
   						rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+              rml:iterator "chebi_3star"
   						];
   	rr:subjectMap [
   		      rr:template "http://www.ebi.ac.uk/chebi/reference/{reference_db_name}_{reference_id}";
