@@ -336,6 +336,8 @@ if __name__ == "__main__":
                         ?s <http://www.ebi.ac.uk/chebi/definition> ?definition. 
                         ?s <http://www.ebi.ac.uk/chebi/name> ?name .
                         ?s <http://www.ebi.ac.uk/chebi/accession> ?accession .
+                        ?s <http://www.ebi.ac.uk/chebi/synonym> ?synonym .
+                        ?s rdfs:comment ?comment.
                   } limit 10
             """
     configuration = OntarioConfiguration('../../configurations/chebi-mysql-config.json')

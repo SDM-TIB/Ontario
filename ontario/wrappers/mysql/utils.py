@@ -94,7 +94,6 @@ def getProjectionClause(variablemap, sparqlprojected, tablealias):
                     if '[' in column:
                         column = column[:column.find('[')]
                     if var[1:] in projections:
-
                         projections[var[1:]] += " , " + tablealias + ".`" + column + "` AS " + var[1:] + "_" + column
                     else:
                         projections[var[1:]] = tablealias + ".`" + column + "` AS " + var[1:] + "_" + column
@@ -197,6 +196,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
         if '[' in column:
             column = column[:column.find('[')]
             objectfilters.append(tablealias + '.`' + column + "`" + " is not null ")
+            objectfilters.append(tablealias + '.`' + column + "`" + " <> '' ")
 
             objectfilters.append(tablealias + '.' + (subj[subj.find('[')+1: subj.find('=')]).strip() + " = " + ' "' + (subj[subj.find('=')+1: subj.find(']')]).strip() + '" ')
         elif '/' in subj and '[*]' not in subj:
@@ -205,8 +205,10 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
             column = subj.replace('/', '.')
             column = "`" + column[:column.find('.')] + '`' + column[column.find('.'):]
             objectfilters.append(tablealias + '.' + column + " is not null ")
+            objectfilters.append(tablealias + '.' + column + " <> '' ")
         else:
             objectfilters.append(tablealias + '.`' + column + "` is not null ")
+            objectfilters.append(tablealias + '.`' + column + "` <> '' ")
 
     for subj in subjcols:
         column = subj.strip()
@@ -214,6 +216,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
         if '[' in column:
             column = column[:column.find('[')]
             objectfilters.append(tablealias + '.`' + column + "`" + " is not null ")
+            objectfilters.append(tablealias + '.`' + column + "`" + " <> '' ")
             objectfilters.append(tablealias + '.' + (subj[subj.find('[') + 1: subj.find('=')]).strip() + " = " + ' "' + (
                 subj[subj.find('=') + 1: subj.find(']')]).strip() + '" ')
         elif '/' in subj and '[*]' not in subj:
@@ -222,7 +225,9 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
             column = subj.replace('/', '.')
             column = "`" + column[:column.find('.')] + '`' + column[column.find('.'):]
             objectfilters.append(tablealias + '.' + column + " is not null ")
+            objectfilters.append(tablealias + '.' + column + " <> '' ")
         else:
             objectfilters.append(tablealias + '.`' + column + "` is not null ")
+            objectfilters.append(tablealias + '.`' + column + "` <> '' ")
 
     return objectfilters

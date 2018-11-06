@@ -101,16 +101,47 @@ class MySQLWrapper(object):
                 for r in row:
                     if '_' in r and r[:r.find("_")] in projvartocols:
                         s = r[:r.find("_")]
+                        p = r[r.find("_") + 1:]
                         if s in res:
                             val = res[s]
-                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            res[s] = val.replace('{' + p + '}', row[r].replace(" ", '_'))
                         else:
-                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                               row[r].replace(" ", '_'))
+                            if '[' in coltotemplates[s]:
+                                coltotemplates[s] = coltotemplates[s].replace(
+                                    coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
+                                    '')
+                            if '[' in coltotemplates[s]:
+                                coltotemplates[s] = coltotemplates[s].replace(
+                                    coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
+                                    '')
+                            res[s] = coltotemplates[s].replace('{' + p + '}', row[r].replace(" ", '_'))
                     elif r in projvartocols and r in coltotemplates:
-                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                        if '[' in coltotemplates[r]:
+                            coltotemplates[r] = coltotemplates[r].replace(
+                                coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+                        if '[' in coltotemplates[r]:
+                            coltotemplates[r] = coltotemplates[r].replace(
+                                coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+
+                        p = coltotemplates[r][coltotemplates[r].find('{') + 1: coltotemplates[r].find('}')]
+
+                        res[r] = coltotemplates[r].replace('{' + p + '}', row[r].replace(" ", '_'))
                     else:
                         res[r] = row[r]
+
+                    #
+                    # if '_' in r and r[:r.find("_")] in projvartocols:
+                    #     s = r[:r.find("_")]
+                    #     if s in res:
+                    #         val = res[s]
+                    #         res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                    #     else:
+                    #         res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                    #                                            row[r].replace(" ", '_'))
+                    # elif r in projvartocols and r in coltotemplates:
+                    #     res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                    # else:
+                    #     res[r] = row[r]
                 queue.put(res)
 
         queue.put("EOF")
@@ -212,14 +243,14 @@ class MySQLWrapper(object):
                     column1 = subj1
                     column2 = subj2
                     if '[' in subj1:
-                        column1 = '`' + subj1[:subj1.find('[')] + "`._VALUE"
+                        column1 = '`' + subj1[:subj1.find('[')] + "`"
                     elif '/' in subj1 and '[*]' not in subj1:
                         column1 = subj1.replace('/', '.')
                         column1 = "`" + column1[:column1.find('.')] + '`' + column1[column1.find('.'):]
                     else:
                         column1 = '`' + column1 + '`'
                     if '[' in subj2:
-                        column2 = '`' + subj2[:subj2.find('[')] + "`._VALUE"
+                        column2 = '`' + subj2[:subj2.find('[')] + "`"
                     elif '/' in subj2 and '[*]' not in subj2:
                         column2 = subj2.replace('/', '.')
                         column2 = "`" + column2[:column2.find('.')] + '`' + column2[column2.find('.'):]
