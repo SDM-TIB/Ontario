@@ -18,13 +18,13 @@ Ontario: A Federated SPARQL Query Processor over Semantic Data Lakes
 
 :chebi_compound
   	rml:logicalSource [
-              rml:source "compounds.tsv";
-  			  rml:referenceFormulation ql:TSV;
-              rml:iterator "*"
+                rml:source "compounds.tsv";
+                rml:referenceFormulation ql:TSV;
+                rml:iterator "*"
   			 ];
   	rr:subjectMap [
-  		    rr:template "http://www.ebi.ac.uk/chebi/{ID}";
-        	rr:class chebi:Compound
+        rr:template "http://www.ebi.ac.uk/chebi/{ID}";
+        rr:class chebi:Compound
   	];  	
     rr:predicateObjectMap [
       rr:predicate chebi:accession;
@@ -41,7 +41,41 @@ Ontario: A Federated SPARQL Query Processor over Semantic Data Lakes
  ```
  
 ## Configurations
-`config.json`
+To generate the RDF Molecule Templates, one should prepare a list of data sources with their mapping files (if any) as follows:
+
+`datasources.json`
+
+```json
+[
+      {
+        "name": "ChEBI-TSV",
+        "ID": "http://iasis.eu/datasource/chebi-tsv",
+        "url": "/home/user/data/ChEBI-TSV",
+        "params": {
+                "spark.driver.cores": "4",
+                "spark.executor.cores": "4",
+                "spark.cores.max": "6",
+                "spark.default.parallelism": "4",
+                "spark.executor.memory": "6g",
+                "spark.driver.memory": "12g",
+                "spark.driver.maxResultSize": "8g",
+                "spark.python.worker.memory": "10g",
+                "spark.local.dir": "/tmp"
+        },
+        "type": "LOCAL_TSV",
+        "mappings": ["/home/user/git/Ontario/mappings/ChEBI/chebi-tsv-mapping.ttl"]
+      }
+  ]
+```
+
+Then run the following:
+
+```bash
+    python3 create_rdfmts.py -d datasources.json -o config.json
+    
+```
+Then the RDF-MTs will be generated either by contacting the data sources or from the RML mappings.
+ The content of the `config.json` file contains the following information:
 
 ```json
 {
