@@ -1,4 +1,3 @@
-flask
 hdfs
 pyspark
 pymongo
@@ -7,3 +6,4 @@ neo4j-driver
 rdflib
 networkx
 ply
+enum

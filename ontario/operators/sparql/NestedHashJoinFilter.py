@@ -14,9 +14,9 @@ from multiprocessing import Queue, Process
 from time import time
 import string, sys
 from multiprocessing.queues import Empty
-from mulder.Operators.Join import Join
-from mulder.NonBlockingOperators.OperatorStructures import Table, Partition, Record
-from mulder.NonBlockingOperators.NestedHashJoin import NestedHashJoin
+from ontario.operators.Join import Join
+from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
+from ontario.operators.sparql.NestedHashJoin import NestedHashJoin
 
 WINDOW_SIZE = 10
 
