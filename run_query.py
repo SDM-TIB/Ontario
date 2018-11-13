@@ -73,7 +73,7 @@ if __name__ == "__main__":
     from time import time
     start = time()
     query, config, planonly = get_options(sys.argv[1:])
-    configuration = OntarioConfiguration('../../configurations/chebi-mysql-config.json')
+    configuration = OntarioConfiguration(config)
     print("reading config finished!", configuration.datasources)
     dc = Catalyst(query, configuration)
     # pprint.pprint(configuration.metadata)

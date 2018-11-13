@@ -355,7 +355,11 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
     conds = {}
 
     if len(colnames) == 1:
-        columns = [c for c in variablemap[var].strip().split('/') if len(c) > 0]
+        if isinstance(variablemap[var], list):
+            columns = [c for c in variablemap[var][0].strip().split('/') if len(c) > 0]
+        else:
+            columns = [c for c in variablemap[var].strip().split('/') if len(c) > 0]
+
         if len(columns) > 1:
             nested = getnextStruct(columns)
             if isinstance(nested, dict):
