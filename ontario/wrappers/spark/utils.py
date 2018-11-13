@@ -125,9 +125,9 @@ def getProjectionClause(variablemap, sparqlprojected, tablealias):
                 for column in variablemap[var]:
                     column = column.strip()
                     if var[1:] in projections:
-                        projections[var[1:]] += " , " + tablealias + "." + column + " AS " + var[1:] + "_" + column
+                        projections[var[1:]] += " , " + tablealias + ".`" + column + "` AS " + var[1:] + "_" + column.replace(' ', '')
                     else:
-                        projections[var[1:]] = tablealias + "." + column + " AS " + var[1:] + "_" + column
+                        projections[var[1:]] = tablealias + ".`" + column + "` AS " + var[1:] + "_" + column.replace(' ', '')
                     projvartocol.setdefault(var[1:], []).append(column)
             else:
                 # colname = variablemap[var].strip().split('[*]')
@@ -376,7 +376,7 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
             projvartocol[var[1:]] = variablemap[var].strip().replace('/', '.')
         pp = ""
         if l == 1:
-            pp = "_" + column.replace("`", '').replace('.', '_')
+            pp = "_" + column.replace("`", '').replace('.', '_').replace(" ", '')
         if var[1:] in projections:
             projections[var[1:]] += ", " + column + " AS `" + var[1:] + pp+ '`'
         else:
@@ -429,7 +429,7 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
 
         pp = ""
         if l == 1:
-            pp = "_" + column.replace("`", '').replace('.', '_')
+            pp = "_" + column.replace("`", '').replace('.', '_').replace(" ", '')
 
         if var[1:] in projections:
             projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
