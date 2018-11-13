@@ -370,7 +370,10 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
             schema[columns[0]] = columns[0]
 
         column = "`" + '`.`'.join(columns) + '`'
-        projvartocol[var[1:]] = variablemap[var].strip().replace('/', '.')
+        if isinstance(variablemap[var], list):
+            projvartocol[var[1:]] = variablemap[var][0].strip().replace('/', '.')
+        else:
+            projvartocol[var[1:]] = variablemap[var].strip().replace('/', '.')
         pp = ""
         if l == 1:
             pp = "_" + column.replace("`", '').replace('.', '_')
@@ -465,7 +468,10 @@ def getLVProjectionClause(variablemap, sparqlprojected, tablealias):
                     addprojection(colnames, variablemap, projvartocol, projections, wherenotnull, lateralviews, schema, var, 1)
 
             else:
-                colnames = variablemap[var].strip().split('[*]')
+                if isinstance(variablemap[var], list):
+                    colnames = variablemap[var][0].strip().split('[*]')
+                else:
+                    colnames = variablemap[var].strip().split('[*]')
                 addprojection(colnames, variablemap, projvartocol, projections, wherenotnull, lateralviews, schema, var, 0)
 
     return projections, wherenotnull, projvartocol, lateralviews, schema
