@@ -11,7 +11,7 @@ from ontario.mediator import Catalyst
 
 def get_options(argv):
     try:
-        opts, args = getopt.getopt(argv, "h:q:c:p:")
+        opts, args = getopt.getopt(argv, "h:q:c:p:s:")
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -24,7 +24,7 @@ def get_options(argv):
         - SPARQL-UPDATE (directly store to sparql endpoint)
     '''
     config = 'config/config.json'
-    isstring = -1
+    isstring = False
     planonly = False
     for opt, arg in opts:
         if opt == "-h":
@@ -36,10 +36,15 @@ def get_options(argv):
             config = arg
         elif opt == '-p':
             planonly = eval(arg)
+        elif opt == '-s':
+            isstring = eval(arg)
 
     if not query:
         usage()
         sys.exit(1)
+
+    if not isstring:
+        query = open(query).read()
 
     return query, config, planonly
 
