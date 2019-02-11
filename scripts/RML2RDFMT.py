@@ -280,4 +280,4 @@ mapping_query = prefixes + \
 
 
 if __name__ == "__main__":
-    read_config("configurations/ds_config.json")
+    read_config("../configurations/ds_config.json")
