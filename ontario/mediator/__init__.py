@@ -340,6 +340,7 @@ if __name__ == "__main__":
                         ?s rdfs:comment ?comment.
                   } limit 10
             """
+
     configuration = OntarioConfiguration('../../configurations/chebi-mysql-config.json')
     print("reading config finished!", configuration.datasources)
     dc = Catalyst(query, configuration)
