@@ -56,7 +56,7 @@ metas = ['http://www.w3.org/ns/sparql-service-description',
          'nodeID://']
 
 
-def read_config(filename):
+def read_config(filename, output):
     with open(filename, "r", encoding='utf8') as f:
         ds = json.load(f)
 
@@ -105,7 +105,7 @@ def read_config(filename):
     conf['templates'] = list(dsrdfmts.values())
     conf['datasources'] = ds
     pprint(conf)
-    json.dump(conf, open('temp-conf.json', 'w+'))
+    json.dump(conf, open(output, 'w+'))
     return datasources
 
 
@@ -280,4 +280,4 @@ mapping_query = prefixes + \
 
 
 if __name__ == "__main__":
-    read_config("../configurations/ds_config.json")
+    read_config("../configurations/ds_config.json", "output.json")
