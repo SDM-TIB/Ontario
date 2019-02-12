@@ -76,9 +76,9 @@ def finalize(processqueue):
 if __name__ == "__main__":
 
     from time import time
-    start = time()
     query, config, planonly = get_options(sys.argv[1:])
     configuration = OntarioConfiguration(config)
+    start = time()
     print("reading config finished!", configuration.datasources)
     dc = Catalyst(query, configuration)
     # pprint.pprint(configuration.metadata)
@@ -108,7 +108,8 @@ if __name__ == "__main__":
 
     plan = pl.make_plan()
     pprint.pprint(plan)
-    plantime = time() - planonly
+    plantime = time() - planstart
+    print("Decomposition time: ", dectime)
     print("Planning time: ", plantime)
     if planonly:
         exit()
@@ -129,5 +130,8 @@ if __name__ == "__main__":
 
     exetime = time() - start
     print("total: ", i)
+
+    print("Decomposition time: ", dectime)
+    print("Planning time: ", plantime)
     print("total exe time:", exetime)
     finalize(processqueue)
