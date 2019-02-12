@@ -26,40 +26,26 @@ class MySQLWrapper(object):
         self.star = star
         self.query = None
         self.prefixes = {}
-        username = None
-        password = None
+        self.username = None
+        self.password = None
         if datasource.params is not None and len(datasource.params) > 0:
             if isinstance(datasource.params, dict):
-                username = datasource.params['username'] if 'username' in datasource.params else None
-                password = datasource.params['password'] if 'password' in datasource.params else None
+                self.username = datasource.params['username'] if 'username' in datasource.params else None
+                self.password = datasource.params['password'] if 'password' in datasource.params else None
             else:
                 maps = datasource.params.split(';')
                 for m in maps:
                     params = m.split(':')
                     if len(params) > 0:
                         if 'username' == params[0]:
-                            username = params[1]
+                            self.username = params[1]
                         if 'password' == params[0]:
-                            password = params[1]
+                            self.password = params[1]
         if ':' in self.url:
-            host, port = self.url.split(':')
+            self.host, self.port = self.url.split(':')
         else:
-            host = self.url
-            port = '3306'
-        try:
-            if username is None:
-                self.mysql = connector.connect(user='root', host=self.url)
-            else:
-                self.mysql = connector.connect(user=username, password=password, host=host, port=port)
-        except connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-            else:
-                print(err)
-        except Exception as ex:
-            print("Exception while connecting to Mysql", ex)
+            self.host = self.url
+            self.port = '3306'
 
         self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
                          for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
@@ -85,6 +71,21 @@ class MySQLWrapper(object):
 
         sqlquery, coltotemplates, projvartocols, filenametablename, filenameiteratormap = self.translate()
         print(sqlquery)
+        try:
+            if self.username is None:
+                self.mysql = connector.connect(user='root', host=self.url)
+            else:
+                self.mysql = connector.connect(user=self.username, password=self.password, host=self.host, port=self.port)
+        except connector.Error as err:
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Something is wrong with your user name or password")
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Database does not exist")
+            else:
+                print(err)
+        except Exception as ex:
+            print("Exception while connecting to Mysql", ex)
+
         cursor = self.mysql.cursor()
         db = ""
         for fn in filenameiteratormap:
@@ -129,19 +130,6 @@ class MySQLWrapper(object):
                     else:
                         res[r] = row[r]
 
-                    #
-                    # if '_' in r and r[:r.find("_")] in projvartocols:
-                    #     s = r[:r.find("_")]
-                    #     if s in res:
-                    #         val = res[s]
-                    #         res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
-                    #     else:
-                    #         res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                    #                                            row[r].replace(" ", '_'))
-                    # elif r in projvartocols and r in coltotemplates:
-                    #     res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
-                    # else:
-                    #     res[r] = row[r]
                 queue.put(res)
 
         queue.put("EOF")
