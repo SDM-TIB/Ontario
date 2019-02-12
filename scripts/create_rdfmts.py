@@ -89,6 +89,87 @@ class DataSourceType(Enum):
     LOCAL_XML = "LOCAL_XML"
 
 
+def get_links(endpoint1, rdfmt1, endpoint2, rdfmt2):
+    # print 'between endpoints:', endpoint1, ' --> ', endpoint2
+    for c in rdfmt1:
+        for p in c['predicates']:
+            reslist = get_external_links(endpoint1, c['rootType'], p['predicate'], endpoint2, rdfmt2)
+            if len(reslist) > 0:
+                # reslist = [r+"@"+endpoint2 for r in reslist]
+                c['linkedTo'].extend(reslist)
+                c['linkedTo'] = list(set(c['linkedTo']))
+                p['range'].extend(reslist)
+                p['range'] = list(set(p['range']))
+                # print 'external links found for ', c['rootType'], '->', p['predicate'], reslist
+
+
+def get_external_links(endpoint1, rootType, pred, endpoint2, rdfmt2):
+    query = 'SELECT DISTINCT ?o  WHERE {?s a <' + rootType + '> ; <' + pred + '> ?o . FILTER (isIRI(?o))}'
+    referer = endpoint1
+
+    reslist = []
+    limit = 50
+    offset = 0
+    numrequ = 0
+    checked_inst = []
+    links_found = []
+    print("Checking external links: ", endpoint1, rootType, pred, ' in ', endpoint2)
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+    while True:
+        query_copy = query + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+        res, card = contactRDFSource(query, referer)
+        numrequ += 1
+        if card == -2:
+            limit = limit / 2
+            if limit == 0:
+                break
+
+            continue
+        if numrequ == 100:
+            break
+        if card > 0:
+            # rand = random.randint(0, card - 1)
+            # inst = res[rand]
+            #
+            # if inst['o'] in checked_inst:
+            #     offset += limit
+            #     continue
+            for inst in res:
+                for c in rdfmt2:
+                    if c['rootType'] in links_found:
+                        continue
+                    exists = link_exist(inst['o'], c['rootType'], endpoint2)
+                    checked_inst.append(inst['o'])
+                    if exists:
+                        reslist.append(c['rootType'])
+                        links_found.append(c['rootType'])
+                        print(rootType, ',', pred, '->', c['rootType'])
+            reslist = list(set(reslist))
+
+        if card < limit:
+            break
+
+        offset += limit
+
+    return reslist
+
+
+def link_exist(s, c, endpoint):
+
+    query = "ASK {<" + s + '>  a  <' + c + '> } '
+    referer = endpoint
+
+    res, card = contactRDFSource(query, referer)
+    if res is None:
+        print('bad request on, ', s, c)
+    if card > 0:
+        if res:
+            print("ASK result", res, endpoint)
+        return res
+
+    return False
+
+
 def read_config(filename):
     with open(filename, "r", encoding='utf8') as f:
         ds = json.load(f)
@@ -99,17 +180,26 @@ def read_config(filename):
 
     }
     dsrdfmts = {}
+    sparqlendps = {}
     for d in ds:
         if d['type'] == 'SPARQL_Endpoint':
             rdfmts = get_typed_concepts(d['ID'], d['url'])
-        else:
+            sparqlendps[d['url']] = rdfmts.copy()
+
+    for e1 in sparqlendps:
+        for e2 in sparqlendps:
+            if e1 == e2:
+                continue
+            get_links(e1, sparqlendps[e1], e2, sparqlendps[e2])
+
+    for d in ds:
+        if d['type'] != 'SPARQL_Endpoint':
             mappings, rdfmts = ext_mappings(d['mappings'], d['ID'])
-        # datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
-        #                                   d['ID'],
-        #                                   d['url'],
-        #                                   d['type'],
-        #                                   d['params'],
-        #                                   mappings)
+            sparqlendps[d['url']] = rdfmts.copy()
+
+    for e in sparqlendps:
+        rdfmts = sparqlendps[e]
+
         for rdfmt in rdfmts:
             rootType = rdfmt['rootType']
             if rootType not in dsrdfmts:
@@ -122,7 +212,8 @@ def read_config(filename):
                 else:
                     pps = rdfmt['datasources'][0]['predicates']
                     dss[rdfmt['datasources'][0]['datasource']]['predicates'].extend(pps)
-                    dss[rdfmt['datasources'][0]['datasource']]['predicates'] = list(set(dss[rdfmt['datasources'][0]['datasource']]['predicates']))
+                    dss[rdfmt['datasources'][0]['datasource']]['predicates'] = list(
+                        set(dss[rdfmt['datasources'][0]['datasource']]['predicates']))
                     otherrdfmt['datasources'] = list(dss.values())
 
                 otherpreds = {p['predicate']: p for p in otherrdfmt['predicates']}
@@ -420,7 +511,13 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
             logger.info(pred + str(ranges))
             rdfpropteries.append({
                 "predicate": pred,
-                "range": ranges
+                "range": ranges,
+                "policies": [
+                    {
+                        "dataset": ds,
+                        "operator": "PR"
+                    }
+                ]
             })
 
         rdfmt = {
@@ -709,7 +806,7 @@ def usage():
 
 if __name__ == "__main__":
     source, output = get_options(sys.argv[1:])
-    # source = "../configurations/ds_config.json"
+    # source = "../configurations/tibfed-config.json"
     # output = 'config-output.json'
     conf = read_config(source)
     pprint(conf)
