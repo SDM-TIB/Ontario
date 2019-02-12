@@ -136,6 +136,8 @@ def read_config(filename):
                 preds = [otherpreds[p] for p in otherpreds]
                 otherrdfmt['predicates'] = preds
 
+                otherrdfmt['linkedTo'] = list(set(rdfmt['linkedTo'] + otherrdfmt['linkedTo']))
+
     conf['templates'] = list(dsrdfmts.values())
     conf['datasources'] = ds
 
@@ -188,6 +190,7 @@ def _query_mappings(filename, ds):
         rdfmt = {
             "rootType": m,
             "predicates": [],
+            "linkedTo": [],
             "datasources": []
         }
 
@@ -198,6 +201,8 @@ def _query_mappings(filename, ds):
                 "predicate": p,
                 "range": predicates[p]
             })
+            rdfmt['linkedTo'].extend(predicates[p])
+
         preds = list(predicates.keys())
         rdfmt['datasources'].append({
             'datasource': ds,
@@ -391,6 +396,7 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
         # Get predicates of the molecule t
         preds = get_predicates(referer, t)
         predicates = []
+        linkedto = []
         for p in preds:
             pred = p['p']
             predicates.append(pred)
@@ -410,6 +416,7 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
                 if xsd not in mr:
                     ranges.append(mr)
 
+            linkedto.extend(ranges)
             logger.info(pred + str(ranges))
             rdfpropteries.append({
                 "predicate": pred,
@@ -419,6 +426,7 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
         rdfmt = {
             "rootType": t,
             "predicates": rdfpropteries,
+            "linkedTo": linkedto,
             "datasources": [{
                 'datasource': ds,
                 'predicates': predicates
