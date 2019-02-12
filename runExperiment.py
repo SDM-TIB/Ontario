@@ -24,13 +24,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def runQuery(queryfile, configfile, tempType, isEndpoint, res, qplan, adaptive, withoutCounts, printResults, planonly,
-             joinlocally=True):
-    '''if isEndpoint:
-        contact = contactSource
-    else:
-        contact = contactWrapper
-    '''
+def runQuery(queryfile, configfile, res, printResults, planonly):
+
     query = open(queryfile).read()
     pos = queryfile.rfind("/")
     qu = queryfile[pos + 1:]
@@ -113,23 +108,6 @@ def runQuery(queryfile, configfile, tempType, isEndpoint, res, qplan, adaptive, 
                     continue
             else:
                 break
-    # print('Number of sub-processes to terminate: ', processqueue.qsize())
-    # while True:
-    #     try:
-    #         p = processqueue.get(False)
-    #         if check_pid(p):
-    #             try:
-    #                 os.kill(p, 9)
-    #                 # print("Process ", p, ' has been terminated')
-    #             except OSError as err:
-    #                 print("ERROR: Process ", p, ' cannot be terminated. Trying again ..', err)
-    #                 # processqueue.put(p)
-    #                 continue
-    #             if check_pid(p):
-    #                 processqueue.put(p)
-    #     except Empty:
-    #         break
-
 
 def check_pid(pid):
     """ Check For the existence of a unix pid. """
@@ -288,8 +266,7 @@ def main(argv):
     (configfile, queryfile, buffersize, isEndpoint, plan, adaptive, withoutCounts, printResults, planonly,
      joinlocally) = get_options(argv[1:])
     try:
-        runQuery(queryfile, configfile, buffersize, isEndpoint, res, plan, adaptive, withoutCounts, printResults,
-                 planonly, joinlocally)
+        runQuery(queryfile, configfile, res, printResults, planonly)
     except Exception as ex:
         print(ex)
 
