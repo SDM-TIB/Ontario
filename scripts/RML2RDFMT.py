@@ -49,11 +49,24 @@ metas = ['http://www.w3.org/ns/sparql-service-description',
          'nodeID://']
 
 
-class TermType(Enum):
-    TEMPLATE = "template"
-    CONSTANT = "constant"
-    REFERENCE = "reference"
-    TRIPLEMAP = "triplemap"
+class DataSourceType(Enum):
+    SPARQL_ENDPOINT = "SPARQL_Endpoint"
+    MONGODB = "MongoDB"
+    NEO4J = "Neo4j"
+    MYSQL = "MySQL"
+    SPARK_CSV = "SPARK_CSV"
+    SPARK_TSV = "SPARK_TSV"
+    SPARK_JSON = "SPARK_JSON"
+    SPARK_XML = "SPARK_XML"
+    HADOOP_CSV = "HADOOP_CSV"
+    HADOOP_TSV = "HADOOP_TSV"
+    HADOOP_JSON = "HADOOP_JSON"
+    HADOOP_XML = "HADOOP_XML"
+    REST_SERVICE = "REST_Service"
+    LOCAL_CSV = "LOCAL_CSV"
+    LOCAL_TSV = "LOCAL_TSV"
+    LOCAL_JSON = "LOCAL_JSON"
+    LOCAL_XML = "LOCAL_XML"
 
 
 def read_config(filename):
@@ -100,6 +113,8 @@ def read_config(filename):
                             otherpreds[p]['range'] = list(set(otherpreds[p]['range']))
                 preds = [otherpreds[p] for p in otherpreds]
                 otherrdfmt['predicates'] = preds
+
+                otherrdfmt['linkedTo'] = list(set(rdfmt['linkedTo'] + otherrdfmt['linkedTo']))
 
     conf['templates'] = list(dsrdfmts.values())
     conf['datasources'] = ds
@@ -155,6 +170,7 @@ def _query_mappings(filename, ds):
         rdfmt = {
             "rootType": m,
             "predicates": [],
+            "linkedTo": [],
             "datasources": []
         }
 
@@ -165,6 +181,8 @@ def _query_mappings(filename, ds):
                 "predicate": p,
                 "range": predicates[p]
             })
+            rdfmt['linkedTo'].extend(predicates[p])
+
         preds = list(predicates.keys())
         rdfmt['datasources'].append({
             'datasource': ds,
@@ -273,6 +291,6 @@ def usage():
 
 if __name__ == "__main__":
     source, output = get_options(sys.argv[1:])
-    conf = read_config("../configurations/ds_config.json")
+    conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))
