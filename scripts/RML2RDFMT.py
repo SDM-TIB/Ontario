@@ -1,14 +1,6 @@
 #!/usr/bin/env python3.5
 
-import hashlib
-import json
-import pprint as pp
-import pprint
-import random
-from multiprocessing import Queue, Process
-from multiprocessing.queues import Empty
-import logging
-import time
+import getopt, sys
 from pprint import pprint
 import rdflib
 from ontario.config.model import *
@@ -56,7 +48,7 @@ metas = ['http://www.w3.org/ns/sparql-service-description',
          'nodeID://']
 
 
-def read_config(filename, output):
+def read_config(filename):
     with open(filename, "r", encoding='utf8') as f:
         ds = json.load(f)
 
@@ -101,12 +93,10 @@ def read_config(filename, output):
                 preds = [otherpreds[p] for p in otherpreds]
                 otherrdfmt['predicates'] = preds
 
-
     conf['templates'] = list(dsrdfmts.values())
     conf['datasources'] = ds
-    pprint(conf)
-    json.dump(conf, open(output, 'w+'))
-    return datasources
+
+    return conf
 
 
 def ext_mappings(mappingslist, ds):
@@ -279,5 +269,52 @@ mapping_query = prefixes + \
         " }"
 
 
+def get_options(argv):
+    try:
+        opts, args = getopt.getopt(argv, "h:s:o:")
+    except getopt.GetoptError:
+        usage()
+        sys.exit(1)
+
+    '''
+    Supported output formats:
+        - json (default)
+        - nt
+        - SPARQL-UPDATE (directly store to sparql endpoint)
+    '''
+
+    source = None
+    output = 'config-output.json'
+    for opt, arg in opts:
+        if opt == "-h":
+            usage()
+            sys.exit()
+        elif opt == "-s":
+            source = arg
+        elif opt == "-o":
+            output = arg
+
+    if not source:
+        usage()
+        sys.exit(1)
+
+    return source, output
+
+
+def usage():
+    usage_str = ("Usage: {program} \n"
+                 "-s <path/to/datasources.json> \n"
+                 "-o <path/to/config-output.json> \n"
+                 "where \n"                                  
+                 "\t<path/to/datasources.json> - path to dataset info file  \n"
+                 "\t<path/to/config-output.json> - name of output file  \n")
+
+    print(usage_str.format(program=sys.argv[0]),)
+
+
 if __name__ == "__main__":
-    read_config("../configurations/ds_config.json", "output.json")
+    source, output = get_options([sys.argv[1:]]
+    conf = read_config("../configurations/ds_config.json")
+    pprint(conf)
+    output = "output.json"
+    json.dump(conf, open(output, 'w+'))
