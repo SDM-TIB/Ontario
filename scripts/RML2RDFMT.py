@@ -3,7 +3,8 @@
 import getopt, sys
 from pprint import pprint
 import rdflib
-from ontario.config.model import *
+from enum import Enum
+import json
 
 xsd = "http://www.w3.org/2001/XMLSchema#"
 owl = ""
@@ -48,6 +49,13 @@ metas = ['http://www.w3.org/ns/sparql-service-description',
          'nodeID://']
 
 
+class TermType(Enum):
+    TEMPLATE = "template"
+    CONSTANT = "constant"
+    REFERENCE = "reference"
+    TRIPLEMAP = "triplemap"
+
+
 def read_config(filename):
     with open(filename, "r", encoding='utf8') as f:
         ds = json.load(f)
@@ -61,12 +69,12 @@ def read_config(filename):
     dsrdfmts = {}
     for d in ds:
         mappings, rdfmts = ext_mappings(d['mappings'], d['ID'])
-        datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
-                                          d['ID'],
-                                          d['url'],
-                                          d['type'],
-                                          d['params'],
-                                          mappings)
+        # datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
+        #                                   d['ID'],
+        #                                   d['url'],
+        #                                   d['type'],
+        #                                   d['params'],
+        #                                   mappings)
         for rdfmt in rdfmts:
             rootType = rdfmt['rootType']
             if rootType not in dsrdfmts:
@@ -129,34 +137,7 @@ def _query_mappings(filename, ds):
     rdfmts = {}
     for row in res:
 
-        tm = row['tm'].n3()[1:-1]
         rdfmt = row['rdfmt'].n3()[1:-1]
-
-        source = row['sourceFile'].n3()[1:-1]
-        iterators = row['iterator'].n3()[1:-1] if row['iterator'] is not None else "*"
-        subjectType = TermType.CONSTANT if row['subject'] is not None or \
-                                            row['constsubject'] is not None else \
-                        TermType.TEMPLATE if row['smtemplate'] is not None else \
-                        TermType.REFERENCE if row['smreference'] is not None else None
-
-        subject = row['subject'] if row['subject'] is not None \
-                                               else row['smtemplate'].n3()[1:-1] if row['smtemplate'] is not None \
-                                               else row['constsubject'].n3()[1:-1] if row['constsubject'] is not None \
-                                               else row['smreference'].n3()[1:-1] if row['smreference'] is not None \
-                                               else None
-        if subjectType is None or subject is None or len(source.strip()) == 0:
-            continue
-
-        mapping = RMLMapping(source, subject, iterators, subjectType)
-
-        if tm not in results:
-            results[tm] = {}
-            results[tm][rdfmt] = mapping
-        else:
-            if rdfmt not in results[tm]:
-                results[tm][rdfmt] = mapping
-            else:
-                mapping = results[tm][rdfmt]
 
         predicate = row['predicate'].n3()[1:-1]
         if rdfmt not in rdfmts:
@@ -164,33 +145,10 @@ def _query_mappings(filename, ds):
         if predicate not in rdfmts[rdfmt]:
             rdfmts[rdfmt][predicate] = []
 
-        objdtype = row['pomobjmapdatatype'].n3() if row['pomobjmapdatatype'] is not None else None
         objrdfclass = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
 
         if objrdfclass is not None:
             rdfmts[rdfmt][predicate].append(objrdfclass)
-
-        objtype = TermType.CONSTANT if row['objconst'] is not None or row['constobject'] is not None \
-                                               else TermType.TEMPLATE if row['predobjmaptemplate'] is not None \
-                                               else TermType.REFERENCE if row['pomomapreference'] is not None \
-                                               else TermType.TRIPLEMAP if row['parentTPM'] is not None \
-                                               else None
-        object = row['objconst'].n3()[1:-1] if row['objconst'] is not None \
-                                else row['constobject'].n3()[1:-1] if row['constobject'] is not None \
-                                else row['predobjmaptemplate'].n3()[1:-1] if row['predobjmaptemplate'] is not None \
-                                else row['pomomapreference'].n3()[1:-1] if row['pomomapreference'] is not None \
-                                else row['parentTPM'].n3()[1:-1] if row['parentTPM'] is not None \
-                                else None
-        jchild = row['jcchild'].n3()[1:-1] if row['jcchild'] is not None else None
-        jparent = row['jcparent'].n3()[1:-1] if row['jcparent'] is not None else None
-
-        mapping.predicateObjMap[predicate] = RDFMPredicateObjMap(predicate,
-                                                                object,
-                                                                objtype,
-                                                                objdtype,
-                                                                objrdfclass,
-                                                                jchild,
-                                                                jparent)
 
     molecules = []
     for m in rdfmts:
@@ -216,6 +174,7 @@ def _query_mappings(filename, ds):
         molecules.append(rdfmt)
 
     return results, molecules
+
 
 dsquery = " ?tm rml:logicalSource ?ls . " \
             " ?ls rml:source ?sourceFile .  "
@@ -313,8 +272,7 @@ def usage():
 
 
 if __name__ == "__main__":
-    source, output = get_options([sys.argv[1:]]
+    source, output = get_options(sys.argv[1:])
     conf = read_config("../configurations/ds_config.json")
     pprint(conf)
-    output = "output.json"
     json.dump(conf, open(output, 'w+'))
