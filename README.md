@@ -68,10 +68,27 @@ To generate the RDF Molecule Templates, one should prepare a list of data source
   ]
 ```
 
+Data Source `type` value can be one of the following:
+
+```buildoutcfg
+    SPARQL_Endpoint
+    MongoDB
+    Neo4j
+    MySQL
+    HADOOP_CSV
+    HADOOP_TSV
+    HADOOP_JSON
+    HADOOP_XML
+    LOCAL_CSV
+    LOCAL_TSV
+    LOCAL_JSON
+    LOCAL_XML
+```
+
 Then run the following:
 
 ```bash
-    python3 create_rdfmts.py -d datasources.json -o config.json
+    python3 scripts/create_rdfmts.py -s datasources.json -o config.json
     
 ```
 Then the RDF-MTs will be generated either by contacting the data sources or from the RML mappings.
@@ -140,10 +157,25 @@ To install the required packages run:
     pip3 install -r requirements.txt
 ```
 
+Install Ontario:
+```bash
+    python3 setup.py install
+```
+
+
 To run queries:
 
 ```bash
-    python3 run_query.py -q path/to/sparqlquery.txt -c path/to/config.json -p False
+    ./runExperiment.py -q path/to/sparqlquery.txt -c path/to/config.json -p False
 ```
 
 If you want to just see the plans, set `-p True`. 
+
+To run multiple queries in a folder:
+
+```bash
+    ./runOntarioExp.sh  /path/to/queriefolder/  path/to/config.json outputname.tsv  errorlog.txt False
+```
+
+If you want to just see the plans, set the last argument `True`
+
