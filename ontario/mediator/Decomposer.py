@@ -71,7 +71,8 @@ class LakeCatalyst(object):
             if len(typed) > 0:
 
                 for m in typed:
-                    properties = [p['predicate'] for p in typed[m]['predicates']]
+                    #properties = [p['predicate'] for p in typed[m]['predicates']]
+                    properties = list(typed[m].predicates.keys())
                     pinter = set(properties).intersection(set(preds))
                     if len(pinter) != len(set(preds)):
                         print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
@@ -113,8 +114,8 @@ class LakeCatalyst(object):
                     v = star_conn[c]
                     if s in v:
                         for m in res[c]:
-                            mols = [self.config.metadata[r] for mt in m for p in self.relevant_mts[mt]['predicates'] for r in p['range']]
-                            mols = [mt['rootType'] for mt in mols if len(mt) > 0]
+                            mols = [self.config.metadata[r] for mt in m for p in self.relevant_mts[mt].predicates for r in p.ranges]
+                            mols = [mt.uri for mt in mols]
                             res.setdefault(s, []).extend(mols)
                             found = True
                 if not found:
@@ -173,8 +174,7 @@ class LakeCatalyst(object):
                 connectingtp = list(set(connectingtp))
                 sm = selectedmolecules[s]
                 for m in sm:
-                    srange = [p for r in self.relevant_mts[m]['predicates'] for p in r['range'] if
-                              r['predicate'] in connectingtp]
+                    srange = [p for r in self.relevant_mts[m].predicates for p in self.relevant_mts[m].predicates[r].ranges if self.relevant_mts[m].predicates[r].predicate in connectingtp]
                     filteredmols = [r for r in res[s] if r in srange]
                     if len(filteredmols) > 0:
                         if s in newfilteredonly:
@@ -259,8 +259,7 @@ class LakeCatalyst(object):
         for t in types:
             tt = utils.getUri(t.theobject, self.prefixes)[1:-1]
             mt = self.config.metadata[tt]
-            if len(mt) > 0:
-                typemols[tt] = mt
+            typemols[tt] = mt
         if len(types) > 0 and len(typemols) == 0:
             return None
 
