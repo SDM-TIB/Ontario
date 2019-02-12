@@ -86,7 +86,6 @@ class LakeCatalyst(object):
             # if ssq contains at least one triple pattern with constant predicate
             mols = []
             if len(preds) > 0:
-                print(preds)
                 mols = self.config.find_rdfmt_by_preds(preds)
                 self.relevant_mts.update(mols)
                 mols = mols.keys()
