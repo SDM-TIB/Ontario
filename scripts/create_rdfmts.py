@@ -183,7 +183,7 @@ def mergeMTs(rdfmt, rootType, dsrdfmts):
 
     otherpreds = {p['predicate']: p for p in otherrdfmt['predicates']}
     thispreds = {p['predicate']: p for p in rdfmt['predicates']}
-    sameps = set(otherpreds.keys()).intersection(thispreds.keys())
+    sameps = set(list(otherpreds.keys())).intersection(list(thispreds.keys()))
     if len(sameps) > 0:
         for p in sameps:
             if len(thispreds[p]['range']) > 0:
@@ -191,7 +191,9 @@ def mergeMTs(rdfmt, rootType, dsrdfmts):
                 otherpreds[p]['range'] = list(set(otherpreds[p]['range']))
     preds = [otherpreds[p] for p in otherpreds]
     otherrdfmt['predicates'] = preds
-
+    newpreds = set(list(thispreds.keys())).difference(list(otherpreds.keys()))
+    print("new preds:", newpreds)
+    otherrdfmt['predicates'].extend([thispreds[p] for p in newpreds])
     otherrdfmt['linkedTo'] = list(set(rdfmt['linkedTo'] + otherrdfmt['linkedTo']))
 
 
