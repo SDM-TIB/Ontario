@@ -13,6 +13,38 @@ from ontario.operators.sparql.Xlimit import Xlimit
 from ontario.operators.sparql.Xgoptional import Xgoptional
 
 
+def getPrefs(ps):
+    prefDict = dict()
+    for p in ps:
+         pos = p.find(":")
+         c = p[0:pos].strip()
+         v = p[(pos+1):len(p)].strip()
+         prefDict[c] = v
+    return prefDict
+
+
+def getUri(p, prefs):
+    prefs = getPrefs(prefs)
+    if "'" in p.name or '"' in p.name:
+        return p.name
+    hasPrefix = prefix(p)
+    if hasPrefix:
+        (pr, su) = hasPrefix
+        n = prefs[pr]
+        n = n[:-1]+su+">"
+        return n
+    return p.name
+
+
+def prefix(p):
+    s = p.name
+    pos = s.find(":")
+    if (not (s[0] == "<")) and pos > -1:
+        return (s[0:pos].strip(), s[(pos+1):].strip())
+
+    return None
+
+
 class LakePlanner(object):
 
     def __init__(self, query, decompositions, config):
@@ -21,25 +53,135 @@ class LakePlanner(object):
         self.config = config
 
     def make_tree(self):
-        bywtype = {}
         services = []
         unionplans = []
         for star in self.decompositions:
-            for s in self.decompositions[star]:
-                ds = self.decompositions[star][s]['datasource']
-                bywtype.setdefault(star, {}).setdefault(str(ds.dstype.value), []).append(self.decompositions[star][s])
-
-        for star in bywtype:
             unions = []
+            wpreds = {}
+            ptrs = {}
+            ppreds = []
+            i = 0
+            skipp = False
+            for s in self.decompositions[star]:
+                dc = self.decompositions[star][s]
+                wpreds[s] = dc['predicates']
+                triples = dc['triples']
+                trps = {getUri(tr.predicate, self.query.prefs)[1:-1]: tr for tr in triples if
+                        tr.predicate.constant}
+                for p in trps:
+                    ptrs[p] = trps[p]
+                if skipp:
+                    continue
+                ds = dc['datasource']
 
-            for wt in bywtype[star]:
-                for dc in bywtype[star][wt]:
-                    ds = dc['datasource']
-                    triples = dc['triples']
-                    rdfmts = dc['rdfmts']
-                    # datasources = [dss['datasource'] for dss in bywtype[star][wt]]
-                    serv = Service(endpoint="<" + ds.url + ">", triples=triples, datasource=ds, rdfmts=rdfmts, star=dc)
-                    unions.append(serv)
+                rdfmts = dc['rdfmts']
+
+                if i == 0:
+                    ppreds = dc['predicates']
+                else:
+                    if len(set(ppreds).intersection(dc['predicates'])) != len(ppreds):
+                        unions = []
+                        skipp = True
+                        continue
+                # datasources = [dss['datasource'] for dss in bywtype[star][wt]]
+                serv = Service(endpoint="<" + ds.url + ">", triples=triples, datasource=ds, rdfmts=rdfmts, star=dc)
+                unions.append(serv)
+                i += 1
+
+            if len(unions) == 0:
+                inall = []
+                difs = {}
+                for e in wpreds:
+                    if len(inall) == 0:
+                        inall = wpreds[e]
+                    else:
+                        inall = list(set(inall).intersection(wpreds[e]))
+
+                    if e not in difs:
+                        difs[e] = wpreds[e]
+                    for d in difs:
+                        if e == d:
+                            continue
+                        dd = list(set(difs[d]).difference(wpreds[e]))
+                        if len(dd) > 0:
+                            difs[d] = dd
+
+                        dd = list(set(difs[e]).difference(wpreds[d]))
+                        if len(dd) > 0:
+                            difs[e] = dd
+
+                oneone = {}
+                for e1 in wpreds:
+                    for e2 in wpreds:
+                        if e1 == e2 or e2 + '|-|' + e1 in oneone:
+                            continue
+                        pp = set(wpreds[e1]).intersection(wpreds[e2])
+                        pp = list(set(pp).difference(inall))
+                        if len(pp) > 0:
+                            oneone[e1 + '|-|' + e2] = pp
+                onv = []
+                [onv.extend(d) for d in list(oneone.values())]
+                difv = []
+                [difv.extend(d) for d in list(difs.values())]
+                for o in onv:
+                    if o in difv:
+                        toremov = []
+                        for d in difs:
+                            if o in difs[d]:
+                                difs[d].remove(o)
+                                difv.remove(o)
+                            if len(difs[d]) == 0:
+                                toremov.append(d)
+                        for d in toremov:
+                            del difs[d]
+
+                ddd = onv + difv
+                if len(set(inall + ddd)) == len(list(ptrs.keys())):
+                    if len(inall) > 0:
+                        if len(inall) == 1 and inall[0] == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type':
+                            pass
+                        else:
+                            trps = [ptrs[p] for p in inall]
+
+                            elems = [JoinBlock([Service(endpoint="<" + self.decompositions[star][wt]['datasource'].url + ">",
+                                                        triples=list(set(trps)),
+                                                        datasource=self.decompositions[star][wt]['datasource'],
+                                                        rdfmts=self.decompositions[star][wt]['rdfmts'],
+                                                        star=self.decompositions[star][wt])]) for wt in list(wpreds.keys())]
+                            ub = UnionBlock(elems)
+                            unionplans = unionplans + [ub]
+                            # qpl1.append(ub)
+                    if len(oneone) > 0:
+
+                        for ee in oneone:
+                            e1, e2 = ee.split("|-|")
+                            pp = oneone[ee]
+                            if len(pp) == 1 and pp[0] == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type':
+                                pass
+                            else:
+                                trps = [ptrs[p] for p in pp]
+                                elems = [JoinBlock([Service(endpoint="<" + self.decompositions[star][e1]['datasource'].url + ">",
+                                                            triples=list(set(trps)),
+                                                            datasource=self.decompositions[star][e1]['datasource'],
+                                                            rdfmts=self.decompositions[star][e1]['rdfmts'],
+                                                            star=self.decompositions[star][e1])]),
+                                         JoinBlock([Service(endpoint="<" + self.decompositions[star][e2]['datasource'].url + ">",
+                                                            triples=list(set(trps)),
+                                                            datasource=self.decompositions[star][e2]['datasource'],
+                                                            rdfmts=self.decompositions[star][e2]['rdfmts'],
+                                                            star=self.decompositions[star][e2])])]
+                                ub = UnionBlock(elems)
+                                unionplans = unionplans + [ub]
+                                # unions.append(elems)
+                    if len(difs) > 0:
+                        for d in difs:
+                            trps = [ptrs[p] for p in difs[d]]
+                            services.append(Service(endpoint="<" + self.decompositions[star][d]['datasource'].url + ">",
+                                    triples=list(set(trps)),
+                                    datasource=self.decompositions[star][d]['datasource'],
+                                    rdfmts=self.decompositions[star][d]['rdfmts'],
+                                    star=self.decompositions[star][d]))
+                            # services.append(Service("<" + d + ">", list(set(trps))))
 
             if len(unions) > 1:
                 elems = [JoinBlock([s]) for s in unions]
@@ -49,7 +191,7 @@ class LakePlanner(object):
                 services.extend(unions)
 
         if services and unionplans:
-            unionplans.insert(0, services)
+            unionplans = services + unionplans
         elif services:
             unionplans = services
 
@@ -314,9 +456,136 @@ class LakePlanner(object):
         consts = left.consts & right.consts
         lowSelectivityLeft = left.allTriplesLowSelectivity()
         lowSelectivityRight = right.allTriplesLowSelectivity()
+
+        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
+
+        if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
+            if (n.right.constantPercentage() <= 0.5):
+                n.right.tree.service.limit = 10000
+            if (n.left.constantPercentage() <= 0.5):
+                n.left.tree.service.limit = 10000
+            if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
+               ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
+                nhj = True
+                if not lowSelectivityLeft and not lowSelectivityRight:
+                    if left.constantPercentage() > right.constantPercentage():
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right,
+                                         consts, self.query)
+
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left,
+                                         consts, self.query)
+                elif not lowSelectivityLeft:
+                    n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right,
+                                     consts, self.query)
+                elif not lowSelectivityRight:
+                    n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left,
+                                     consts, self.query)
+                else:
+                    nhj = False
+
+                if nhj:
+                    new_constants = 0
+                    for v in join_variables:
+                        new_constants = new_constants + n.right.query.show().count(v)
+                    if (n.right.constantNumber() + new_constants) / n.right.places() <= 0.5:
+                        n.right.tree.service.limit = 10000
+
+        return n
+
+    def make_joinsSQ(self, left, right):
+        join_variables = left.vars & right.vars
+        all_variables = left.vars | right.vars
+        consts = left.consts & right.consts
+        lowSelectivityLeft = left.allTriplesLowSelectivity()
+        lowSelectivityRight = right.allTriplesLowSelectivity()
         n = None
         dependent_join = False
 
         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
+
+        if isinstance(left, LeafOperator) and left.tree.service.triples[0].subject.constant:
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
+                dependent_join = True
+        elif isinstance(right, LeafOperator) and right.tree.service.triples[0].subject.constant:
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+                dependent_join = True
+        elif isinstance(right, NodeOperator) and right.operator.__class__.__name__ == "Xunion" and \
+                isinstance(left, NodeOperator) and left.operator.__class__.__name__ == "Xunion":
+            # both are Union operators
+            n = NodeOperator(Xgjoin(join_variables), all_variables,self.config, left, right, consts, self.query)
+
+        elif not lowSelectivityLeft and not lowSelectivityRight and \
+                (not isinstance(left, NodeOperator) or not isinstance(right, NodeOperator)):
+            # if both are selective and one of them (or both) are Independent Operator
+            if len(join_variables) > 0:
+                if left.constantPercentage() > right.constantPercentage():
+                    if not isinstance(right, NodeOperator):
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
+                        dependent_join = True
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+                else:
+                    if not isinstance(left, NodeOperator):
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+                        dependent_join = True
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
+
+        elif not lowSelectivityLeft and lowSelectivityRight and not isinstance(right, NodeOperator) and \
+                not isinstance(left.operator, Xunion) and \
+                (isinstance(left.left, LeafOperator) or left.left.operator.__class__.__name__ != "Xunion" ) and  \
+                (isinstance(left.right, LeafOperator) or left.right.operator.__class__.__name__ != "Xunion"):
+
+            # If left is selective, if left != NHJ and right != NHJ -> NHJ (l,r)
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
+                dependent_join = True
+
+        elif lowSelectivityLeft and not lowSelectivityRight and not isinstance(left, NodeOperator):
+            # if right is selective if left != NHJ and right != NHJ -> NHJ (r,l)
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+                dependent_join = True
+
+        elif not lowSelectivityLeft and lowSelectivityRight \
+                and (isinstance(left, NodeOperator) and not left.operator.__class__.__name__ == "NestedHashJoinFilter") \
+                and (isinstance(right, NodeOperator) and not (right.operator.__class__.__name__ == "NestedHashJoinFilter"
+                                                      or right.operator.__class__.__name__ == "Xgjoin")):
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
+                dependent_join = True
+        elif lowSelectivityLeft and not lowSelectivityRight and (isinstance(right, NodeOperator) and
+                not right.operator.__class__.__name__ == "NestedHashJoinFilter") \
+                and (isinstance(left, NodeOperator) and
+                     not (left.operator.__class__.__name__ == "NestedHashJoinFilter" or
+                     left.operator.__class__.__name__ == "Xgjoin")):
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+                dependent_join = True
+        elif lowSelectivityLeft and lowSelectivityRight and isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
+            # both are non-selective and both are Independent Operators
+            n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, right, left, consts, self.query)
+
+        if n is None:
+            n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
+
+        if n and isinstance(n.left, LeafOperator) and isinstance(n.left.tree, Leaf):
+            if (n.left.constantPercentage() <= 0.5) and not (n.left.tree.service.allTriplesGeneral()):
+                n.left.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
+
+        if isinstance(n.right, LeafOperator) and isinstance(n.right.tree, Leaf):
+            if not dependent_join:
+                if (n.right.constantPercentage() <= 0.5) and not (n.right.tree.service.allTriplesGeneral()):
+                    n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
+                    # print "modifying limit right ..."
+            else:
+                new_constants = 0
+                for v in join_variables:
+                    new_constants = new_constants + n.right.query.show().count(v)
+                if ((n.right.constantNumber() + new_constants) / n.right.places() <= 0.5) and not (n.right.tree.service.allTriplesGeneral()):
+                    n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
 
         return n

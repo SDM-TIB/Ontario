@@ -299,6 +299,10 @@ class MetaCatalyst(object):
             datasourses = self.config.datasources
             sources[m] = {datasourses[w].ID: list(set(mt.datasources[w]).intersection(self.predicates)) for w in mt.datasources\
                           if len(list(set(mt.datasources[w]).intersection(self.predicates))) == len(self.predicates)}
+            if len(sources[m]) == 0:
+                sources[m] = {datasourses[w].ID: list(set(mt.datasources[w]).intersection(self.predicates)) for w in
+                              mt.datasources}
+
         results = {}
 
         for m in sources:
