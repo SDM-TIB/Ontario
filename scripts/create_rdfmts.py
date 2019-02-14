@@ -171,16 +171,15 @@ def link_exist(insts, c, endpoint):
 
 def mergeMTs(rdfmt, rootType, dsrdfmts):
     otherrdfmt = dsrdfmts[rootType]
-
-    dss = {d['url']: d for d in otherrdfmt['wrappers']}
-
-    if rdfmt['wrappers'][0]['url'] not in dss:
-        otherrdfmt['wrappers'].extend(rdfmt['wrappers'])
+    dss = {d['datasource']: d for d in otherrdfmt['datasources']}
+    if rdfmt['datasources'][0]['datasource'] not in dss:
+        otherrdfmt['datasources'].extend(rdfmt['datasources'])
     else:
-        pps = rdfmt['wrappers'][0]['predicates']
-        dss[rdfmt['wrappers'][0]['url']]['predicates'].extend(pps)
-        dss[rdfmt['wrappers'][0]['url']]['predicates'] = list(set(dss[rdfmt['wrappers'][0]['url']]['predicates']))
-        otherrdfmt['wrappers'] = list(dss.values())
+        pps = rdfmt['datasources'][0]['predicates']
+        dss[rdfmt['datasources'][0]['datasource']]['predicates'].extend(pps)
+        dss[rdfmt['datasources'][0]['datasource']]['predicates'] = list(
+            set(dss[rdfmt['datasources'][0]['datasource']]['predicates']))
+        otherrdfmt['datasources'] = list(dss.values())
 
     otherpreds = {p['predicate']: p for p in otherrdfmt['predicates']}
     thispreds = {p['predicate']: p for p in rdfmt['predicates']}
@@ -838,9 +837,9 @@ def usage():
 
 
 if __name__ == "__main__":
-    source, output = get_options(sys.argv[1:])
-    # source = "../configurations/tibfed-config.json"
-    # output = 'config-output.json'
+    # source, output = get_options(sys.argv[1:])
+    source = "ds_config.json"
+    output = 'polyweb_config.json'
     conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))
