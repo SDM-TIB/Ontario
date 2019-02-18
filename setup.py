@@ -5,9 +5,9 @@ from setuptools import find_packages
 
 setup(name='ontario',
       version='1.0',
-      description='Ontario - Ontology-based architecture for semantic data lakes ',
+      description='Ontario - Ontology-based architecture for semantic data lakes',
       author='Kemele M. Endris',
-      author_email='endris@L3s.de',
+      author_email='endris@l3s.de',
       url='https://github.com/SDM-TIB/Ontario',
       scripts=['runExperiment.py', 'run_query.py', 'runOntarioExp.sh'],
       packages=find_packages(exclude=['docs']),
@@ -18,8 +18,7 @@ setup(name='ontario',
                         'mysql-connector-python',
                         'neo4j-driver',
                         'rdflib',
-                        'networkx',
-                        'enum'],
+                        'networkx'],
       include_package_data=True,
       license='GNU/GPL v2'
      )
