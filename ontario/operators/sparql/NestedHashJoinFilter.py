@@ -91,7 +91,7 @@ class NestedHashJoinFilter(Join):
                 pass
             except Exception as e:
                 # print "Unexpected error:", sys.exc_info()[0]
-                # print e
+                print('Exception in NHJ', e)
                 pass
 
             toRemove = []  # stores the queues that have already received all its tuples

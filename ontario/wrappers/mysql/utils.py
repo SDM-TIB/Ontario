@@ -142,7 +142,21 @@ def get_pred_vars(triples, prefixes):
     return predvars
 
 
-def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlprojected, query):
+def get_matching_filters(triples, filters):
+    result = []
+    t_vars = []
+    for t in triples:
+        t_vars.extend(t.getVars())
+
+    for f in filters:
+        f_vars = f.getVars()
+        if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
+            result.append(f)
+
+    return result
+
+
+def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlprojected, starfilters):
     objectfilters = []
     filtersmap = {}
     nans = []
@@ -150,6 +164,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
     subjcols = varmaps['subjcol']
     predvars = get_pred_vars(triples, prefixes)
     filters = get_filters(triples, prefixes)
+    mtfilter = get_matching_filters(triples, starfilters)
 
     if len(filters) == 0 and len(predvars) == 0:
         return None
@@ -185,6 +200,22 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
                 objectfilters.append(tablealias + '.`' + column + "` = " + ' "' + val + '" ')
             else:
                 objectfilters.append(tablealias + '.`' + column + "` = " + ' "' + val + '" ')
+    for f in mtfilter:
+        f_vars = f.getVars()
+
+        for v in set(f_vars):
+            prefix = ""
+            if v in varmaps['coltotemp']:
+                prefix = varmaps['coltotemp'][v].replace('{' + v + '}', "")
+            left = f.expr.left.name
+            right = f.expr.right.name
+            if right is not None:
+                if f.expr.left.constant and not f.expr.right.constant:
+                    column = varmaps['varmap'][v].strip()
+                    objectfilters.append(tablealias + '.`' + column+ f.expr.op + ' ' + left.replace(prefix, "") + ' ')
+                elif not f.expr.left.constant and f.expr.right.constant:
+                    column = varmaps['varmap'][v].strip()
+                    objectfilters.append(tablealias + '.`' + column + '` ' + f.expr.op + ' ' + right.replace(prefix, "") + ' ')
 
     for v in set(nans):
         if predmap[v] in subjcols:

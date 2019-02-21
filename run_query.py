@@ -76,10 +76,16 @@ def finalize(processqueue):
 if __name__ == "__main__":
 
     from time import time
-    query, config, planonly = get_options(sys.argv[1:])
+    # query, config, planonly = get_options(sys.argv[1:])
+    query = open('/home/kemele/git/MULDER/queries/polyweb/QE-3').read()
+    # query = 'select distinct * where{?cnv <http://sels.insight.org/cancer-genomics/schema/disease> ?disease .	' \
+    #         'FILTER (?disease = "Lung cancer" )} limit 10'
+    config = 'scripts/polyweb-polystore.json'
+    planonly = False
+    ct = time()
     configuration = OntarioConfiguration(config)
     start = time()
-    print("reading config finished!", configuration.datasources)
+    print("reading config finished! It took: (sec) ", (start-ct))     #, configuration.datasources)
     dc = Catalyst(query, configuration)
     # pprint.pprint(configuration.metadata)
     decomp = LakeCatalyst(dc.query, dc.config)

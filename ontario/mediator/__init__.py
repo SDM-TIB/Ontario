@@ -25,9 +25,7 @@ class Catalyst(object):
             for n in meta_queries:
                 m = meta_queries[n]
                 for s in m:
-
                     ds = self.config.datasources[s]
-
                     m[s]['triples'] = list(set(m[s]['triples']))
                     m[s]['datasource'] = ds
 
@@ -49,8 +47,10 @@ class Catalyst(object):
                         varibales2 = self.get_vars(meta_queries[star2][source]['triples'])
                         if len(variables.intersection(varibales2)) > 0:
                             combinations.setdefault(source, []).extend(meta_queries[star][source]['triples'])
+
                             startriples.setdefault(star, {})['triples'] = meta_queries[star][source]['triples']
                             startriples.setdefault(star2, {})['triples'] = meta_queries[star2][source]['triples']
+
                             combinations[source].extend(meta_queries[star2][source]['triples'])
                             combined.setdefault(star, {}).setdefault(star2, []).append(source)
         # PUSH-DOWN joins
@@ -60,17 +60,18 @@ class Catalyst(object):
                 continue
             for c2 in combined[c]:
                 for s in combined[c][c2]:
-                    meta_queries[c][s]['triples'] = list(set(combinations[s]))
-                    meta_queries[c][s]['predicates'].extend(meta_queries[c2][s]['predicates'])
-                    meta_queries[c][s]['predicates'] = list(set(meta_queries[c][s]['predicates']))
-                    meta_queries[c][s]['rdfmts'].extend(meta_queries[c2][s]['rdfmts'])
-                    meta_queries[c][s]['rdfmts'] = list(set(meta_queries[c][s]['rdfmts']))
+
                     startriples[c]['rdfmts'] = meta_queries[c][s]['rdfmts']
                     startriples[c2]['rdfmts'] = meta_queries[c2][s]['rdfmts']
-
                     startriples[c]['predicates'] = meta_queries[c][s]['predicates']
                     startriples[c2]['predicates'] = meta_queries[c2][s]['predicates']
 
+                    # meta_queries[c][s]['predicates'].extend(meta_queries[c2][s]['predicates'])
+                    # meta_queries[c][s]['predicates'] = list(set(meta_queries[c][s]['predicates']))
+                    # meta_queries[c][s]['rdfmts'].extend(meta_queries[c2][s]['rdfmts'])
+                    # meta_queries[c][s]['rdfmts'] = list(set(meta_queries[c][s]['rdfmts']))
+
+                    meta_queries[c][s]['triples'] = list(set(combinations[s]))
                     meta_queries[c][s]['startriples'] = startriples
                 remove.append(c2)
         for r in remove:

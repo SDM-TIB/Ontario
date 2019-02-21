@@ -229,6 +229,7 @@ class Leaf(Tree):
 
         # This corresponds to the case when the subquery is the same as the original query.
         # In this case, we project the variables of the original query.
+
         if query.body.show(" ").count("SERVICE") == 1:
             subvars = list(set(projvars) | set(vars_order_by))
 

@@ -39,14 +39,17 @@ class LakeCatalyst(object):
         :return:
         """
         bgp = []
+        filters = []
         for tp in jb.triples:
             if isinstance(tp, Triple):
                 bgp.append(tp)
+            elif isinstance(tp, Filter):
+                filters.append(tp)
 
-        bgp = self.decomposeBGP(bgp)
+        bgp = self.decomposeBGP(bgp, filters)
         return bgp
 
-    def decomposeBGP(self, bgp):
+    def decomposeBGP(self, bgp, filters):
         """
         Decompose a BGP into star-shaped subqueries
         :param bgp:
@@ -73,13 +76,27 @@ class LakeCatalyst(object):
                 for m in typed:
                     #properties = [p['predicate'] for p in typed[m]['predicates']]
                     properties = list(typed[m].predicates.keys())
-                    pinter = set(properties).intersection(set(preds))
-                    if len(pinter) != len(set(preds)):
-                        print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
-                                                      "does not exist in this federations of datasets.")
-                        return []
+                    if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in preds and \
+                            'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' not in properties:
+                        preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
+                        pinter = set(properties).intersection(set(preds))
+
+                        if len(pinter) != len(set(preds)):
+                            print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
+                                                          "does not exist in this federations of datasets.")
+                            return []
+                        else:
+                            self.relevant_mts[m] = typed[m]
+
+                        preds.append('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
                     else:
-                        self.relevant_mts[m] = typed[m]
+                        pinter = set(properties).intersection(set(preds))
+                        if len(pinter) != len(set(preds)):
+                            print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
+                                                          "does not exist in this federations of datasets.")
+                            return []
+                        else:
+                            self.relevant_mts[m] = typed[m]
 
                 res[s] = typed
                 continue
@@ -130,6 +147,7 @@ class LakeCatalyst(object):
         for s in res:
             results[s] = {}
             results[s]['predicates'] = star_preds[s]
+            results[s]['filters'] = filters
             for m in res[s]:
                 results[s][m] = stars[s]
 
@@ -276,6 +294,100 @@ class LakeCatalyst(object):
 
         return types
 
+    '''
+    ===================================================
+    ========= FILTERS =================================
+    ===================================================
+    '''
+
+    def includeFilter(self, jb_triples, fl):
+        fl1 = []
+        for jb in jb_triples:
+
+            if isinstance(jb, list):
+                for f in fl:
+                    fl2 = self.includeFilterAux(f, jb)
+                    fl1 = fl1 + fl2
+            elif isinstance(jb, UnionBlock):
+                for f in fl:
+                    fl2 = self.includeFilterUnionBlock(jb, f)
+                    fl1 = fl1 + fl2
+            elif isinstance(jb, Service):
+                for f in fl:
+                    fl2 = self.includeFilterAuxSK(f, jb.triples, jb)
+                    fl1 = fl1 + fl2
+        return fl1
+
+    def includeFilterAux(self, f, sl):
+        fl1 = []
+        for s in sl:
+            vars_s = set()
+            for t in s.triples:
+                vars_s.update(set(utils.getVars(t)))
+            vars_f = f.getVars()
+            if set(vars_s) & set(vars_f) == set(vars_f):
+                s.include_filter(f)
+                fl1 = fl1 + [f]
+        return fl1
+
+    def includeFilterUnionBlock(self, jb, f):
+        fl1 = []
+        for jbJ in jb.triples:
+            for jbUS in jbJ.triples:
+                if isinstance(jbUS, Service):
+                    vars_s = set(jbUS.getVars())
+                    vars_f = f.getVars()
+                    if set(vars_s) & set(vars_f) == set(vars_f):
+                        jbUS.include_filter(f)
+                        fl1 = fl1 + [f]
+        return fl1
+
+    def includeFilterAuxSK(self, f, sl, sr):
+        """
+        updated: includeFilterAuxS(f, sl, sr) below to include filters that all vars in filter exists in any of the triple
+        patterns of a BGP. the previous impl includes them only if all vars are in a single triple pattern
+        :param f:
+        :param sl:
+        :param sr:
+        :return:
+        """
+        fl1 = []
+        serviceFilter = False
+        fvars = dict()
+        vars_f = f.getVars()
+
+        for v in vars_f:
+            fvars[v] = False
+        bgpvars = set()
+
+        for s in sl:
+            bgpvars.update(set(utils.getVars(s)))
+            vars_s = set()
+            if (isinstance(s, Triple)):
+                vars_s.update(set(utils.getVars(s)))
+            else:
+                for t in s.triples:
+                    vars_s.update(set(utils.getVars(t)))
+
+            if set(vars_s) & set(vars_f) == set(vars_f):
+                serviceFilter = True
+
+        for v in bgpvars:
+            if v in fvars:
+                fvars[v] = True
+        if serviceFilter:
+            sr.include_filter(f)
+            fl1 = fl1 + [f]
+        else:
+            fs = [v for v in fvars if not fvars[v]]
+            if len(fs) == 0:
+                sr.include_filter(f)
+                fl1 = fl1 + [f]
+        return fl1
+
+    def updateFilters(self, node, filters):
+        return UnionBlock(node.triples, filters)
+
 
 class MetaCatalyst(object):
 
@@ -288,6 +400,9 @@ class MetaCatalyst(object):
         for m in star:
             if m == 'predicates':
                 self.predicates = list(set(star[m]))
+                continue
+            elif m == 'filters':
+                self.filters = list(set(star[m]))
                 continue
             self.mts.append(m)
             self.triples = star[m]
@@ -310,6 +425,7 @@ class MetaCatalyst(object):
                 if w not in results:
                     results[w] = {}
                 # print(w, m, sources[m][w])
+                results[w]['filters'] = self.star['filters']
                 results[w]['predicates'] = sources[m][w]
                 results[w]['triples'] =[t for t in self.triples if utils.getUri(t.predicate, prefixes)[1:-1] in sources[m][w] or not t.predicate.constant]
                 results[w].setdefault('rdfmts', []).append(m)

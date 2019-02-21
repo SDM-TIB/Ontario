@@ -52,6 +52,19 @@ class LakePlanner(object):
         self.decompositions = decompositions
         self.config = config
 
+    def get_filters(self, triples, filters):
+        result = []
+        t_vars = []
+        for t in triples:
+            t_vars.extend(t.getVars())
+
+        for f in filters:
+            f_vars = f.getVars()
+            if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
+                result.append(f)
+
+        return result
+
     def make_tree(self):
         services = []
         unionplans = []
@@ -60,8 +73,6 @@ class LakePlanner(object):
             wpreds = {}
             ptrs = {}
             ppreds = []
-            i = 0
-            skipp = False
             for s in self.decompositions[star]:
                 dc = self.decompositions[star][s]
                 wpreds[s] = dc['predicates']
@@ -70,8 +81,16 @@ class LakePlanner(object):
                         tr.predicate.constant}
                 for p in trps:
                     ptrs[p] = trps[p]
+
+            i = 0
+            skipp = False
+            for s in self.decompositions[star]:
+                dc = self.decompositions[star][s]
+                triples = dc['triples']
+
                 if skipp:
                     continue
+
                 ds = dc['datasource']
 
                 rdfmts = dc['rdfmts']
@@ -81,18 +100,20 @@ class LakePlanner(object):
                 else:
                     if len(set(ppreds).intersection(dc['predicates'])) != len(ppreds):
                         unions = []
-                        skipp = True
-                        continue
+                        break
                 # datasources = [dss['datasource'] for dss in bywtype[star][wt]]
+
                 serv = Service(endpoint="<" + ds.url + ">", triples=triples, datasource=ds, rdfmts=rdfmts, star=dc)
+                serv.filters = self.get_filters(triples, dc['filters'])
                 unions.append(serv)
                 i += 1
 
             if len(unions) == 0:
                 inall = []
                 difs = {}
+                i = 0
                 for e in wpreds:
-                    if len(inall) == 0:
+                    if i == 0:
                         inall = wpreds[e]
                     else:
                         inall = list(set(inall).intersection(wpreds[e]))
@@ -109,6 +130,7 @@ class LakePlanner(object):
                         dd = list(set(difs[e]).difference(wpreds[d]))
                         if len(dd) > 0:
                             difs[e] = dd
+                    i += 1
 
                 oneone = {}
                 for e1 in wpreds:
@@ -147,7 +169,9 @@ class LakePlanner(object):
                                                         triples=list(set(trps)),
                                                         datasource=self.decompositions[star][wt]['datasource'],
                                                         rdfmts=self.decompositions[star][wt]['rdfmts'],
-                                                        star=self.decompositions[star][wt])]) for wt in list(wpreds.keys())]
+                                                        star=self.decompositions[star][wt])],
+                                                        filters=self.get_filters(list(set(trps)), self.decompositions[star][wt]['filters']))
+                                                        for wt in list(wpreds.keys())]
                             ub = UnionBlock(elems)
                             unionplans = unionplans + [ub]
                             # qpl1.append(ub)
@@ -164,12 +188,14 @@ class LakePlanner(object):
                                                             triples=list(set(trps)),
                                                             datasource=self.decompositions[star][e1]['datasource'],
                                                             rdfmts=self.decompositions[star][e1]['rdfmts'],
-                                                            star=self.decompositions[star][e1])]),
+                                                            star=self.decompositions[star][e1])],
+                                                        filters=self.get_filters(list(set(trps)), self.decompositions[star][e1]['filters'])),
                                          JoinBlock([Service(endpoint="<" + self.decompositions[star][e2]['datasource'].url + ">",
                                                             triples=list(set(trps)),
                                                             datasource=self.decompositions[star][e2]['datasource'],
                                                             rdfmts=self.decompositions[star][e2]['rdfmts'],
-                                                            star=self.decompositions[star][e2])])]
+                                                            star=self.decompositions[star][e2],
+                                                        filters=self.get_filters(list(set(trps)), self.decompositions[star][e2]['filters']))])]
                                 ub = UnionBlock(elems)
                                 unionplans = unionplans + [ub]
                                 # unions.append(elems)
@@ -180,7 +206,8 @@ class LakePlanner(object):
                                     triples=list(set(trps)),
                                     datasource=self.decompositions[star][d]['datasource'],
                                     rdfmts=self.decompositions[star][d]['rdfmts'],
-                                    star=self.decompositions[star][d]))
+                                    star=self.decompositions[star][d],
+                                    filters=self.get_filters(list(set(trps)), self.decompositions[star][d]['filters'])))
                             # services.append(Service("<" + d + ">", list(set(trps))))
 
             if len(unions) > 1:

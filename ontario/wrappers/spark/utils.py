@@ -1,5 +1,6 @@
 from ontario.config.model import *
 from ontario.sparql.utilities import *
+from ontario.sparql.parser.services import Expression, Argument
 
 
 def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
@@ -38,7 +39,14 @@ def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
                         pp = predobj.object
                     elif predobj.objectType == TermType.TEMPLATE:
                         pp = predobj.object[predobj.object.find('{') + 1: predobj.object.find('}')]
-                        coltotemplate[t.theobject.name[1:]] = predobj.object
+                        if t.theobject.constant:
+                            if '<' in t.theobject.name or '"' in t.theobject.name or "'" in t.theobject.name:
+                                colnval = t.theobject.name[1:-1]
+                            else:
+                                colnval = t.theobject.name
+                        else:
+                            colnval = t.theobject.name[1:]
+                        coltotemplate[colnval] = predobj.object
                     elif predobj.objectType == TermType.CONSTANT:
                         predobjConsts[pred] = predobj.object
                         continue
@@ -54,13 +62,28 @@ def var2map(mapping, rdfmt, starpredicates, triples, prefixes):
                         else:
                             rsubject = mapping[tpm][rmol].subject
                             pp = mapping[tpm][rmol].subjectCols
-                        coltotemplate[t.theobject.name[1:]] = rsubject
+
+                        if t.theobject.constant:
+                            if '<' in t.theobject.name or '"' in t.theobject.name or "'" in t.theobject.name:
+                                colnval = t.theobject.name[1:-1]
+                            else:
+                                colnval = t.theobject.name
+                        else:
+                            colnval = t.theobject.name[1:]
+                        coltotemplate[colnval] = rsubject
                     if pp is not None:
                         varmap[t.theobject.name] = pp
                         predmaps[pred] = pp
 
                 if not t.subject.constant:
-                    coltotemplate[t.subject.name[1:]] = subject
+                    if t.subject.constant:
+                        if '<' in t.subject.name or '"' in t.subject.name or "'" in t.subject.name:
+                            colnval = t.subject.name[1:-1]
+                        else:
+                            colnval = t.subject.name
+                    else:
+                        colnval = t.subject.name[1:]
+                    coltotemplate[colnval] = subject
                 # for subj in subjectCols:
                 if t.subject.name not in varmap and not t.subject.constant:
                     varmap[t.subject.name] = subjectCols
@@ -239,8 +262,20 @@ def get_pred_vars(triples, prefixes):
                 for t in triples if t.predicate.constant and not t.theobject.constant]
     return predvars
 
+def get_matching_filters(triples, filters):
+    result = []
+    t_vars = []
+    for t in triples:
+        t_vars.extend(t.getVars())
 
-def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlprojected, query):
+    for f in filters:
+        f_vars = f.getVars()
+        if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
+            result.append(f)
+
+    return result
+
+def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlprojected, starfilters):
     objectfilters = []
     filtersmap = {}
     nans = []
@@ -249,6 +284,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
     schema = {}
     predvars = get_pred_vars(triples, prefixes)
     filters = get_filters(triples, prefixes)
+    mtfilter = get_matching_filters(triples, starfilters)
 
     if len(filters) == 0 and len(predvars) == 0:
         return None
@@ -272,6 +308,9 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
         for idx, val in zip(range(1, len(filtersmap[v]) + 1), filtersmap[v]):
             column = predmap[v].strip()
             subj = predmap[v].strip()
+            if val in varmaps['coltotemp']:
+                prefix = varmaps['coltotemp'][val].replace('{' + column + '}', "")
+                val = val.replace(prefix, "")
             if '[' in column:
                 column = column[:column.find('[')]
             if '[' in column:
@@ -284,6 +323,68 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
                 objectfilters.append(tablealias + '.`' + column + "` = " + ' "' + val + '" ')
             else:
                 objectfilters.append(tablealias + '.`' + column + "` = " + ' "' + val + '" ')
+    for f in mtfilter:
+        f_vars = f.getVars()
+
+        for v in set(f_vars):
+            prefix = ""
+            if v in varmaps['coltotemp']:
+                prefix = varmaps['coltotemp'][v].replace('{' + v + '}', "")
+            if isinstance(f.expr.left, Argument) and isinstance(f.expr.right, Argument):
+                left = f.expr.left.name
+                right = f.expr.right.name
+                if right is not None:
+                    if f.expr.left.constant and not f.expr.right.constant:
+                        column = varmaps['varmap'][v].strip()
+                        objectfilters.append(tablealias + '.`' + column+ f.expr.op + ' ' + left.replace(prefix, "") + ' ')
+                    elif not f.expr.left.constant and f.expr.right.constant:
+                        column = varmaps['varmap'][v].strip()
+                        objectfilters.append(tablealias + '.`' + column + '` ' + f.expr.op + ' ' + right.replace(prefix, "") + ' ')
+                else:
+                    pass  # do check unary operators
+            else:
+                leftop = None
+                rightop = None
+                fil = None
+                opr = f.expr.op
+                if isinstance(f.expr.left, Expression):
+                    left = f.expr.left.left.name
+                    right = f.expr.left.right.name
+                    if right is not None:
+                        if f.expr.left.left.constant and not f.expr.left.right.constant:
+                            column = varmaps['varmap'][v].strip()
+                            objectfilters.append(
+                                tablealias + '.`' + column + f.expr.left.op + ' ' + left.replace(prefix, "") + ' ')
+                        elif not f.expr.left.left.constant and f.expr.left.right.constant:
+                            column = varmaps['varmap'][v].strip()
+                            leftop = tablealias + '.`' + column + '` ' + f.expr.left.op + ' ' + right.replace(prefix, "") + ' '
+                if isinstance(f.expr.right, Expression):
+                    left = f.expr.right.left.name
+                    right = f.expr.right.right.name
+                    if right is not None:
+                        if f.expr.right.left.constant and not f.expr.right.right.constant:
+                            column = varmaps['varmap'][v].strip()
+                            objectfilters.append(
+                                tablealias + '.`' + column + f.expr.right.op + ' ' + left.replace(prefix, "") + ' ')
+                        elif not f.expr.right.left.constant and f.expr.right.right.constant:
+                            column = varmaps['varmap'][v].strip()
+                            rightop = tablealias + '.`' + column + '` ' + f.expr.right.op + ' ' + right.replace(
+                                prefix, "") + ' '
+                if leftop is not None:
+                    if rightop is not None:
+                        if opr.strip() == '||' or opr.strip() == '|':
+                            fil = '(' + leftop + ' OR ' + rightop + ')'
+                        elif opr.strip() == "&&" or opr.strip() == '&':
+                            fil = leftop + ' AND ' + rightop
+                        else:
+                            fil = leftop + ' AND ' + rightop
+                    else:
+                        fil = leftop
+                elif rightop is not None:
+                    fil = rightop
+
+                if fil is not None:
+                    objectfilters.append(fil)
 
     for v in set(nans):
         if predmap[v] in subjcols:

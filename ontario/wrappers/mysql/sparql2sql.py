@@ -60,7 +60,7 @@ class MySQLWrapper(object):
             print("Empty Mapping")
             queue.put('EOF')
             return []
-        querytxt = query
+        # querytxt = query
         self.query = qp.parse(query)
         self.prefixes = getPrefs(self.query.prefs)
 
@@ -86,57 +86,79 @@ class MySQLWrapper(object):
         except Exception as ex:
             print("Exception while connecting to Mysql", ex)
 
-        cursor = self.mysql.cursor()
-        db = ""
-        for fn in filenameiteratormap:
-            db = filenameiteratormap[fn]['iterator']
-        cursor.execute("use " + db)
-        cursor.execute(sqlquery)
-        header = [h[0] for h in cursor._description]
+        try:
+            cursor = self.mysql.cursor()
+            db = ""
+            for fn in filenameiteratormap:
+                db = filenameiteratormap[fn]['iterator']
+            cursor.execute("use " + db)
+            cursor.execute(sqlquery)
+            header = [h[0] for h in cursor._description]
 
-        for line in cursor:
-            row = {}
-            for i in range(len(line)):
-                row[header[i]] = str(line[i])
+            for line in cursor:
+                row = {}
                 res = {}
-                for r in row:
-                    if '_' in r and r[:r.find("_")] in projvartocols:
-                        s = r[:r.find("_")]
-                        p = r[r.find("_") + 1:]
-                        if s in res:
-                            val = res[s]
-                            res[s] = val.replace('{' + p + '}', row[r].replace(" ", '_'))
+                skip = False
+                for i in range(len(line)):
+                    row[header[i]] = str(line[i])
+
+                    for r in row:
+                        if row[r] == 'null':
+                            skip = True
+                            break
+                        if '_' in r and r[:r.find("_")] in projvartocols:
+                            s = r[:r.find("_")]
+                            if s in res:
+                                val = res[s]
+                                res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            else:
+                                res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                                   row[r].replace(" ", '_'))
+                        elif r in projvartocols and r in coltotemplates:
+                            res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
                         else:
-                            if '[' in coltotemplates[s]:
-                                coltotemplates[s] = coltotemplates[s].replace(
-                                    coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
-                                    '')
-                            if '[' in coltotemplates[s]:
-                                coltotemplates[s] = coltotemplates[s].replace(
-                                    coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
-                                    '')
-                            res[s] = coltotemplates[s].replace('{' + p + '}', row[r].replace(" ", '_'))
-                    elif r in projvartocols and r in coltotemplates:
-                        if '[' in coltotemplates[r]:
-                            coltotemplates[r] = coltotemplates[r].replace(
-                                coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
-                        if '[' in coltotemplates[r]:
-                            coltotemplates[r] = coltotemplates[r].replace(
-                                coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
-
-                        p = coltotemplates[r][coltotemplates[r].find('{') + 1: coltotemplates[r].find('}')]
-
-                        res[r] = coltotemplates[r].replace('{' + p + '}', row[r].replace(" ", '_'))
-                    else:
-                        res[r] = row[r]
-
-                queue.put(res)
+                            res[r] = row[r]
+                        # if '_' in r and r[:r.find("_")] in projvartocols:
+                        #     s = r[:r.find("_")]
+                        #     p = r[r.find("_") + 1:]
+                        #     if s in res:
+                        #         val = res[s]
+                        #         res[s] = val.replace('{' + p + '}', row[r].replace(" ", '_'))
+                        #     else:
+                        #         if '[' in coltotemplates[s]:
+                        #             coltotemplates[s] = coltotemplates[s].replace(
+                        #                 coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
+                        #                 '')
+                        #         if '[' in coltotemplates[s]:
+                        #             coltotemplates[s] = coltotemplates[s].replace(
+                        #                 coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
+                        #                 '')
+                        #         res[s] = coltotemplates[s].replace('{' + p + '}', row[r].replace(" ", '_'))
+                        # elif r in projvartocols and r in coltotemplates:
+                        #     if '[' in coltotemplates[r]:
+                        #         coltotemplates[r] = coltotemplates[r].replace(
+                        #             coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+                        #     if '[' in coltotemplates[r]:
+                        #         coltotemplates[r] = coltotemplates[r].replace(
+                        #             coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
+                        #
+                        #     p = coltotemplates[r][coltotemplates[r].find('{') + 1: coltotemplates[r].find('}')]
+                        #
+                        #     res[r] = coltotemplates[r].replace('{' + p + '}', row[r].replace(" ", '_'))
+                        # else:
+                        #     res[r] = row[r]
+                if not skip:
+                    queue.put(res)
+        except Exception as e:
+            print("Exception ", e)
+            pass
 
         queue.put("EOF")
 
     def translate(self):
         var2maps = {}
         print("Spark translate ------------------------------------")
+        print(self.star)
         if 'startriples' in self.star:
             for s in self.star['startriples']:
                 star = self.star['startriples'][s]
@@ -207,7 +229,7 @@ class MySQLWrapper(object):
             '''
               Case II: If predicate + object are constants
             '''
-            objectfilter = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.query)
+            objectfilter = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.star['filters'])
             if objectfilter is not None:
                 objectfilters.extend(objectfilter)
 
@@ -248,7 +270,7 @@ class MySQLWrapper(object):
                     objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
 
         fromcaluse = " FROM " + ", ".join(fromclauses)
-        projections = " SELECT " + ", ".join(list(projections.values()))
+        projections = " SELECT DISTINCT " + ", ".join(list(projections.values()))
         subjfilter = " AND ".join(subjectfilters) if len(subjectfilters) > 0 else None
         whereclause = " WHERE " + " AND ".join(objectfilters)
         if subjfilter is not None:

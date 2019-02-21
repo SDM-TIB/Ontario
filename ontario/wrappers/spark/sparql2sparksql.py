@@ -476,6 +476,7 @@ class SPARKCSVTSVWrapper(object):
         # print(sqlquery)
         try:
             result = self.spark.sql(sqlquery).toJSON()
+            # print('count-----',result.count())
 
             for row in result.toLocalIterator():
                 row = json.loads(row)
@@ -498,6 +499,7 @@ class SPARKCSVTSVWrapper(object):
                         res[r] = row[r]
                 if not skip:
                     queue.put(res)
+
         except Exception as ex:
             self.spark.stop()
             print(ex)
@@ -605,7 +607,7 @@ class SPARKCSVTSVWrapper(object):
             '''
               Case II: If predicate + object are constants
             '''
-            objectfilter, schema = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.query)
+            objectfilter, schema = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.star['filters'])
             if objectfilter is not None:
                 objectfilters.extend(objectfilter)
 

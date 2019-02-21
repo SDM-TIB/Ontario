@@ -138,11 +138,11 @@ class Query(object):
 
 class Service(object):
 
-    def __init__(self, endpoint, triples, limit=-1, filter_nested=[], datasource=None, rdfmts=None, star=None):
+    def __init__(self, endpoint, triples, limit=-1, filter_nested=[], datasource=None, rdfmts=None, star=None, filters=[]):
         endpoint = endpoint[1:len(endpoint)-1]
         self.endpoint = endpoint
         self.triples = triples
-        self.filters = []
+        self.filters = filters
         self.filter_nested = filter_nested# TODO: this is used to store the filters from NestedLoop operators
         self.limit = limit  # TODO: This arg was added in order to integrate contactSource with incremental calls (16/12/2013)
 
@@ -195,15 +195,23 @@ class Service(object):
              new_triples = [t.instantiate(d) for t in self.triples]
         else:
              new_triples = self.triples.instantiate(d)
-        return Service("<"+self.endpoint+">", new_triples, self.limit)
+
+        self.triples = new_triples
+        # return Service("<"+self.endpoint+">", new_triples, self.limit)
+        return self
 
     def instantiateFilter(self, d, filter_str):
         new_filters = []
         new_filters.extend(self.filter_nested)
         new_filters.append(filter_str)
         #new_filters_vars = self.filters_vars | set(d)
+        self.filter_nested = new_filters
 
-        return Service("<"+self.endpoint+">", self.triples, self.limit, new_filters)
+        return self
+        # Service("<"+self.endpoint+">", self.triples,
+        #                limit=self.limit, filter_nested=new_filters,
+        #                datasource=self.datasource, rdfmts=self.rdfmts,
+        #                star=self.star)
 
     def getTriples(self):
         if isinstance(self.triples, list):
@@ -214,6 +222,8 @@ class Service(object):
 
     def show(self, x):
         def pp (t):
+            if isinstance(t, str):
+                return ""
             return t.show(x+"    ")
         if isinstance(self.triples, list):
             triples_str = " . \n".join(map(pp, self.triples))
@@ -305,7 +315,7 @@ class UnionBlock(object):
 
         n = nest(self.triples)
 
-        if n:
+        if n is not None:
             return aux(n, w, " UNION ") + " ".join(map(str, self.filters))
         else:
             return " "
@@ -352,7 +362,7 @@ class UnionBlock(object):
     def show2(self, w):
         n = nest(self.triples)
         if n:
-            return aux2(n, w, " UNION ") + + " ".join(map(str, self.filters))
+            return aux2(n, w, " UNION ") + " ".join(map(str, self.filters))
         else:
             return " "
 

@@ -80,14 +80,15 @@ class OntarioConfiguration(object):
     #                     predobj.object = rml.subject
 
     def ext_mappings(self, mappingslist):
-        mappings = {}
-        for m in mappingslist:
-            mapping = self.read_mapping_file(m)
-            mappings.update(mapping)
-            # for m in mapping:
-            #     for rdfmt in mapping[m]:
-            #         mappings.setdefault().setdefault(rdfmt, []).append(mapping[m][rdfmt])
-        return mappings
+        if len(mappingslist) > 0:
+            return self.read_mapping_file(mappingslist)
+        # for m in mappingslist:
+        #     mapping = self.read_mapping_file(m)
+        #     mappings.update(mapping)
+        #     # for m in mapping:
+        #     #     for rdfmt in mapping[m]:
+        #     #         mappings.setdefault().setdefault(rdfmt, []).append(mapping[m][rdfmt])
+        return {}
 
     def ext_templates_json(self, mts):
         meta = {}
@@ -109,41 +110,69 @@ class OntarioConfiguration(object):
 
         return meta
 
-    def read_mapping_file(self, m):
-        mappings = self._query_mappings(m)
+    def read_mapping_file(self, mappingslist):
+        mappings = self._query_mappings(mappingslist)
         return mappings
 
-    def _query_mappings(self, filename):
+    def _query_mappingsX(self, mappingslist):
         g = rdflib.Graph()
-        g.load(filename, format='n3')
+        for filename in mappingslist:
+            g.load(filename, format='n3')
 
-        res = g.query(mapping_query)
-        if res is None:
-            return {}
+        ls_query = "?tm rml:logicalSource ?ls . \n\t\t" \
+                   "?ls rml:source ?source .\n\t\t" \
+                   "OPTIONAL {?source ?p ?o }\n\t\t" \
+                   "OPTIONAL {?ls rml:iterator ?iterator . }\n\t\t" \
+                   "OPTIONAL {?ls rr:sqlVersion ?sqlVersion. }\n\t\t" \
+                   "OPTIONAL {?ls rml:query ?lcQuery .} \n\t\t" \
+                   "OPTIONAL {?ls rr:tableName ?tableName. }\n\t\t" \
+                   "OPTIONAL {?ls rml:referenceFormulation ?refForm . }\n\t\t"
+        ls_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + ls_query + " }"
 
+        res = g.query(ls_query)
+        triplemaps = {}
         results = {}
-
         for row in res:
-
             tm = row['tm'].n3()[1:-1]
-            rdfmt = row['rdfmt'].n3()[1:-1]
-            source = row['sourceFile'].n3()[1:-1]
-            iterators = row['iterator'].n3()[1:-1] if row['iterator'] is not None else "*"
-            subjectType = TermType.CONSTANT if row['subject'] is not None or \
-                                                row['constsubject'] is not None else \
-                            TermType.TEMPLATE if row['smtemplate'] is not None else \
-                            TermType.REFERENCE if row['smreference'] is not None else None
+            source = row['source'].n3() if row['p'] is not None else row['source'].n3()[1:-1]
 
-            subject = row['subject'] if row['subject'] is not None \
-                                                   else row['smtemplate'].n3()[1:-1] if row['smtemplate'] is not None \
-                                                   else row['constsubject'].n3()[1:-1] if row['constsubject'] is not None \
-                                                   else row['smreference'].n3()[1:-1] if row['smreference'] is not None \
-                                                   else None
-            if subjectType is None or subject is None or len(source.strip()) == 0:
+            if tm not in triplemaps:
+                triplemaps[tm] = {}
+                ls = row['ls'].n3()[1:-1]
+                iterator = row['iterator'].n3()[1:-1] if row['iterator'] is not None else None
+                sqlVersion = row['sqlVersion'].n3()[1:-1] if row['sqlVersion'] is not None else None
+                lcQuery = row['lcQuery'].n3()[1:-1] if row['lcQuery'] is not None else None
+                tableName = row['tableName'].n3()[1:-1] if row['tableName'] is not None else None
+                refForm = row['refForm'].n3()[1:-1] if row['refForm'] is not None else None
+                triplemaps[tm]['ls'] = ls
+                triplemaps[tm]['source'] = {source: {}}
+                triplemaps[tm]['iterator'] = iterator
+                triplemaps[tm]['sqlVersion'] = sqlVersion
+                triplemaps[tm]['lcQuery'] = lcQuery
+                triplemaps[tm]['tableName'] = tableName
+                triplemaps[tm]['refForm'] = refForm
+
+            p = row['p'].n3()[1:-1] if row['p'] is not None else None
+            o = row['o'].n3()[1:-1] if row['o'] is not None else None
+            if p is not None:
+                triplemaps[tm]['source'][source][p] = o
+
+        for tm in triplemaps:
+            source = list(triplemaps[tm]['source'].keys())[0]
+            ls = triplemaps[tm]['ls']
+            iterator = triplemaps[tm]['iterator']
+            refForm = triplemaps[tm]['refForm']
+
+            #datasource = DataSource(source, source, sourceType)
+            #logicalSource = LogicalSource(ls, datasource, iterator, refForm)
+
+            # subjectMap, predicate_object_map = self.query_rml_subj_pred_obj(g, tm)
+
+            subject, rdfmts, subjtype = self.query_rml_subj(g, tm)
+            mapping = RMLMapping(source, subject, iterator, subjtype)
+            if len(rdfmts) == 0:
                 continue
-
-            mapping = RMLMapping(source, subject, iterators, subjectType)
-
+            rdfmt = rdfmts[0]
             if tm not in results:
                 results[tm] = {}
                 results[tm][rdfmt] = mapping
@@ -153,32 +182,220 @@ class OntarioConfiguration(object):
                 else:
                     mapping = results[tm][rdfmt]
 
-            predicate = row['predicate'].n3()[1:-1]
+            results[tm][rdfmt] = self.query_rml_pred_obj(g, tm, mapping)
 
-            objdtype = row['pomobjmapdatatype'].n3() if row['pomobjmapdatatype'] is not None else None
-            objrdfclass = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
+            # tmap = TripleMap(tm, logicalSource, subjectMap, predicate_object_map)
+            # print(tmap)
+        return results
 
-            objtype = TermType.CONSTANT if row['objconst'] is not None or row['constobject'] is not None \
-                                                   else TermType.TEMPLATE if row['predobjmaptemplate'] is not None \
-                                                   else TermType.REFERENCE if row['pomomapreference'] is not None \
-                                                   else TermType.TRIPLEMAP if row['parentTPM'] is not None \
-                                                   else None
-            object = row['objconst'].n3()[1:-1] if row['objconst'] is not None \
-                                    else row['constobject'].n3()[1:-1] if row['constobject'] is not None \
-                                    else row['predobjmaptemplate'].n3()[1:-1] if row['predobjmaptemplate'] is not None \
-                                    else row['pomomapreference'].n3()[1:-1] if row['pomomapreference'] is not None \
-                                    else row['parentTPM'].n3()[1:-1] if row['parentTPM'] is not None \
-                                    else None
+    def query_rml_subj(self, g, tm):
+
+        subj_query = "<" + tm + "> rml:logicalSource ?ls ." \
+                      "OPTIONAL { <" + tm + "> rr:subject ?subject . }" \
+                      "OPTIONAL { <" + tm + "> rr:subjectMap ?sm . " \
+                        "          OPTIONAL { ?sm rr:class ?rdfmt .} " \
+                        "          OPTIONAL { ?sm rr:termType ?smtype . }" \
+                        "          OPTIONAL { ?sm rr:template ?smtemplate .}" \
+                        "          OPTIONAL { ?sm rr:constant ?constsubject .}" \
+                        "          OPTIONAL { ?sm rml:reference ?smreference .}" \
+                        "}"
+        subj_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + subj_query + " }"
+        res = g.query(subj_query)
+        qresults = {}
+        subject = None
+        sm = None
+        subjtype = None
+        for row in res:
+            sm = row['sm'].n3()[1:-1] if row['sm'] is not None else None
+
+            rdfmt = row['rdfmt'].n3()[1:-1] if row['rdfmt'] is not None else tm
+            if len(qresults) == 0:
+                qresults.setdefault('rdfmt', []).append(rdfmt)
+            else:
+                qresults.setdefault('rdfmt', []).append(rdfmt)
+                qresults['rdfmt'] = list(set(qresults['rdfmt']))
+                continue
+
+            if row['subject'] is not None:
+                subject = row['subject'].n3()[1:-1]
+                subjtype = TermType.CONSTANT
+            elif row['constsubject'] is not None:
+                subject = row['constsubject'].n3()[1:-1]
+                subjtype = TermType.CONSTANT
+            elif row['smtemplate'] is not None:
+                subject = row['smtemplate'].n3()[1:-1]
+                subjtype = TermType.TEMPLATE
+            elif row['smreference'] is not None:
+                subject = row['smreference'].n3()[1:-1]
+                subjtype = TermType.REFERENCE
+            else:
+                subject = None
+        if sm is None:
+            return None, None, None
+
+        return subject, qresults['rdfmt'], subjtype
+
+    def query_rml_pred_obj(self, g, tm, mapping):
+
+        pred_query = " <" + tm + "> rr:predicateObjectMap ?pom . " \
+                     "OPTIONAL { ?pom  rr:predicate ?predicate .}" \
+                     "OPTIONAL { ?pom rr:predicateMap ?pm . " \
+                     "          OPTIONAL { ?pm rr:template ?pmtemplate .}" \
+                     "          OPTIONAL { ?pm rr:constant ?constpredicate .}" \
+                     "          OPTIONAL { ?pm rml:reference ?pmreference .}" \
+                     "} "
+        obj_query = " OPTIONAL {?pom  rr:object ?object }" \
+                    "OPTIONAL {?pom   rr:objectMap ?pomobjmap . " \
+                    "     OPTIONAL { ?pomobjmap rml:reference ?pomomapreference .}" \
+                    "     OPTIONAL { ?pomobjmap rr:constant ?constobject . }" \
+                    "     OPTIONAL { ?pomobjmap rr:template ?predobjmaptemplate .}" \
+                    "     OPTIONAL { ?pomobjmap rr:datatype ?pomobjmapdatatype.}" \
+                    "     OPTIONAL { ?pomobjmap rr:language  ?pomobjmaplangtag.}" \
+                    "     OPTIONAL { ?pomobjmap rr:class ?pomobjmaprdfmt . } " \
+                    "     OPTIONAL { ?pomobjmap rr:termType ?pomobjtmtype . } " \
+                    "     OPTIONAL { ?pomobjmap rr:parentTriplesMap ?parentTPM . " \
+                    "                OPTIONAL{?pomobjmap rr:joinCondition ?jc ." \
+                    "                         ?jc rr:child ?jcchild ." \
+                    "                         ?jc rr:parent ?jcparent ." \
+                    "                        }" \
+                    "             }" \
+                    " } "
+
+        pred_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + pred_query + obj_query + " }"
+        res = g.query(pred_query)
+        pom = None
+
+        for row in res:
+            if pom is None:
+                pom = row['pom'].n3()[1:-1]
+            if row['predicate'] is not None:
+                predicate = row['predicate'].n3()[1:-1]
+            elif row['constpredicate'] is not None:
+                predicate = row['constpredicate'].n3()[1:-1]
+            else:
+                predicate = None
+
+            pmtemplate = row['pmtemplate'].n3()[1:-1] if row['pmtemplate'] is not None else None
+            pmreference = row['pmreference'].n3()[1:-1] if row['pmreference'] is not None else None
+
+            if pmtemplate is not None:
+                # predicateTerm = TermMap(pmtemplate, TripleMapType.TEMPLATE, TermType.IRI)
+                predicate = pmtemplate
+            elif pmreference is not None:
+                # predicateTerm = TermMap(pmreference, TripleMapType.REFERENCE, TermType.IRI)
+                predicate = pmreference
+            else:
+                predicateTerm = None
+
+            # pred = PredicateMap(predicate, predicateTerm)
+
+            # pomobjtmtype = row['pomobjtmtype'].n3()[1:-1] if row['pomobjtmtype'] is not None else None
+
+            if row['object'] is not None:
+                pobject = row['object'].n3()[1:-1]
+                objtype = TermType.CONSTANT
+            elif row['constobject'] is not None:
+                pobject = row['constobject'].n3()[1:-1]
+                objtype = TermType.CONSTANT
+            elif row['predobjmaptemplate'] is not None:
+                pobject = row['predobjmaptemplate'].n3()[1:-1]
+                objtype = TermType.TEMPLATE
+            elif row['pomomapreference'] is not None:
+                pobject = row['pomomapreference'].n3()[1:-1]
+                objtype = TermType.REFERENCE
+            else:
+                pobject = None
+                objtype = None
+
+            parentTPM = row['parentTPM'].n3()[1:-1] if row['parentTPM'] is not None else None
             jchild = row['jcchild'].n3()[1:-1] if row['jcchild'] is not None else None
             jparent = row['jcparent'].n3()[1:-1] if row['jcparent'] is not None else None
 
+            pomobjmaplangtag = row['pomobjmaplangtag'].n3()[1:-1] if row['pomobjmaplangtag'] is not None else None
+            pomobjmapdatatype = row['pomobjmapdatatype'].n3()[1:-1] if row['pomobjmapdatatype'] is not None else None
+            pomobjmaprdfmt = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
+
+            # obj = ObjectMap(objTerm.value, objTerm, pomobjmapdatatype, pomobjmaplangtag, pomobjmaprdfmt)
+            # predicate_object_map[pred.ID] = (pred, obj)
+
             mapping.predicateObjMap[predicate] = RDFMPredicateObjMap(predicate,
-                                                                                object,
-                                                                                objtype,
-                                                                                objdtype,
-                                                                                objrdfclass,
-                                                                                jchild,
-                                                                                jparent)
+                                                                     pobject,
+                                                                     objtype,
+                                                                     pomobjmapdatatype,
+                                                                     pomobjmaprdfmt,
+                                                                     jchild,
+                                                                     jparent)
+        return mapping
+
+    def _query_mappings(self, mappingslist):
+        g = rdflib.Graph()
+        results = {}
+        try:
+            for filename in mappingslist:
+                g.load(filename, format='n3')
+
+            res = g.query(mapping_query)
+            if res is None:
+                return {}
+
+            for row in res:
+
+                tm = row['tm'].n3()[1:-1]
+                rdfmt = row['rdfmt'].n3()[1:-1]
+                source = row['sourceFile'].n3()[1:-1]
+                iterators = row['iterator'].n3()[1:-1] if row['iterator'] is not None else "*"
+                subjectType = TermType.CONSTANT if row['subject'] is not None or \
+                                                    row['constsubject'] is not None else \
+                                TermType.TEMPLATE if row['smtemplate'] is not None else \
+                                TermType.REFERENCE if row['smreference'] is not None else None
+
+                subject = row['subject'] if row['subject'] is not None \
+                                                       else row['smtemplate'].n3()[1:-1] if row['smtemplate'] is not None \
+                                                       else row['constsubject'].n3()[1:-1] if row['constsubject'] is not None \
+                                                       else row['smreference'].n3()[1:-1] if row['smreference'] is not None \
+                                                       else None
+                if subjectType is None or subject is None or len(source.strip()) == 0:
+                    continue
+
+                mapping = RMLMapping(source, subject, iterators, subjectType)
+                tm = tm.replace('http://tib.de/ontario/mapping#', '')
+                if tm + source not in results:
+                    results[tm+source] = {}
+                    results[tm+source][rdfmt] = mapping
+                else:
+                    if rdfmt not in results[tm+source]:
+                        results[tm+source][rdfmt] = mapping
+                    else:
+                        mapping = results[tm+source][rdfmt]
+
+                predicate = row['predicate'].n3()[1:-1]
+
+                objdtype = row['pomobjmapdatatype'].n3() if row['pomobjmapdatatype'] is not None else None
+                objrdfclass = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
+
+                objtype = TermType.CONSTANT if row['objconst'] is not None or row['constobject'] is not None \
+                                                       else TermType.TEMPLATE if row['predobjmaptemplate'] is not None \
+                                                       else TermType.REFERENCE if row['pomomapreference'] is not None \
+                                                       else TermType.TRIPLEMAP if row['parentTPM'] is not None \
+                                                       else None
+                object = row['objconst'].n3()[1:-1] if row['objconst'] is not None \
+                                        else row['constobject'].n3()[1:-1] if row['constobject'] is not None \
+                                        else row['predobjmaptemplate'].n3()[1:-1] if row['predobjmaptemplate'] is not None \
+                                        else row['pomomapreference'].n3()[1:-1] if row['pomomapreference'] is not None \
+                                        else row['parentTPM'].n3()[1:-1] if row['parentTPM'] is not None \
+                                        else None
+                jchild = row['jcchild'].n3()[1:-1] if row['jcchild'] is not None else None
+                jparent = row['jcparent'].n3()[1:-1] if row['jcparent'] is not None else None
+
+                mapping.predicateObjMap[predicate] = RDFMPredicateObjMap(predicate,
+                                                                                    object,
+                                                                                    objtype,
+                                                                                    objdtype,
+                                                                                    objrdfclass,
+                                                                                    jchild,
+                                                                                    jparent)
+        except Exception as e:
+            print("Exception reading mapping", mappingslist, e)
 
         return results
 
@@ -264,7 +481,7 @@ mapping_query = prefixes + \
 
 
 if __name__ == "__main__":
-    mapping = OntarioConfiguration("/home/kemele/git/SDM/Ontario/configurations/biomed-configuration.json")
+    mapping = OntarioConfiguration("/home/kemele/git/SemanticDataLake/Ontario/scripts/polyweb-polystore.json")
     mapping.read_config()
     import pprint
     pprint.pprint(mapping.filename)
