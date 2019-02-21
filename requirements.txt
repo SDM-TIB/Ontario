@@ -6,4 +6,3 @@ neo4j-driver
 rdflib
 networkx
 ply
-enum

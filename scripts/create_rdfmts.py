@@ -831,7 +831,7 @@ def usage():
     usage_str = ("Usage: {program} \n"
                  "-s <path/to/datasources.json> \n"
                  "-o <path/to/config-output.json> \n"
-                 "where \n"                                  
+                 "where \n"
                  "\t<path/to/datasources.json> - path to dataset info file  \n"
                  "\t<path/to/config-output.json> - name of output file  \n")
 
@@ -839,9 +839,9 @@ def usage():
 
 
 if __name__ == "__main__":
-    # source, output = get_options(sys.argv[1:])
-    source = "ds_config.json"
-    output = 'polyweb_config.json'
+    source, output = get_options(sys.argv[1:])
+    # source = "ds_config.json"
+    # output = 'polyweb_config.json'
     conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))
