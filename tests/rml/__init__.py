@@ -21,6 +21,7 @@ prefixes = """
 
 
 def query_rml(filename):
+    templates = {}
     g = rdflib.Graph()
     g.load(filename, format='n3')
 
@@ -61,7 +62,7 @@ def query_rml(filename):
         if p is not None:
             triplemaps[tm]['source'][source][p] = o
 
-    print('_________________________________________________________')
+    # print('_________________________________________________________')
     for tm in triplemaps:
         sourceType = DataSourceType.LOCAL_CSV
 
@@ -132,8 +133,11 @@ def query_rml(filename):
         subjectMap, predicate_object_map = query_rml_subj_pred_obj(g, tm)
 
         tmap = TripleMap(tm, logicalSource, subjectMap, predicate_object_map)
-        print(tmap)
-    
+        # print(tmap)
+        templates[tm] = tmap
+
+    return templates
+
 
 def query_rml_subj_pred_obj(g, tm):
     subjectMap = query_rml_subj(g, tm)
@@ -302,17 +306,22 @@ def query_rml_pred_obj(g, tm):
 
 
 if __name__ == '__main__':
-    # tcfolder = '/home/kemele/git/rml-test-cases/test-cases'
-    # fn = 'RMLTC0009b'
-    # print("CSV")
-    # filename = os.path.join(tcfolder, fn + '-CSV/mapping.ttl')
-    # query_rml(filename)
+    import time
+
+    current_milli_time = lambda: int(round(time.time() * 1000))
+
+    s = current_milli_time()
+    tcfolder = '/home/kemele/git/rml-test-cases/test-cases'
+    fn = 'RMLTC0009b'
+    print("CSV")
+    filename = os.path.join(tcfolder, fn + '-CSV/mapping.ttl')
+    templates = query_rml(filename)
     # print("JSON")
     # filename = os.path.join(tcfolder, fn + '-JSON/mapping.ttl')
     # query_rml(filename)
-    # print("MySQL")
-    # filename = os.path.join(tcfolder, fn + '-MySQL/mapping.ttl')
-    # query_rml(filename)
+    print("MySQL")
+    filename = os.path.join(tcfolder, fn + '-MySQL/mapping.ttl')
+    query_rml(filename)
     # print("PostgreSQL")
     # filename = os.path.join(tcfolder, fn + '-PostgreSQL/mapping.ttl')
     # query_rml(filename)
@@ -322,9 +331,7 @@ if __name__ == '__main__':
     # print("XML")
     # filename = os.path.join(tcfolder, fn + '-XML/mapping.ttl')
     # query_rml(filename)
-    chebi = '/home/kemele/git/SemanticDataLake/Ontario/mappings/LSLOD/LSLOD_RML_Mappings_MySQL/http-==bio2rdf.org=ns=chebi#Compound.ttl'
-    from time import time
-    s = time()
+    #chebi = '/home/kemele/git/SemanticDataLake/Ontario/mappings/LSLOD/LSLOD_RML_Mappings_MySQL/http-==bio2rdf.org=ns=chebi#Compound.ttl'
 
-    query_rml(chebi)
-    print("Total time:", (time()-s))
+    print("Total time:", (current_milli_time()-s), 'ms')
+    print(templates)
