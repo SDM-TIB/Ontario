@@ -1,15 +1,10 @@
-import hashlib
-import json
-from pyspark.sql import SparkSession
 from ontario.sparql.parser import queryParser as qp
 from mysql import connector
 from mysql.connector import errorcode
 from multiprocessing import Process, Queue
-from ontario.config.model import DataSourceType
 from ontario.wrappers.mysql.utils import *
-from json import load
-from ontario.wrappers.hadoop import SparkHDFSClient
-from pprint import pprint
+from ontario.sparql.parser.services import Filter, Expression, Argument
+from tests.rml.rml_model import TripleMapType
 
 
 class MySQLWrapper(object):
@@ -47,8 +42,12 @@ class MySQLWrapper(object):
             self.host = self.url
             self.port = '3306'
 
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
-                         for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
+        if len(self.datasource.mappings) == 0:
+            self.mappings = self.config.load_mappings(self.datasource.mappingfiles, self.rdfmts)
+        else:
+            # self.mappings = self.config.mappings
+            self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+                             for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm].subject_map.rdf_types}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
         """
@@ -56,6 +55,8 @@ class MySQLWrapper(object):
         :param querystr: string query
         :return:
         """
+        from time import time
+        start = time()
         if len(self.mappings) == 0:
             print("Empty Mapping")
             queue.put('EOF')
@@ -64,12 +65,13 @@ class MySQLWrapper(object):
         self.query = qp.parse(query)
         self.prefixes = getPrefs(self.query.prefs)
 
-        if limit > -1 or offset > -1:
-            self.query.limit = limit
-            self.query.offset = offset
-        ds = self.star['datasource']
+        query_filters = [f for f in self.query.body.triples[0].triples if isinstance(f, Filter)]
 
-        sqlquery, coltotemplates, projvartocols, filenametablename, filenameiteratormap = self.translate()
+        # if limit > -1 or offset > -1:
+        #     self.query.limit = limit
+        #     self.query.offset = offset
+
+        sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         print(sqlquery)
         try:
             if self.username is None:
@@ -88,155 +90,272 @@ class MySQLWrapper(object):
 
         try:
             cursor = self.mysql.cursor()
-            db = ""
-            for fn in filenameiteratormap:
-                db = filenameiteratormap[fn]['iterator']
+            db = filenametablename
             cursor.execute("use " + db)
-            cursor.execute(sqlquery)
-            header = [h[0] for h in cursor._description]
+            card = 0
+            if limit == -1:
+                limit = 100
+            if offset == -1:
+                offset = 0
+            while True:
+                query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                # print(query_copy)
+                cursor.execute(query_copy)
+                cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+                card += cardinality
+                if cardinality < limit:
+                    break
 
-            for line in cursor:
-                row = {}
-                res = {}
-                skip = False
-                for i in range(len(line)):
-                    row[header[i]] = str(line[i])
-
-                    for r in row:
-                        if row[r] == 'null':
-                            skip = True
-                            break
-                        if '_' in r and r[:r.find("_")] in projvartocols:
-                            s = r[:r.find("_")]
-                            if s in res:
-                                val = res[s]
-                                res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
-                            else:
-                                res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                                   row[r].replace(" ", '_'))
-                        elif r in projvartocols and r in coltotemplates:
-                            res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
-                        else:
-                            res[r] = row[r]
-                        # if '_' in r and r[:r.find("_")] in projvartocols:
-                        #     s = r[:r.find("_")]
-                        #     p = r[r.find("_") + 1:]
-                        #     if s in res:
-                        #         val = res[s]
-                        #         res[s] = val.replace('{' + p + '}', row[r].replace(" ", '_'))
-                        #     else:
-                        #         if '[' in coltotemplates[s]:
-                        #             coltotemplates[s] = coltotemplates[s].replace(
-                        #                 coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
-                        #                 '')
-                        #         if '[' in coltotemplates[s]:
-                        #             coltotemplates[s] = coltotemplates[s].replace(
-                        #                 coltotemplates[s][coltotemplates[s].rfind('['): coltotemplates[s].rfind(']') + 1],
-                        #                 '')
-                        #         res[s] = coltotemplates[s].replace('{' + p + '}', row[r].replace(" ", '_'))
-                        # elif r in projvartocols and r in coltotemplates:
-                        #     if '[' in coltotemplates[r]:
-                        #         coltotemplates[r] = coltotemplates[r].replace(
-                        #             coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
-                        #     if '[' in coltotemplates[r]:
-                        #         coltotemplates[r] = coltotemplates[r].replace(
-                        #             coltotemplates[r][coltotemplates[r].find('['): coltotemplates[r].find(']') + 1], '')
-                        #
-                        #     p = coltotemplates[r][coltotemplates[r].find('{') + 1: coltotemplates[r].find('}')]
-                        #
-                        #     res[r] = coltotemplates[r].replace('{' + p + '}', row[r].replace(" ", '_'))
-                        # else:
-                        #     res[r] = row[r]
-                if not skip:
-                    queue.put(res)
+                offset = offset + limit
         except Exception as e:
             print("Exception ", e)
             pass
-
+        print("MySQL finished after: ", (time()-start))
         queue.put("EOF")
 
-    def translate(self):
-        var2maps = {}
-        print("Spark translate ------------------------------------")
-        print(self.star)
-        if 'startriples' in self.star:
-            for s in self.star['startriples']:
-                star = self.star['startriples'][s]
-                rdfmts = star['rdfmts']
-                predicates = star['predicates']
-                triples = star['triples']
+    def process_result(self, cursor, queue, projvartocols, coltotemplates):
+        header = [h[0] for h in cursor._description]
+        c = 0
+        for line in cursor:
+            c += 1
+            row = {}
+            res = {}
+            skip = False
+            for i in range(len(line)):
+                row[header[i]] = str(line[i])
+                r = header[i]
+                if row[r] == 'null':
+                    skip = True
+                    break
+                if '_' in r and r[:r.find("_")] in projvartocols:
+                    s = r[:r.find("_")]
+                    if s in res:
+                        val = res[s]
+                        if 'http://' in row[r]:
+                            res[s] = row[r]
+                        else:
+                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                    else:
+                        if 'http://' in r:
+                            res[s] = r
+                        else:
+                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                               row[r].replace(" ", '_'))
+                elif r in projvartocols and r in coltotemplates:
+                    if 'http://' in row[r]:
+                        res[r] = row[r]
+                    else:
+                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                else:
+                    res[r] = row[r]
 
-                for m in rdfmts:
-                    res1 = var2map(self.mappings, m, predicates, triples, self.prefixes)
-                    var2maps[m] = res1
+            if not skip:
+                queue.put(res)
+                if 'chebiDrug' in res and '28631' in res['chebiDrug']:
+                    print(res)
+        return c
+
+    def get_so_variables(self, triples, proj):
+        tvars = []
+        for t in triples:
+            if not t.subject.constant:
+                tvars.append(t.subject.name)
+            # exclude variables that are not projected
+            if not t.theobject.constant and t.theobject.name in proj:
+                tvars.append(t.theobject.name)
+
+        return tvars
+
+    def get_obj_filter(self, f, var_pred_map, predicate_object_map, coltotemplates, tablealias):
+        l = f.expr.left
+        r = f.expr.right
+        op = f.expr.op
+        if op.upper() == 'REGEX' and isinstance(l, Expression):
+            l = l.left
+
+        if r is not None and '?' in r.name:
+            var = r.name
+            val = l.name
         else:
-            rdfmts = self.star['rdfmts']
-            predicates = self.star['predicates']
-            triples = self.star['triples']
-            for m in rdfmts:
-                res2 = var2map(self.mappings, m, predicates, triples, self.prefixes)
-                var2maps[m] = res2
+            var = l.name
+            val = r.name
 
-        qcols = self.get_varmaps(var2maps)
-        if len(qcols) == 0:
-            print("Cannot get mappings for this subquery", self.query)
-            return []
+        if '(' in var and ')' in var:
+            var = var[var.find('(') + 1:var.find(')')]
 
-        sqlquery, projvartocols, coltotemplates, filenametablenamemap, filenameiteratormap = self.translate_4_msql_df(qcols)
+        p = var_pred_map[var]
+        pmap, omap = predicate_object_map[p]
+        if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+            coltotemplates[l[1:]] = omap.objectt.value
+            splits = omap.objectt.value.split('{')
+            column = []
+            for sp in splits[1:]:
+                column.append(sp[:sp.find('}')])
+            val = val.replace(splits[0], "")
 
-        print(coltotemplates)
-        print(projvartocols)
-        return sqlquery, coltotemplates, projvartocols, filenametablenamemap, filenameiteratormap
+            if len(column) == 1:
+                column = column[0]
 
-    def translate_4_msql_df(self, qcols):
-        ifilters = []
-        sparqlprojected = [c.name for c in self.query.args]
-        fromclauses = []
-        projections = {}
-        subjectfilters = []
-        objectfilters = []
-        projvartocols = {}
-        i = 0
-        subjtablemap = {}
+        elif omap.objectt.resource_type == TripleMapType.REFERENCE:
+            column = omap.objectt.value
+        else:
+            column = []
+        if isinstance(column, list):
+            if len(column) > 0:
+                column = column[0]
+        column = "`" + column + '`'
+        if '<' in val and '>' in val:
+            val = val.replace('<', '').replace('>', '')
+        if '"' not in val and "'" not in val:
+            val = "'" + val + "'"
+        if op == 'REGEX':
+            val = "'%" + val[1:-1] + "%'"
+            objectfilter = tablealias + '.' + column + " LIKE " + val
+        else:
+            objectfilter = tablealias + '.' + column + op + val
+
+        return objectfilter
+
+    def makeJoin(self, mapping_preds, query_filters):
+
         coltotemplates = {}
-        filenametablenamemap = {}
-        filenameiteratormap = {}
-        for filename, varmaps in qcols.items():
-            triples = varmaps['triples']
-            tablename = varmaps['source']
-            variablemap = varmaps['varmap']
+        projections = {}
+        projvartocol = {}
+        objectfilters = []
+        fromclauses = []
+        database_name = ""
+        i = 0
+        tm_tablealias = {}
+        subjects = {}
 
-            coltotemplates.update(varmaps['coltotemp'])
+        projvartocols = {}
+        query = ""
 
-            filenametablenamemap[filename] = tablename
-            # filenameiteratormap[filename] = varmaps['iterator']
-            filenameiteratormap[filename] = {'iterator': varmaps['iterator'], 'source': varmaps['source']}
-            tablealias = 'TandemT' + str(i)
-            fromcaluse = getFROMClause(tablename, tablealias)
-            fromclauses.append(fromcaluse)
-            subjtablemap[tablealias] = varmaps['subjcol']
-            fprojections, projvartocol = getProjectionClause(variablemap, sparqlprojected, tablealias)
-            if fprojections is not None:
-                projections.update(fprojections)
-            if projvartocols is not None:
-                projvartocols.update(projvartocol)
-            '''
-              Case I: If subject is constant
-            '''
-            subjectfilter = getSubjectFilters(ifilters, tablealias)
-            if subjectfilter is not None:
-                subjectfilters.extend(subjectfilter)
-            '''
-              Case II: If predicate + object are constants
-            '''
-            objectfilter = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.star['filters'])
-            if objectfilter is not None:
-                objectfilters.extend(objectfilter)
+        for tm, predicate_object_map in mapping_preds.items():
+            sparqlprojected = self.get_so_variables(self.star['triples'], [c.name for c in self.query.args])
+            tablealias = 'Ontario_' + str(i)
+            var_pred_map = {var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map}
+            for var in sparqlprojected:
+                if var not in var_pred_map:
+                    continue
+                p = var_pred_map[var]
+                pmap, omap = predicate_object_map[p]
+                if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+                    coltotemplates[var[1:]] = omap.objectt.value
+                    splits = omap.objectt.value.split('{')
+                    column = []
+                    for sp in splits[1:]:
+                        column.append(sp[:sp.find('}')])
+                    if len(column) == 1:
+                        column = column[0]
+                elif omap.objectt.resource_type == TripleMapType.REFERENCE:
+                    column = omap.objectt.value
+                else:
+                    column = []
+                if isinstance(column, list):
+                    j = 0
+                    for col in column:
+                        vcolumn = "`" + col + '`'
+                        projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + var[1:] + '_Ontario_' + str(j)
+                        projvartocol.setdefault(var[1:], []).append(col)
+                        objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
+                        objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                        j += 1
+                else:
+                    col = column
+                    column = "`" + column + '`'
+                    projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
+                    projvartocol[var[1:]] = col
+                    objectfilters.append(tablealias + '.' + column + " is not null ")
+                    objectfilters.append(tablealias + '.' + column + " <> '' ")
+            for f in query_filters:
+                if len(set(f.getVars()).intersection(list(var_pred_map.keys()))) == len(set(f.getVars())):
+                    fil = self.get_obj_filter(f, var_pred_map, predicate_object_map, coltotemplates, tablealias)
+                    objectfilters.append(fil)
+            tm_tablealias[tablealias] = tm
 
+            triplemap = self.mappings[tm]
+            subjects[tm] = triplemap.subject_map.subject
+
+            logicalsource = triplemap.logical_source
+            data_source = logicalsource.data_source
+            tablename = data_source.name
+            database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
+            fromclauses.append(tablename + ' ' + tablealias)
             i += 1
 
-        if len(subjtablemap) > 1:
-            aliases = list(subjtablemap.keys())
+            for var, p in var_pred_map.items():
+
+                if '?' not in var:
+                    pmap, omap = predicate_object_map[p]
+
+                    if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+                        # omap.objectt.value
+                        splits = omap.objectt.value.split('{')
+                        column = []
+                        for sp in splits[1:]:
+                            column.append(sp[:sp.find('}')])
+
+                        var = var.replace(splits[0], '').replace('}', '')
+                        if '<' in var and '>' in var:
+                            var = var[1:-1]
+                        var = "'" + var +  "'"
+                    elif omap.objectt.resource_type == TripleMapType.REFERENCE:
+                        column = omap.objectt.value
+                        if "'" not in var and '"' not in var:
+                            var = "'" + var + '"'
+                    else:
+                        column = []
+                    if isinstance(column, list):
+                        j = 0
+                        for col in column:
+                            vcolumn = "`" + col + '`'
+                            objectfilters.append(tablealias + "." + vcolumn + " = " + var)
+                            j += 1
+                    else:
+                        column = "`" + column + '`'
+                        objectfilters.append(tablealias + "." + column + " = " + var)
+
+        subj = self.star['triples'][0].subject.name if not self.star['triples'][0].subject.constant else None
+        if subj is not None:
+            filtersadded = []
+            for tm, subject in subjects.items():
+                subjcol = subject.value
+                tablealias = [v for v in tm_tablealias if tm_tablealias[v] == tm][0]
+                splits = subjcol.split('{')
+                coltotemplates[subj[1:]] = subjcol
+                column = []
+                for sp in splits[1:]:
+                    column.append(sp[:sp.find('}')])
+
+                if len(column) > 1:
+                    j = 0
+                    for col in column:
+                        vcolumn = "`" + col + '`'
+                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + subj[ 1:] + '_Ontario_' + str(j)
+                        projvartocol.setdefault(subj[1:], []).append(col)
+                        objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
+                        objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                        j += 1
+                elif len(column) == 1:
+                    col = column[0]
+                    column = "`" + col + '`'
+                    projections[subj[1:]] = tablealias + "." + column + " AS " + subj[1:]
+                    projvartocol[subj[1:]] = col
+
+                    objectfilters.append(tablealias + '.' + column + " is not null ")
+                    objectfilters.append(tablealias + '.' + column + " <> '' ")
+
+                # if len(tm_tablealias) > 1:
+                #     for tm1, t1 in tm_tablealias.items():
+                #         if tm == tm1:
+                #             continue
+                #         if t1 + tablealias not in filtersadded and tablealias + t1 not in filtersadded:
+                #             objectfilters.append(t1 + '.' + column + ' = ' + tablealias + '.' + column)
+                #             filtersadded.append(t1 + tablealias)
+                #             filtersadded.append(tablealias + t1)
+        if len(subjects) > 1:
+            aliases = list(tm_tablealias.keys())
             raliases = aliases.copy()
             raliases.reverse()
             compared = []
@@ -248,62 +367,81 @@ class MySQLWrapper(object):
                         continue
                     compared.append(a1 + a2)
                     compared.append(a2 + a1)
-                    subj1 = subjtablemap[a1][0].strip()
-                    subj2 = subjtablemap[a2][0].strip()
-                    column1 = subj1
-                    column2 = subj2
-                    if '[' in subj1:
-                        column1 = '`' + subj1[:subj1.find('[')] + "`"
-                    elif '/' in subj1 and '[*]' not in subj1:
-                        column1 = subj1.replace('/', '.')
-                        column1 = "`" + column1[:column1.find('.')] + '`' + column1[column1.find('.'):]
-                    else:
-                        column1 = '`' + column1 + '`'
-                    if '[' in subj2:
-                        column2 = '`' + subj2[:subj2.find('[')] + "`"
-                    elif '/' in subj2 and '[*]' not in subj2:
-                        column2 = subj2.replace('/', '.')
-                        column2 = "`" + column2[:column2.find('.')] + '`' + column2[column2.find('.'):]
-                    else:
-                        column2 = '`' + column2 + '`'
+                    subj1 = subjects[tm_tablealias[a1]].value
+                    subj2 = subjects[tm_tablealias[a2]].value
+                    column1 = None
+                    column2 = None
+                    splits = subj1.split('{')
+                    for sp in splits:
+                        if '}' in sp:
+                            column1 = sp[:sp.find('}')]
+                            break
+                    splits = subj2.split('{')
+                    for sp in splits:
+                        if '}' in sp:
+                            column2 = sp[:sp.find('}')]
+                            break
+                    column1 = '`' + column1 + '`'
+                    column2 = '`' + column2 + '`'
+                    if column1 == column2:
+                        objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
 
-                    objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
-
-        fromcaluse = " FROM " + ", ".join(fromclauses)
-        projections = " SELECT DISTINCT " + ", ".join(list(projections.values()))
-        subjfilter = " AND ".join(subjectfilters) if len(subjectfilters) > 0 else None
-        whereclause = " WHERE " + " AND ".join(objectfilters)
-        if subjfilter is not None:
+        if len(mapping_preds) > 0:
+            fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
+            projections = " SELECT  " + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
-                whereclause += " AND " + subjfilter
+                whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
             else:
-                whereclause += subjfilter
+                whereclause = ""
 
-        sqlquery = projections + " " + fromcaluse + " " + whereclause
-        return sqlquery, projvartocols, coltotemplates, filenametablenamemap, filenameiteratormap
+            sqlquery = projections + " " + fromcaluse + " " + whereclause
+            return sqlquery, projvartocol, coltotemplates, database_name
 
-    def get_varmaps(self, var2maps):
-        qcols = {}
-        for m in var2maps:
-            for col in var2maps[m]:
-                if col in qcols:
-                    col2temp = var2maps[m][col]['coltotemp']
-                    for c in col2temp:
-                        qcols[col]['coltotemp'][c] = col2temp[c]
-                    qcols[col]['subjcol'].extend(var2maps[m][col]['subjcol'])
-                    varmap = var2maps[m][col]['varmap']
-                    for v in varmap:
-                        # TODO: this overwrites variables from previous star (try to prevent that)
-                        # If the map reference is different then this could potentially return wrong results
-                        qcols[col]['varmap'][v] = varmap[v]
+        return query, projvartocols, coltotemplates, database_name
 
-                    qcols[col]['triples'].extend(var2maps[m][col]['triples'])
-                    qcols[col]['triples'] = list(set(qcols[col]['triples']))
-                    predmap = var2maps[m][col]['predmap']
-                    for p in predmap:
-                        qcols[col]['predmap'][p] = predmap[p]
-                else:
-                    qcols[col] = var2maps[m][col]
-                    qcols[col]['subjcol'] = qcols[col]['subjcol']
+    def makeunion(self, tounions, query_filters):
 
-        return qcols
+        coltotemplates = {}
+        projvartocols = {}
+        database_name = ""
+        unions = []
+
+        for rdfmt, tm in tounions.items():
+            mappingpreds = tounions[rdfmt]
+            un, projvartocols, coltotemplates, database_name = self.makeJoin(mappingpreds, query_filters)
+            unions.append(un)
+
+        query = " UNION ".join(unions)
+        # print(query)
+        return query, projvartocols, coltotemplates, database_name
+
+    def translate(self, query_filters):
+        rdfmts = self.star['rdfmts']
+        star_preds = list(self.star['predicates'].keys())
+        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
+            star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
+        mapping_preds = {tm: triplemap for tm, triplemap in self.mappings.items() for p in star_preds if p in triplemap.predicate_object_map }
+        # if len(set(star_preds).intersection(['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'] + list(triplemap.predicate_object_map.keys()))) == len(set(star_preds))
+        touninon = {}
+        completematch = {}
+        for tm, triplemap in mapping_preds.items():
+            for rdfmt in triplemap.subject_map.rdf_types:
+                if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) ==  len(set(star_preds)):
+                    completematch[rdfmt] = {}
+                    completematch[rdfmt][tm] = triplemap.predicate_object_map
+                if rdfmt in rdfmts and \
+                        len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) > 0:
+                    touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+        if len(completematch) > 0:
+            if len(completematch) ==1:
+                query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]], query_filters)
+                return query, projvartocols, coltotemplates, database_name
+            else:
+                return self.makeunion(completematch, query_filters)
+        elif len(touninon) > 1:
+            return self.makeunion(touninon, query_filters)
+        elif len(touninon) == 1:
+            query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]], query_filters)
+            return query, projvartocols, coltotemplates, database_name
+        else:
+            return None, None, None, None
