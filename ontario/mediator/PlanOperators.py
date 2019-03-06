@@ -1,5 +1,5 @@
 from multiprocessing import Process, Queue
-from ontario.config.model import DataSourceType
+from ontario.model import DataSourceType
 from ontario.wrappers.mongodb.sparql2mongo import SPARQL2Mongo
 from ontario.wrappers.triplestore import RDFStore
 from ontario.wrappers.neo4j.sparql2cypher import SPARQL2Cypher
