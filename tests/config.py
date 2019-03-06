@@ -41,19 +41,21 @@ class OntarioConfiguration(object):
     def ext_datasources_json(self, ds):
         datasources = {}
         for d in ds:
-            # mappings = self.ext_mappings(d['mappings'])
+            mappings = self.load_mappings(d['mappings'])
             datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
                                               d['ID'],
                                               d['url'],
                                               d['type'],
                                               d['params'],
-                                              d['mappings'])
+                                              d['mappings'],
+                                              mappings
+                                              )
 
         return datasources
 
-    def load_mappings(self, mappingslist):
+    def load_mappings(self, mappingslist, rdfmts=[]):
         if len(mappingslist) > 0:
-            return self.read_mapping_files(mappingslist)
+            return self.read_mapping_files(mappingslist, rdfmts)
         return {}
 
     def ext_templates_json(self, mts):
@@ -76,8 +78,8 @@ class OntarioConfiguration(object):
 
         return meta
 
-    def read_mapping_files(self, mappingslist):
-        mappings = query_rml(mappingslist)
+    def read_mapping_files(self, mappingslist, rdfmts=[]):
+        mappings = query_rml(mappingslist, rdfmts)
         return mappings
 
     def find_rdfmt_by_preds(self, preds):
@@ -91,7 +93,7 @@ class OntarioConfiguration(object):
             res[0] = res[0].intersection(r)
         results = {}
         if len(res) > 0:
-            mols = list(res[0])
+            mols = list(set(res[0]))
             for m in mols:
                 results[m] = self.metadata[m]
         return results
