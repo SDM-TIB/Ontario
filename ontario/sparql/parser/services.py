@@ -1,7 +1,5 @@
 from __future__ import division
 
-import string
-import os
 
 xsd = "http://www.w3.org/2001/XMLSchema#"
 
@@ -202,7 +200,7 @@ class Service(object):
 
     def instantiateFilter(self, d, filter_str):
         new_filters = []
-        new_filters.extend(self.filter_nested)
+        # new_filters.extend(self.filter_nested)
         new_filters.append(filter_str)
         #new_filters_vars = self.filters_vars | set(d)
         self.filter_nested = new_filters
@@ -689,24 +687,24 @@ class Expression(object):
         self.right = right
 
     def __repr__(self):
-        if (self.op in unaryFunctor):
-            return (self.op +"("+ str(self.left) + ")")
-        elif (self.op in binaryFunctor):
-            if (self.op == 'REGEX' and self.right.desc!=False):
-              return (self.op + "("+ str(self.left) + "," + self.right.name + "," + self.right.desc + ")")
+        if self.op in unaryFunctor:
+            return self.op + "("+ str(self.left) + ")"
+        elif self.op in binaryFunctor:
+            if self.op == 'REGEX' and self.right.desc!=False:
+                return self.op + "("+ str(self.left) + "," + self.right.name + "," + self.right.desc + ")"
             else:
-              return (self.op + "("+ str(self.left) + "," + str(self.right) + ")")
-        elif (self.right is None):
-            return (self.op + str(self.left))
+                return self.op + "("+ str(self.left) + "," + str(self.right) + ")"
+        elif self.right is None:
+            return self.op + str(self.left)
         else:
-            return ("(" + str(self.left)+" "+ self.op +" "+str(self.right)+ ")")
+            return "(" + str(self.left)+" "+ self.op +" "+str(self.right)+ ")"
 
     def getVars(self):
         #if (self.op=='REGEX' or self.op == 'xsd:integer' or self.op=='!' or self.op == 'BOUND' or self.op == 'ISIRI' or self.op == 'ISURI' or self.op == 'ISBLANK' or self.op == 'ISLITERAL' or self.op == 'STR' or self.op == 'LANG' or self.op == 'DATATYPE'):
-        if ((self.op in unaryFunctor) or (self.op in binaryFunctor) or (self.right is  None)):
-          return self.left.getVars()
+        if (self.op in unaryFunctor) or (self.op in binaryFunctor) or (self.right is  None):
+            return self.left.getVars()
         else:
-          return self.left.getVars()+self.right.getVars()
+            return self.left.getVars()+self.right.getVars()
 
     def getConsts(self):
         if self.op in unaryFunctor or self.right is None:
@@ -734,16 +732,16 @@ class Expression(object):
         return
 
     def places(self):
-        if ((self.op in unaryFunctor)or (self.op == 'REGEX' and self.right.desc ==False)):
+        if (self.op in unaryFunctor)or (self.op == 'REGEX' and self.right.desc ==False):
            return self.left.places()
         else:
            return self.left.places() + self.right.places()
 
     def constantNumber(self):
-        if ((self.op in unaryFunctor) or (self.op == 'REGEX' and self.expr.desc ==False)):
-           return self.left.constantNumber()
+        if (self.op in unaryFunctor) or (self.op == 'REGEX' and self.expr.desc ==False):
+            return self.left.constantNumber()
         else:
-           return self.left.constantNumber() + self.right.constantNumber()
+            return self.left.constantNumber() + self.right.constantNumber()
 
     def constantPercentage(self):
         return self.constantNumber()/self.places()
@@ -926,7 +924,7 @@ def readGeneralPredicates(fileName):
     l = []
     l0 = f.readline()
     while not l0 == '':
-        l0 = string.rstrip(l0, '\n')
+        l0 = l0.rstrip('\n')
         l.append(l0)
         l0 = f.readline()
     f.close()
@@ -951,7 +949,7 @@ def prefix(p):
     s = p.name
     pos = s.find(":")
     if (not (s[0] == "<")) and pos > -1:
-        return (s[0:pos].strip(), s[(pos+1):].strip())
+        return s[0:pos].strip(), s[(pos+1):].strip()
 
     return None
 
