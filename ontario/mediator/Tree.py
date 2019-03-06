@@ -83,7 +83,12 @@ class Node(Tree):
         self.vars = unify(l.vars, r.vars, l.dict)
         self.dict = l.dict = r.dict
         self.size = l.size + r.size
-        self.filters = filters
+        self.filters = []
+        serviceVars = l.getVars() + r.getVars()
+        for f in filters:
+            vars_f = f.getVars()
+            if set(serviceVars) & set(vars_f) == set(vars_f):
+                self.filters.append(f)
 
     def instantiate(self, d):
         return Node(self.left.instantiate(d), self.right.instantiate(d))
@@ -367,6 +372,7 @@ def getdsscore(dstype):
         return 18
     else:
         return 0
+
 
 def createLeafs(lss, filters=None):
 
