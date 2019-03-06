@@ -6,6 +6,7 @@ from ontario.wrappers.neo4j.sparql2cypher import SPARQL2Cypher
 from ontario.wrappers.spark.sparql2sparksql import SPARKCSVTSVWrapper
 from ontario.wrappers.spark.sparql2sparksql import SPARKXMLWrapper
 from ontario.wrappers.mysql.sparql2sql import MySQLWrapper
+from ontario.wrappers.drill.sparql2drill import DrillWrapper
 
 
 class NodeOperator(object):
@@ -251,8 +252,10 @@ class LeafOperator(object):
     def get_wrapper_fun(self, datasource):
         if datasource.dstype == DataSourceType.MONGODB:
             return SPARQL2Mongo(datasource, self.config, self.rdfmts, self.star)
-        elif datasource.dstype == DataSourceType.LOCAL_TSV or datasource.dstype == DataSourceType.LOCAL_CSV:
-            return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
+        elif datasource.dstype == DataSourceType.LOCAL_TSV or datasource.dstype == DataSourceType.LOCAL_CSV \
+            or datasource.dstype == DataSourceType.LOCAL_JSON:
+            # return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
+            return DrillWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.NEO4J:
             return SPARQL2Cypher(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARQL_ENDPOINT:

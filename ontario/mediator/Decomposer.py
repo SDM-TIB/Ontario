@@ -364,7 +364,7 @@ class MediatorCatalyst(object):
                          for d in sources]
                 ubl = UnionBlock(elems)
                 joinplans = joinplans + [ubl]
-            else:
+            elif len(sources) == 1:
                 d = sources.pop()
                 serv = Service(endpoint="<" + self.config.datasources[d].url + ">",
                                triples=list(set(star['triples'])),
