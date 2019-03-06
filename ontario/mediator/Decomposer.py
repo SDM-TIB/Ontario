@@ -5,20 +5,23 @@ import logging
 import ontario.sparql.utilities as utils
 from ontario.sparql.parser import queryParser
 from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
-from ontario.mediator.Tree import Tree
-from ontario.config import OntarioConfiguration
 
 
-class LakeCatalyst(object):
-
-    def __init__(self, query, config):
+class MediatorCatalyst(object):
+    def __init__(self, query, config, pushdownssqjoins=False):
         self.query = queryParser.parse(query)
         self.prefixes = utils.getPrefs(self.query.prefs)
         self.config = config
         self.relevant_mts = {}
+        self.decomposition = {}
+        self.pushdownssqjoins = pushdownssqjoins
 
     def decompose(self):
-        return self.decomposeUnionBlock(self.query.body)
+
+        self.decomposition = self.decomposeUnionBlock(self.query.body)
+        unionblocks = self.create_decomposed_query(self.decomposition)
+        self.query.body = UnionBlock(unionblocks)
+        return self.decomposition
 
     def decomposeUnionBlock(self, ub):
         """
@@ -27,10 +30,12 @@ class LakeCatalyst(object):
         :param ub: UnionBlock
         :return:
         """
-        ubs = []
+        r = []
         for jb in ub.triples:
-            ubs.append(self.decomposeJoinBlock(jb))
-        return ubs
+            pjb = self.decomposeJoinBlock(jb)
+            if pjb:
+                r.append(pjb)
+        return r
 
     def decomposeJoinBlock(self, jb):
         """
@@ -38,175 +43,45 @@ class LakeCatalyst(object):
         :param jb: JoinBlock
         :return:
         """
-        bgp = []
-        filters = []
-        for tp in jb.triples:
-            if isinstance(tp, Triple):
-                bgp.append(tp)
-            elif isinstance(tp, Filter):
-                filters.append(tp)
+        tl = []
+        ol = []
+        ijb = []
+        ub = []
+        fl = []
+        for bgp in jb.triples:
+            if isinstance(bgp, Triple):
+                tl.append(bgp)
+            elif isinstance(bgp, Filter):
+                fl.append(bgp)
+            elif isinstance(bgp, Optional):
+                ubb = self.decomposeUnionBlock(bgp.bgg)
+                ol.extend(ubb)
+            elif isinstance(bgp, UnionBlock):
+                pub = self.decomposeUnionBlock(bgp)
+                if pub:
+                    ub.extend(pub)
+            elif isinstance(bgp, JoinBlock):
+                pub = self.decomposeJoinBlock(bgp)
+                if pub:
+                    ijb.extend(pub)
 
-        bgp = self.decomposeBGP(bgp, filters)
-        return bgp
+        tl_bgp = {}
+        if tl is not None:
+            bgp_preds = self.get_preds(tl)
+            stars = self.bgp_stars(tl)
+            bgpstars, star_conn, mt_conn = self.decompose_bgp(stars, bgp_preds)
+            tl_bgp['stars_conn'] = star_conn
+            tl_bgp['mts_conn'] = mt_conn
+            tl_bgp['stars'] = bgpstars
+            tl_bgp['bgp_predicates'] = bgp_preds
 
-    def decomposeBGP(self, bgp, filters):
-        """
-        Decompose a BGP into star-shaped subqueries
-        :param bgp:
-        :return:
-        """
-        res = {}
-        bgp_preds = self.get_preds(bgp)
-        stars = self.bgp_stars(bgp)
-        star_conn = self.getStarsConnections(stars)
-        varpreds = {}
-        star_preds = {}
-
-        for s in stars:
-            star = stars[s]
-            preds = self.get_preds(star)
-            star_preds[s] = preds
-            typed = self.checkRDFTypeStatemnt(star)
-            if typed is None:
-                print("Subquery: ", stars[s], "\nCannot be executed, because it contains an RDF MT that "
-                                              "does not exist in this federations of datasets.")
-                return []
-            if len(typed) > 0:
-
-                for m in typed:
-                    #properties = [p['predicate'] for p in typed[m]['predicates']]
-                    properties = list(typed[m].predicates.keys())
-                    if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in preds and \
-                            'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' not in properties:
-                        preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
-                        pinter = set(properties).intersection(set(preds))
-
-                        if len(pinter) != len(set(preds)):
-                            print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
-                                                          "does not exist in this federations of datasets.")
-                            return []
-                        else:
-                            self.relevant_mts[m] = typed[m]
-
-                        preds.append('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
-                    else:
-                        pinter = set(properties).intersection(set(preds))
-                        if len(pinter) != len(set(preds)):
-                            print("Subquery: ", stars[s], "\nCannot be executed, because it contains properties that "
-                                                          "does not exist in this federations of datasets.")
-                            return []
-                        else:
-                            self.relevant_mts[m] = typed[m]
-
-                res[s] = typed
-                continue
-            # if ssq contains at least one triple pattern with constant predicate
-            mols = []
-            if len(preds) > 0:
-                mols = self.config.find_rdfmt_by_preds(preds)
-                self.relevant_mts.update(mols)
-                mols = mols.keys()
-
-                if len(mols) == 0:
-                    print("cannot find any matching for:", stars[s])
-                    return []
-            else:
-                varpreds[s] = star
-                continue
-
-            # if len(mols) == 0:
-            #     mols = self.config.metadata
-
-            if len(mols) > 0:
-                res.setdefault(s, []).extend(mols)
-            else:
-                print("cannot find any matching molecules for:", star)
-                return []
-
-        if len(varpreds) > 0:
-            for s in varpreds:
-                found = False
-                for c in star_conn:
-                    v = star_conn[c]
-                    if s in v:
-                        for m in res[c]:
-                            mols = [self.config.metadata[r] for mt in m for p in self.relevant_mts[mt].predicates for r in p.ranges]
-                            mols = [mt.uri for mt in mols]
-                            res.setdefault(s, []).extend(mols)
-                            found = True
-                if not found:
-                    mols = list(self.config.metadata.keys())
-                    res.setdefault(s, []).extend(mols)
-
-        # Connection between the selected RDF-MTs for stars of the BGP
-        # This connection info is used to further eliminate non-relevant sources
-        res_conn = self.getMTsConnection(res, bgp_preds)
-
-        res = self.prune(star_conn, res_conn, res, stars)
-        results = {}
-        for s in res:
-            results[s] = {}
-            results[s]['predicates'] = star_preds[s]
-            results[s]['filters'] = filters
-            for m in res[s]:
-                results[s][m] = stars[s]
-
-        return results
-
-    def prune(self, star_conn, res_conn, selectedmolecules, stars):
-        newselected = {}
-        res = {}
-        counter = 0
-        for s in selectedmolecules:
-            if len(selectedmolecules[s]) == 1:
-                newselected[s] = list(selectedmolecules[s])
-                res[s] = list(selectedmolecules[s])
-                counter += 1
-            else:
-                newselected[s] = []
-                res[s] = []
-        if counter == len(selectedmolecules):
-            return res
-
-        for s in selectedmolecules:
-            sc = star_conn[s]
-
-            for sm in selectedmolecules[s]:
-                smolink = res_conn[sm]
-
-                for c in sc:
-                    cmols = selectedmolecules[c]
-                    nms = [n for m in smolink for n in m['range'] if n in cmols]
-                    if len(nms) > 0:
-                        res[s].append(sm)
-                        res[c].extend(nms)
-
-        # check predicate level connections
-        newfilteredonly = {}
-        for s in res:
-            sc = [c for c in star_conn if s in star_conn[c]]
-            for c in sc:
-                connectingtp = [utils.getUri(tp.predicate, self.prefixes)[1:-1]
-                                for tp in stars[c] if tp.theobject.name == s]
-                connectingtp = list(set(connectingtp))
-                sm = selectedmolecules[s]
-                for m in sm:
-                    srange = [p for r in self.relevant_mts[m].predicates for p in self.relevant_mts[m].predicates[r].ranges if self.relevant_mts[m].predicates[r].predicate in connectingtp]
-                    filteredmols = [r for r in res[s] if r in srange]
-                    if len(filteredmols) > 0:
-                        if s in newfilteredonly:
-                            newfilteredonly[s].extend(filteredmols)
-                        else:
-                            res[s] = filteredmols
-
-        for s in newfilteredonly:
-            res[s] = list(set(newfilteredonly[s]))
-
-        for s in res:
-            if len(res[s]) == 0:
-                res[s] = selectedmolecules[s]
-            res[s] = list(set(res[s]))
-        return res
+        return {
+            "BGP": tl_bgp,
+            "Optional": ol,
+            "JoinBlock": ijb,
+            "UnionBlock": ub,
+            "Filter": fl
+        }
 
     def get_preds(self, star):
         """
@@ -215,7 +90,22 @@ class LakeCatalyst(object):
         :return: list of predicates
         """
 
-        preds = [utils.getUri(tr.predicate, self.prefixes)[1:-1] for tr in star if tr.predicate.constant]
+        preds = [utils.getUri(tr.predicate, self.prefixes)[1:-1]
+                 for tr in star if tr.predicate.constant]
+
+        return preds
+
+    def get_pred_objs(self, star):
+        """
+        Returns a key value of predicate:object in a BGP/star-shaped subquery
+        :param star: list of triple patterns
+        :return: list of predicates
+        """
+
+        preds = {utils.getUri(tr.predicate, self.prefixes)[1:-1]:
+                     (utils.getUri(tr.theobject, self.prefixes)
+                      if tr.theobject.constant else tr.theobject.name)
+                 for tr in star if tr.predicate.constant}
 
         return preds
 
@@ -245,29 +135,42 @@ class LakeCatalyst(object):
          {subj1: [subjn]} where one of subj1's triple pattern's object node is connected to subject node of subjn
         """
         conn = dict()
-        for s in stars.copy():
-            ltr = stars[s]
-            conn[s] = []
-            for c in stars:
-                if c == s:
+        star_objs = {}
+        for s in stars:
+            objs = [t.theobject.name for t in stars[s] if not t.theobject.constant]
+            star_objs[s] = objs
+            conn[s] = {"SO": [], "OO": []}
+
+        subjects = list(set(stars.keys()))
+        checked = []
+        for s in star_objs:
+            connections = set(star_objs[s]).intersection(subjects)
+            if len(connections) > 0:
+                for c in connections:
+                    conn[c]['SO'].append(s)
+            for s2 in star_objs:
+                if s == s2:
                     continue
-                for t in ltr:
-                    if t.theobject.name == c:
-                        if c not in conn[s]:
-                            conn[s].append(c)
-                        break
+                if s2 + s not in checked and s + s2 not in checked:
+                    connections = set(star_objs[s]).intersection(star_objs[s2])
+                    if len(connections) > 0:
+                        # for c in connections:
+                        conn[s2]['OO'].append(s)
+                        conn[s]['OO'].append(s2)
+                checked.extend([s2 + s, s + s2])
 
         return conn
 
-    def getMTsConnection(self, selectedmolecules, preds):
+    def getMTsConnection(self, selectedmolecules, preds, relevant_mts):
         mcons = {}
         smolecules = [m for s in selectedmolecules for m in selectedmolecules[s]]
         for s in selectedmolecules:
             mols = selectedmolecules[s]
             for m in mols:
-                mcons[m] = [n for n in self.relevant_mts[m].predicates \
-                            for r in self.relevant_mts[m].predicates[n].ranges \
-                            if r in smolecules and self.relevant_mts[m].predicates[n].predicate in preds]
+                mcons[m] = []
+                [mcons[m].extend(relevant_mts[m].predicates[n].ranges) for n in relevant_mts[m].predicates \
+                 for r in relevant_mts[m].predicates[n].ranges \
+                 if r in smolecules and relevant_mts[m].predicates[n].predicate in preds]
         return mcons
 
     def checkRDFTypeStatemnt(self, ltr):
@@ -278,7 +181,7 @@ class LakeCatalyst(object):
             mt = self.config.metadata[tt]
             typemols[tt] = mt
         if len(types) > 0 and len(typemols) == 0:
-            return None
+            return {}
 
         return typemols
 
@@ -294,11 +197,196 @@ class LakeCatalyst(object):
 
         return types
 
+    def prune(self, star_conn, res_conn, selectedmolecules, stars, relevant_mts):
+        newselected = {}
+        res = {}
+        counter = 0
+        for s in selectedmolecules:
+            if len(selectedmolecules[s]) == 1:
+                newselected[s] = list(selectedmolecules[s])
+                res[s] = list(selectedmolecules[s])
+                counter += 1
+            else:
+                newselected[s] = []
+                res[s] = []
+        if counter == len(selectedmolecules):
+            return res
+
+
+        # check predicate level connections
+        newfilteredonly = {}
+        for s in res:
+            sc = [c for c in star_conn if s in star_conn[c]['SO']]
+            for c in sc:
+                connectingtp = [utils.getUri(tp.predicate, self.prefixes)[1:-1]
+                                for tp in stars[s] if tp.theobject.name == c]
+                connectingtp = list(set(connectingtp))
+                sm = selectedmolecules[s]
+                for m in sm:
+                    srange = [p for r in relevant_mts[m].predicates
+                              for p in relevant_mts[m].predicates[r].ranges
+                              if relevant_mts[m].predicates[r].predicate in connectingtp]
+                    srange = list(set(srange).intersection(selectedmolecules[c]))
+                    if len(srange) == 0:
+                        selectedmolecules[s].remove(m)
+                    if c in newfilteredonly:
+                        newfilteredonly[c].extend(srange)
+                    else:
+                        newfilteredonly[c] = srange
+                    newfilteredonly[c] = list(set(newfilteredonly[c]))
+
+        already_checked = []
+        for s in res:
+            sc = [c for c in star_conn if s in star_conn[c]['SO']]
+            for c in sc:
+                if s + c in already_checked or c + s in already_checked:
+                    continue
+
+                already_checked.extend([s + c, c + s])
+                if c in newfilteredonly:
+                    c_newfilter = newfilteredonly[c].copy()
+                else:
+                    c_newfilter = selectedmolecules[c].copy()
+                    newfilteredonly[c] = selectedmolecules[c].copy()
+                if s in newfilteredonly:
+                    s_newfilter = newfilteredonly[s].copy()
+                else:
+                    s_newfilter = selectedmolecules[s].copy()
+                    newfilteredonly[s] = selectedmolecules[s].copy()
+                for m in s_newfilter:
+                    con = res_conn[m]
+                    if len(con) == 0:
+                        continue
+                    new_res = list(set(con).intersection(c_newfilter))
+                    if len(new_res) == 0:
+                        newfilteredonly[s].remove(m)
+
+                for m in c_newfilter:
+                    con = res_conn[m]
+                    if len(con) == 0:
+                        continue
+                    new_res = list(set(con).intersection(s_newfilter))
+                    if len(new_res) == 0:
+                        newfilteredonly[c].remove(m)
+
+        for s in newfilteredonly:
+            res[s] = list(set(newfilteredonly[s]))
+
+        for s in res:
+            if len(res[s]) == 0:
+                res[s] = selectedmolecules[s]
+            res[s] = list(set(res[s]))
+        return res
+
+    def decompose_bgp(self, stars, bgp_preds):
+        bgpstars = {}
+        mtres = {}
+        relevant_mts = {}
+        for s in stars:
+            spred = self.get_pred_objs(stars[s])
+            bgpstars[s] = {}
+            bgpstars[s]['triples'] = stars[s]
+            bgpstars[s]['predicates'] = spred
+            types = self.checkRDFTypeStatemnt(stars[s])
+            if len(types) > 0:
+                rdfmts = types
+            else:
+                rdfmts = self.config.find_rdfmt_by_preds(spred)
+
+            bgpstars[s]['rdfmts'] = list(rdfmts.keys())
+            mtres[s] = bgpstars[s]['rdfmts']
+            relevant_mts.update(rdfmts)
+        star_conn = self.getStarsConnections(stars)
+        mt_conn = self.getMTsConnection(mtres, bgp_preds, relevant_mts)
+        res = self.prune(star_conn, mt_conn, mtres, stars, relevant_mts)
+
+        for s in res:
+            bgpstars[s]['rdfmts'] = res[s]
+
+        for s in res:
+            datasources = {}
+            for m in res[s]:
+                for d in self.config.metadata[m].datasources:
+                    dspreds = self.config.metadata[m].datasources[d]
+                    preds = list(set(bgpstars[s]['predicates']).intersection(dspreds))
+                    if len(preds) > 0:
+                        datasources.setdefault(d, {}).setdefault(m, []).extend(preds)
+            bgpstars[s]['datasources'] = datasources
+
+        return bgpstars, star_conn, mt_conn
+
+    def create_decomposed_query(self, decomp):
+        unionblocks = []
+        sblocks = []
+        opblocks = []
+        for ub in decomp:
+            BGP = ub['BGP']
+            joinplans = self.decompose_block(BGP, ub['Filter'])
+
+            if len(ub['JoinBlock']) > 0:
+                joinBlock = self.create_decomposed_query(ub['JoinBlock'])
+                sblocks.append(JoinBlock(joinBlock))
+            if len(ub['UnionBlock']) > 0:
+                unionBlock = self.create_decomposed_query(ub['UnionBlock'])
+                sblocks.append(UnionBlock(unionBlock))
+
+            if len(ub['Optional']) > 0:
+                opblocks.append(Optional(UnionBlock(self.create_decomposed_query(ub['Optional']))))
+
+            gp = sblocks + joinplans + opblocks
+            gp = UnionBlock([JoinBlock(gp)])
+            unionblocks.append(gp)
+
+        return unionblocks
+
+    def decompose_block(self, BGP, filters):
+        joinplans = []
+        services = []
+        for s, star in BGP['stars'].items():
+            dss = star['datasources']
+            preds = star['predicates']
+            sources = set()
+            for ID, rdfmt in dss.items():
+                for mt, mtpred in rdfmt.items():
+                    if len(set(preds).intersection(
+                            mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(
+                            set(preds)):
+                        print(s, '-> source selected:', ID)
+                        sources.add(ID)
+                        break
+            if len(sources) > 1:
+                elems = [JoinBlock([Service(endpoint="<" + self.config.datasources[d].url + ">",
+                                            triples=list(set(star['triples'])),
+                                            datasource=self.config.datasources[d],
+                                            rdfmts=star['rdfmts'],
+                                            star=star,
+                                            filters=get_filters(list(set(star['triples'])), filters))])
+                         for d in sources]
+                ubl = UnionBlock(elems)
+                joinplans = joinplans + [ubl]
+            else:
+                d = sources.pop()
+                serv = Service(endpoint="<" + self.config.datasources[d].url + ">",
+                               triples=list(set(star['triples'])),
+                               datasource=self.config.datasources[d],
+                               rdfmts=star['rdfmts'],
+                               star=star,
+                               filters=get_filters(list(set(star['triples'])), filters))
+                services.append(serv)
+
+        if services and joinplans:
+            joinplans = services + joinplans
+        elif services:
+            joinplans = services
+
+        return joinplans
+
+
     '''
-    ===================================================
-    ========= FILTERS =================================
-    ===================================================
-    '''
+        ===================================================
+        ========= FILTERS =================================
+        ===================================================
+        '''
 
     def includeFilter(self, jb_triples, fl):
         fl1 = []
@@ -389,83 +477,16 @@ class LakeCatalyst(object):
         return UnionBlock(node.triples, filters)
 
 
-class MetaCatalyst(object):
+def get_filters(triples, filters):
+    result = []
+    t_vars = []
+    for t in triples:
+        t_vars.extend(t.getVars())
 
-    def __init__(self, star, config):
-        self.star = star
-        self.config = config
-        self.mts = []
-        self.triples = []
-        self.predicates = []
-        for m in star:
-            if m == 'predicates':
-                self.predicates = list(set(star[m]))
-                continue
-            elif m == 'filters':
-                self.filters = list(set(star[m]))
-                continue
-            self.mts.append(m)
-            self.triples = star[m]
+    for f in filters:
+        f_vars = f.getVars()
+        if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
+            result.append(f)
 
-    def decompose(self, prefixes):
-        sources = {}
-        for m in self.mts:
-            mt = self.config.metadata[m]
-            datasourses = self.config.datasources
-            sources[m] = {datasourses[w].ID: list(set(mt.datasources[w]).intersection(self.predicates)) for w in mt.datasources\
-                          if len(list(set(mt.datasources[w]).intersection(self.predicates))) == len(self.predicates)}
-            if len(sources[m]) == 0:
-                sources[m] = {datasourses[w].ID: list(set(mt.datasources[w]).intersection(self.predicates)) for w in
-                              mt.datasources}
+    return result
 
-        results = {}
-
-        for m in sources:
-            for w in sources[m]:
-                if w not in results:
-                    results[w] = {}
-                # print(w, m, sources[m][w])
-                results[w]['filters'] = self.star['filters']
-                results[w]['predicates'] = sources[m][w]
-                results[w]['triples'] =[t for t in self.triples if utils.getUri(t.predicate, prefixes)[1:-1] in sources[m][w] or not t.predicate.constant]
-                results[w].setdefault('rdfmts', []).append(m)
-
-        return results
-
-
-if __name__ == "__main__":
-    query = """
-            prefix iasis: <http://project-iasis.eu/vocab/> 
-            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
-            prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> 
-
-            SELECT DISTINCT * WHERE {
-                ?s a <http://project-iasis.eu/vocab/CGI> .
-                ?s <http://project-iasis.eu/vocab/chromosome> ?chr .
-                ?s  <http://project-iasis.eu/vocab/mutation_study_id> ?sid .
-                ?s   <http://project-iasis.eu/vocab/mutation_strand> ?strand .
-                ?s   <http://project-iasis.eu/vocab/mutation_isLocatedIn_gene> ?gene .
-                ?gene <http://project-iasis.eu/vocab/label> ?label .
-
-            }
-        """
-
-    query = """
-        SELECT DISTINCT * WHERE {
-              ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
-              ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label .
-              ?s <http://rdfs.org/ns/void#inDataset> ?dataset .
-              ?s <http://purl.org/dc/terms/identifier> ?identifier .
-              ?s <http://purl.org/dc/terms/title> ?title .
-          }
-    """
-    configuration = OntarioConfiguration('/home/kemele/git/SDM/Ontario/configurations/biomed-configuration.json')
-    dc = LakeCatalyst(query, configuration)
-
-    quers = dc.decompose()
-    import pprint
-    pprint.pprint(quers)
-    for s in quers[0]:
-        meta = MetaCatalyst(quers[0][s], configuration)
-        metadecomp = meta.decompose(dc.prefixes)
-        pprint.pprint(metadecomp)
