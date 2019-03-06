@@ -4,7 +4,7 @@ from mysql.connector import errorcode
 from multiprocessing import Process, Queue
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument
-from tests.rml.rml_model import TripleMapType
+from ontario.model.rml_model import TripleMapType
 
 
 class MySQLWrapper(object):
@@ -46,8 +46,7 @@ class MySQLWrapper(object):
             self.mappings = self.config.load_mappings(self.datasource.mappingfiles, self.rdfmts)
         else:
             # self.mappings = self.config.mappings
-            self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
-                             for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm].subject_map.rdf_types}
+            self.mappings = self.datasource.mappings
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
         """
@@ -72,45 +71,69 @@ class MySQLWrapper(object):
         #     self.query.offset = offset
 
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
-        print(sqlquery)
+        # print(sqlquery)
         try:
-            if self.username is None:
-                self.mysql = connector.connect(user='root', host=self.url)
-            else:
-                self.mysql = connector.connect(user=self.username, password=self.password, host=self.host, port=self.port)
-        except connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-            else:
-                print(err)
-        except Exception as ex:
-            print("Exception while connecting to Mysql", ex)
+            try:
+                if self.username is None:
+                    self.mysql = connector.connect(user='root', host=self.url)
+                else:
+                    self.mysql = connector.connect(user=self.username, password=self.password, host=self.host,
+                                                   port=self.port)
+            except connector.Error as err:
+                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                    print("Something is wrong with your user name or password")
+                elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                    print("Database does not exist")
+                else:
+                    print(err)
+            except Exception as ex:
+                print("Exception while connecting to Mysql", ex)
 
-        try:
+            # print("Connection established: ", time()-start)
+            runstart = time()
             cursor = self.mysql.cursor()
             db = filenametablename
             cursor.execute("use " + db)
-            card = 0
-            if limit == -1:
-                limit = 100
-            if offset == -1:
-                offset = 0
-            while True:
-                query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                # print(query_copy)
-                cursor.execute(query_copy)
-                cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
-                card += cardinality
-                if cardinality < limit:
-                    break
+            # if isinstance(sqlquery, list) and len(sqlquery) > 3:
+            #     sqlquery = " UNION ".join(sqlquery)
+            if isinstance(sqlquery, list):
+                for sql in sqlquery:
+                    print(sql)
+                    card = 0
+                    if limit == -1:
+                        limit = 1000
+                    offset = 0
+                    while True:
+                        query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                        cursor.execute(query_copy)
+                        cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+                        card += cardinality
+                        if cardinality < limit:
+                            break
 
-                offset = offset + limit
+                        offset = offset + limit
+            else:
+                card = 0
+                if limit == -1:
+                    limit = 1000
+                if offset == -1:
+                    offset = 0
+                print(sqlquery)
+                while True:
+                    query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                    cursor.execute(query_copy)
+                    cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+                    card += cardinality
+                    if cardinality < limit:
+                        break
+
+                    offset = offset + limit
+            # print("Running took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass
-        print("MySQL finished after: ", (time()-start))
+
+        # print("MySQL finished after: ", (time()-start))
         queue.put("EOF")
 
     def process_result(self, cursor, queue, projvartocols, coltotemplates):
@@ -151,8 +174,9 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                if 'chebiDrug' in res and '28631' in res['chebiDrug']:
-                    print(res)
+                # if 'drugbor' in res:
+                #     print(res['drugbor'])
+
         return c
 
     def get_so_variables(self, triples, proj):
@@ -232,7 +256,7 @@ class MySQLWrapper(object):
         query = ""
 
         for tm, predicate_object_map in mapping_preds.items():
-            sparqlprojected = self.get_so_variables(self.star['triples'], [c.name for c in self.query.args])
+            sparqlprojected = set(self.get_so_variables(self.star['triples'], [c.name for c in self.query.args]))
             tablealias = 'Ontario_' + str(i)
             var_pred_map = {var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map}
             for var in sparqlprojected:
@@ -411,9 +435,9 @@ class MySQLWrapper(object):
             un, projvartocols, coltotemplates, database_name = self.makeJoin(mappingpreds, query_filters)
             unions.append(un)
 
-        query = " UNION ".join(unions)
+        #query = " UNION ".join(unions)
         # print(query)
-        return query, projvartocols, coltotemplates, database_name
+        return unions, projvartocols, coltotemplates, database_name
 
     def translate(self, query_filters):
         rdfmts = self.star['rdfmts']
