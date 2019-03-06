@@ -319,28 +319,29 @@ class LakePlanner(object):
             lowSelectivityRight = right.allTriplesLowSelectivity()
             join_variables = l.vars & right.vars
             dependent_op = False
-            # if left.operator.__class__.__name__ == "NestedHashJoinFilter":
-            #    l = TreePlan(Xgoptional(left.vars, right.vars), all_variables, l, right)
+            l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
+
+
             # Case 1: left operator is highly selective and right operator is low selective
-            if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
-                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
-                dependent_op = True
-
-            # Case 2: left operator is low selective and right operator is highly selective
-            elif lowSelectivityLeft and not (lowSelectivityRight) and not (isinstance(right, NodeOperator)):
-                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, right, l)
-                dependent_op = True
-
-            elif not lowSelectivityLeft and lowSelectivityRight and not (isinstance(left, NodeOperator) and (left.operator.__class__.__name__ == "NestedHashJoinFilter" or left.operator.__class__.__name__ == "Xgjoin")) \
-                    and not (isinstance(right, LeafOperator)) \
-                    and not (right.operator.__class__.__name__ == "NestedHashJoinFilter" or right.operator.__class__.__name__ == "Xgjoin") \
-                    and (right.operator.__class__.__name__ == "Xunion"):
-                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
-                dependent_op = True
-            # Case 3: both operators are low selective
-            else:
-                l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
-                # print "Planner CASE 3: xgoptional"
+            # if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
+            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
+            #     dependent_op = True
+            #
+            # # Case 2: left operator is low selective and right operator is highly selective
+            # elif lowSelectivityLeft and not (lowSelectivityRight) and not (isinstance(right, NodeOperator)):
+            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, right, l)
+            #     dependent_op = True
+            #
+            # elif not lowSelectivityLeft and lowSelectivityRight and not (isinstance(left, NodeOperator) and (left.operator.__class__.__name__ == "NestedHashJoinFilter" or left.operator.__class__.__name__ == "Xgjoin")) \
+            #         and not (isinstance(right, LeafOperator)) \
+            #         and not (right.operator.__class__.__name__ == "NestedHashJoinFilter" or right.operator.__class__.__name__ == "Xgjoin") \
+            #         and (right.operator.__class__.__name__ == "Xunion"):
+            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
+            #     dependent_op = True
+            # # Case 3: both operators are low selective
+            # else:
+            #     l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
+            #     # print "Planner CASE 3: xgoptional"
 
             if isinstance(l.left, LeafOperator) and isinstance(l.left.tree, Leaf) and not l.left.tree.service.allTriplesGeneral():
                 if l.left.constantPercentage() <= 0.5:
@@ -372,8 +373,8 @@ class LakePlanner(object):
                     n = LeafOperator(self.query, tree, None, self.config)
                     for f in tree.filters:
                         vars_f = f.getVarsName()
-                        if set(n.vars) & set(vars_f) == set(vars_f):
-                            n = NodeOperator(Xfilter(f), n.vars, self.config, n)
+                        if set(n.vars) & set(n.vars) == set(vars_f):
+                            n = NodeOperator(Xfilter(f), set(vars_f), self.config, n)
                     return n
             elif isinstance(tree.service, UnionBlock):
                 return self.includePhysicalOperatorsUnionBlock(tree.service)
@@ -384,8 +385,8 @@ class LakePlanner(object):
                     n = self.includePhysicalOperatorsJoinBlock(tree.service)
                     for f in tree.filters:
                         vars_f = f.getVarsName()
-                        if set(n.vars) & set(vars_f) == set(vars_f):
-                            n = NodeOperator(Xfilter(f), n.vars, self.config, n)
+                        # if set(n.vars) & set(vars_f) == set(vars_f):
+                        n = NodeOperator(Xfilter(f), set(vars_f), self.config, n)
                     return n
             else:
                 print("tree.service" + str(type(tree.service)) + str(tree.service))
@@ -400,8 +401,8 @@ class LakePlanner(object):
                 n = self.make_joins(left_subtree, right_subtree)
                 for f in tree.filters:
                     vars_f = f.getVarsName()
-                    if set(n.vars) & set(vars_f) == set(vars_f):
-                        n = NodeOperator(Xfilter(f), n.vars, self.config, n)
+                    # if set(n.vars) & set(vars_f) == set(vars_f):
+                    n = NodeOperator(Xfilter(f), set(vars_f), self.config, n)
             return n
 
     '''
@@ -491,8 +492,10 @@ class LakePlanner(object):
                 n.right.tree.service.limit = 10000
             if (n.left.constantPercentage() <= 0.5):
                 n.left.tree.service.limit = 10000
-            if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
-               ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
+
+            # if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
+            #      ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
+            if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value :
                 nhj = True
                 if not lowSelectivityLeft and not lowSelectivityRight:
                     if left.constantPercentage() > right.constantPercentage():
