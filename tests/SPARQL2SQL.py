@@ -1,6 +1,6 @@
 from ontario.sparql.parser import queryParser as qp
 from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
-
+from ontario.mediator.Tree import makeBushyTree
 
 def getVars(sg):
 
@@ -43,7 +43,7 @@ def prefix(p):
     return None
 
 
-def get_preds( star):
+def get_preds(star, prefixes):
     """
     Returns a set of predicates in a BGP/star-shaped subquery
     :param star: list of triple patterns
@@ -55,7 +55,7 @@ def get_preds( star):
     return preds
 
 
-def get_pred_objs(star):
+def get_pred_objs(star, prefixes):
     """
     Returns a key value of predicate:object in a BGP/star-shaped subquery
     :param star: list of triple patterns
@@ -63,7 +63,7 @@ def get_pred_objs(star):
     """
 
     preds = {getUri(tr.predicate, prefixes)[1:-1]:
-                 (tr.theobject.name if tr.theobject.constant else tr.theobject.name[1:])
+                 (getUri(tr.theobject, prefixes) if tr.theobject.constant else tr.theobject.name)
              for tr in star if tr.predicate.constant}
 
     return preds
@@ -129,7 +129,8 @@ def getMTsConnection(selectedmolecules, preds, relevant_mts):
     for s in selectedmolecules:
         mols = selectedmolecules[s]
         for m in mols:
-            mcons[m] = [n for n in relevant_mts[m].predicates \
+            mcons[m] =[]
+            [mcons[m].extend(relevant_mts[m].predicates[n].ranges) for n in relevant_mts[m].predicates \
                         for r in relevant_mts[m].predicates[n].ranges \
                         if r in smolecules and relevant_mts[m].predicates[n].predicate in preds]
     return mcons
@@ -143,7 +144,7 @@ def checkRDFTypeStatemnt(ltr, config):
         mt = config.metadata[tt]
         typemols[tt] = mt
     if len(types) > 0 and len(typemols) == 0:
-        return None
+        return {}
 
     return typemols
 
@@ -176,36 +177,74 @@ def prune(star_conn, res_conn, selectedmolecules, stars,relevant_mts):
     if counter == len(selectedmolecules):
         return res
 
-    for s in selectedmolecules:
-        sc = star_conn[s]['SO']
-
-        for sm in selectedmolecules[s]:
-            smolink = res_conn[sm]
-
-            for c in sc:
-                cmols = selectedmolecules[c]
-                nms = [n for m in smolink for n in m['range'] if n in cmols]
-                if len(nms) > 0:
-                    res[s].append(sm)
-                    res[c].extend(nms)
+    # for s in selectedmolecules:
+    #     sc = star_conn[s]['SO']
+    #
+    #     for sm in selectedmolecules[s]:
+    #         smolink = res_conn[sm]
+    #
+    #         for c in sc:
+    #             cmols = selectedmolecules[c]
+    #             nms = [m for m in smolink if m in cmols]
+    #             if len(nms) > 0:
+    #                 res[s].append(sm)
+    #                 res[c].extend(nms)
 
     # check predicate level connections
     newfilteredonly = {}
     for s in res:
-        sc = [c for c in star_conn if s in star_conn[c]]
+        sc = [c for c in star_conn if s in star_conn[c]['SO']]
         for c in sc:
             connectingtp = [getUri(tp.predicate, prefixes)[1:-1]
-                            for tp in stars[c] if tp.theobject.name == s]
+                            for tp in stars[s] if tp.theobject.name == c]
             connectingtp = list(set(connectingtp))
             sm = selectedmolecules[s]
             for m in sm:
-                srange = [p for r in relevant_mts[m].predicates for p in relevant_mts[m].predicates[r].ranges if relevant_mts[m].predicates[r].predicate in connectingtp]
-                filteredmols = [r for r in res[s] if r in srange]
-                if len(filteredmols) > 0:
-                    if s in newfilteredonly:
-                        newfilteredonly[s].extend(filteredmols)
-                    else:
-                        res[s] = filteredmols
+                srange = [p for r in relevant_mts[m].predicates
+                            for p in relevant_mts[m].predicates[r].ranges
+                            if relevant_mts[m].predicates[r].predicate in connectingtp]
+                srange = list(set(srange).intersection(selectedmolecules[c]))
+                if len(srange) == 0:
+                    selectedmolecules[s].remove(m)
+                if c in newfilteredonly:
+                    newfilteredonly[c].extend(srange)
+                else:
+                    newfilteredonly[c] = srange
+                newfilteredonly[c] = list(set(newfilteredonly[c]))
+
+    already_checked = []
+    for s in res:
+        sc = [c for c in star_conn if s in star_conn[c]['SO']]
+        for c in sc:
+            if s+c in already_checked or c+s in already_checked:
+                continue
+
+            already_checked.extend([s+c, c+s])
+            if c in newfilteredonly:
+                c_newfilter = newfilteredonly[c].copy()
+            else:
+                c_newfilter = selectedmolecules[c].copy()
+                newfilteredonly[c] = selectedmolecules[c].copy()
+            if s in newfilteredonly:
+                s_newfilter = newfilteredonly[s].copy()
+            else:
+                s_newfilter = selectedmolecules[s].copy()
+                newfilteredonly[s] = selectedmolecules[s].copy()
+            for m in s_newfilter:
+                con = res_conn[m]
+                if len(con) == 0:
+                    continue
+                new_res = list(set(con).intersection(c_newfilter))
+                if len(new_res) == 0:
+                    newfilteredonly[s].remove(m)
+
+            for m in c_newfilter:
+                con = res_conn[m]
+                if len(con) == 0:
+                    continue
+                new_res = list(set(con).intersection(s_newfilter))
+                if len(new_res) == 0:
+                    newfilteredonly[c].remove(m)
 
     for s in newfilteredonly:
         res[s] = list(set(newfilteredonly[s]))
@@ -217,16 +256,16 @@ def prune(star_conn, res_conn, selectedmolecules, stars,relevant_mts):
     return res
 
 
-def decomposeUnionBlock(ub, config):
+def decomposeUnionBlock(ub, config, prefixes):
     r = []
     for jb in ub.triples:
-        pjb = decomposeJoinBlock(jb, config)
+        pjb = decomposeJoinBlock(jb, config, prefixes)
         if pjb:
             r.append(pjb)
     return r
 
 
-def decomposeJoinBlock(jb, config):
+def decomposeJoinBlock(jb, config, prefixes):
 
     tl = []
     ol = []
@@ -239,46 +278,27 @@ def decomposeJoinBlock(jb, config):
         elif isinstance(bgp, Filter):
             fl.append(bgp)
         elif isinstance(bgp, Optional):
-            ubb = decomposeUnionBlock(bgp.bgg, config)
+            ubb = decomposeUnionBlock(bgp.bgg, config, prefixes)
             ol.extend(ubb)
         elif isinstance(bgp, UnionBlock):
-            pub = decomposeUnionBlock(bgp, config)
+            pub = decomposeUnionBlock(bgp, config, prefixes)
             if pub:
                 ub.extend(pub)
         elif isinstance(bgp, JoinBlock):
-            pub = decomposeJoinBlock(bgp, config)
+            pub = decomposeJoinBlock(bgp, config, prefixes)
             if pub:
                 ijb.extend(pub)
 
     tl_bgp = {}
     if tl is not None:
-        bgp_preds = get_preds(tl)
-
+        bgp_preds = get_preds(tl, prefixes)
         stars = bgp_stars(tl)
-        bgpstars = {}
-        mtres = {}
-        relevant_mts = {}
-        for s in stars:
-            spred = get_pred_objs(stars[s])
-            bgpstars[s] = {}
-            bgpstars[s]['triples'] = stars[s]
-            bgpstars[s]['predicates'] = spred
-            rdfmts = config.find_rdfmt_by_preds(spred)
-            bgpstars[s]['rdfmts'] = list(rdfmts.keys())
-            mtres[s] = bgpstars[s]['rdfmts']
-            relevant_mts.update(rdfmts)
-
-        star_conn = getStarsConnections(stars)
-        res_conn = getMTsConnection(mtres, bgp_preds, relevant_mts)
-        # res_conn = prune(star_conn, res_conn, mtres, stars, relevant_mts)
-        #
-        # for s in res_conn:
-        #     bgpstars[s]['rdfmts'] = res_conn[s]
-
+        bgpstars, star_conn, mt_conn = decompose_SSQ(stars, bgp_preds, config, prefixes)
+        tl_bgp['stars_conn'] = star_conn
+        tl_bgp['mts_conn'] = mt_conn
 
         tl_bgp['stars'] = bgpstars
         tl_bgp['bgp_predicates'] = bgp_preds
-        tl_bgp['stars_conn'] = star_conn
 
     return {
         "BGP": tl_bgp,
@@ -289,32 +309,263 @@ def decomposeJoinBlock(jb, config):
     }
 
 
-def select_molecule(decomp, config):
+def decompose_SSQ(stars, bgp_preds, config, prefixes):
+    bgpstars = {}
+    mtres = {}
+    relevant_mts = {}
+    for s in stars:
+        spred = get_pred_objs(stars[s], prefixes)
+        bgpstars[s] = {}
+        bgpstars[s]['triples'] = stars[s]
+        bgpstars[s]['predicates'] = spred
+        types = checkRDFTypeStatemnt(stars[s], config)
+        if len(types) > 0:
+            rdfmts = types
+        else:
+            rdfmts = config.find_rdfmt_by_preds(spred)
+
+        bgpstars[s]['rdfmts'] = list(rdfmts.keys())
+        mtres[s] = bgpstars[s]['rdfmts']
+        relevant_mts.update(rdfmts)
+    star_conn = getStarsConnections(stars)
+    mt_conn = getMTsConnection(mtres, bgp_preds, relevant_mts)
+    res = prune(star_conn, mt_conn, mtres, stars, relevant_mts)
+
+    for s in res:
+        bgpstars[s]['rdfmts'] = res[s]
+
+    for s in res:
+        datasources = {}
+        for m in res[s]:
+            for d in config.metadata[m].datasources:
+                dspreds = config.metadata[m].datasources[d]
+                preds = list(set(bgpstars[s]['predicates']).intersection(dspreds))
+                if len(preds) > 0:
+                    datasources.setdefault(d, {}).setdefault(m, []).extend(preds)
+        bgpstars[s]['datasources'] = datasources
+
+    return bgpstars, star_conn,mt_conn
+
+
+def get_filters(triples, filters):
+    result = []
+    t_vars = []
+    for t in triples:
+        t_vars.extend(t.getVars())
+
+    for f in filters:
+        f_vars = f.getVars()
+        if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
+            result.append(f)
+
+    return result
+
+
+def decompose_block(BGP, config, filters):
+    joinplans = []
+    services = []
+    for s, star in BGP['stars'].items():
+        dss = star['datasources']
+        preds = star['predicates']
+        sources = set()
+        for ID, rdfmt in dss.items():
+            for mt, mtpred in rdfmt.items():
+                if len(set(preds).intersection(mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(
+                        set(preds)):
+                    print(s, '-> source selected:', ID)
+                    sources.add(ID)
+                    break
+        if len(sources) > 1:
+            elems = [JoinBlock([Service(endpoint="<" + config.datasources[d].url + ">",
+                                        triples=list(set(star['triples'])),
+                                        datasource=config.datasources[d],
+                                        rdfmts=star['rdfmts'],
+                                        star=star,
+                                        filters=get_filters(list(set(star['triples'])), filters))])
+                                                for d in sources]
+            ubl = UnionBlock(elems)
+            joinplans = joinplans + [ubl]
+        else:
+            d = sources.pop()
+            serv = Service(endpoint="<" + config.datasources[d].url + ">",
+                           triples=list(set(star['triples'])),
+                           datasource=config.datasources[d],
+                           rdfmts=star['rdfmts'],
+                           star=star,
+                           filters=get_filters(list(set(star['triples'])), filters))
+            services.append(serv)
+
+    if services and joinplans:
+        joinplans = services + joinplans
+    elif services:
+        joinplans = services
+
+    return joinplans
+
+
+def create_decomposed_query(decomp, config, pushdownssqjoins=False):
+    unionblocks = []
+    sblocks = []
+    opblocks = []
     for ub in decomp:
         BGP = ub['BGP']
-        optional = ub['Optional']
-        joinBlock = ub['JoinBlock']
-        unionBlock = ub['UnionBlock']
-        filter = ub['Filter']
+        joinplans = decompose_block(BGP, config, ub['Filter'])
+
+        if len(ub['JoinBlock']) > 0:
+            joinBlock = create_decomposed_query(ub['JoinBlock'], config, pushdownssqjoins)
+            sblocks.append(JoinBlock(joinBlock))
+        if len(ub['UnionBlock']) > 0:
+            unionBlock = create_decomposed_query(ub['UnionBlock'], config, pushdownssqjoins)
+            sblocks.append(UnionBlock(unionBlock))
+
+        if len(ub['Optional']) > 0:
+            opblocks.append(Optional(UnionBlock(create_decomposed_query(ub['Optional'], config, pushdownssqjoins))))
+
+        gp = sblocks + joinplans + opblocks
+        gp = UnionBlock([JoinBlock(gp)])
+        unionblocks.append(gp)
+
+    return unionblocks
+
+
+def tree_block(BGP, config, filters):
+    joinplans = []
+    services = []
+    filter_pushed = False
+    non_match_filters = []
+    for s, star in BGP['stars'].items():
+        dss = star['datasources']
+        preds = star['predicates']
+        sources = set()
+        star_filters = get_filters(list(set(star['triples'])), filters)
+        for ID, rdfmt in dss.items():
+            for mt, mtpred in rdfmt.items():
+                if len(set(preds).intersection(mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(
+                        set(preds)):
+                    sources.add(ID)
+                    break
+        if len(sources) > 1:
+
+            elems = [JoinBlock([
+                                makeBushyTree([Service(endpoint="<" + config.datasources[d].url + ">",
+                                        triples=list(set(star['triples'])),
+                                        datasource=config.datasources[d],
+                                        rdfmts=star['rdfmts'],
+                                        star=star)], star_filters)],
+                               filters=star_filters)
+                     for d in sources]
+
+            ubl = UnionBlock(elems)
+            joinplans = joinplans + [ubl]
+        else:
+            d = sources.pop()
+            serv = Service(endpoint="<" + config.datasources[d].url + ">",
+                           triples=list(set(star['triples'])),
+                           datasource=config.datasources[d],
+                           rdfmts=star['rdfmts'],
+                           star=star,
+                           filters=star_filters)
+            services.append(serv)
+
+        if len(filters) == len(star_filters):
+            filter_pushed = True
+        else:
+            non_match_filters = list(set(filters).difference(star_filters))
+
+    if services and joinplans:
+        joinplans = services + joinplans
+    elif services:
+        joinplans = services
+
+    # joinplans = makeBushyTree(joinplans, filters)
+
+    return joinplans, non_match_filters if not filter_pushed else []
+
+
+def create_plan_tree(decomp, config):
+    unionblocks = []
+    sblocks = []
+    opblocks = []
+    for ub in decomp:
+        BGP = ub['BGP']
+        joinplans, non_match_filters = tree_block(BGP, config, ub['Filter'])
+
+        if len(ub['JoinBlock']) > 0:
+            joinBlock = create_plan_tree(ub['JoinBlock'], config)
+            sblocks.append(JoinBlock(joinBlock))
+        if len(ub['UnionBlock']) > 0:
+            unionBlock = create_plan_tree(ub['UnionBlock'], config)
+            sblocks.append(UnionBlock(unionBlock))
+
+        if len(ub['Optional']) > 0:
+            opblocks.append(Optional(UnionBlock(create_plan_tree(ub['Optional'], config))))
+
+        bgp_triples = []
+        [bgp_triples.extend(BGP['stars'][s]['triples']) for s in BGP['stars']]
+        gp = makeBushyTree(joinplans + sblocks, get_filters(bgp_triples, non_match_filters))
+
+        gp = [gp] + opblocks
+
+        gp = JoinBlock(gp)
+        unionblocks.append(gp)
+
+    return unionblocks
 
 
 if __name__ == '__main__':
     from pprint import pprint
-    query = open("../queries/complexqueries/CQ7").read()
+    query = open("../queries/simpleQueries/SQ5").read()
+    # query = open("../queries/complexqueries/CQ2").read()
     query = qp.parse(query)
     prefixes = getPrefs(query.prefs)
-    print(query)
+
     from tests.config import OntarioConfiguration
+    from ontario.mediator.Planner import LakePlanner
+    from multiprocessing import Queue
+    from time import time
+    from pprint import pprint
 
     configfile = '/home/kemele/git/SemanticDataLake/Ontario/scripts/lslod_rdf-rdb.json'
+    #configfile = '../configurations/lslod-rdf-distributed.json'
     configuration = OntarioConfiguration(configfile)
-
+    start = time()
     print("\nDecomposition:\n")
-    r = decomposeUnionBlock(query.body, configuration)
-
+    r = decomposeUnionBlock(query.body, configuration, prefixes)
 
     planonly = False
-
-    select_molecule(r, configuration)
-
     pprint(r)
+    print(query)
+    unionblocks = create_decomposed_query(r, configuration)
+    query.body = UnionBlock(unionblocks)
+    print(query)
+    dectime = time() - start
+    planstart = time()
+    print("Tree : -----------------")
+    query.body = UnionBlock(create_plan_tree(r, configuration))
+    print(query)
+
+    pl = LakePlanner(query, r, configuration)
+
+    plan = pl.make_plan()
+    print(plan)
+    plantime = time() - planstart
+
+    out = Queue()
+    processqueue = Queue()
+    plan.execute(out, processqueue)
+    r = out.get()
+    processqueue.put('EOF')
+    i = 0
+
+    while r != 'EOF':
+        # pprint(r)
+        r = out.get()
+        i += 1
+
+    exetime = time() - start
+    print("total: ", i)
+
+    print("Decomposition time: ", dectime)
+    print("Planning time: ", plantime)
+    print("total exe time:", exetime)
+
