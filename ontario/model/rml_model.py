@@ -1,5 +1,5 @@
 from enum import Enum
-
+from . import DataSourceType
 
 class TripleMap(object):
 
@@ -50,29 +50,6 @@ class LogicalSource(object):
                ("\n\t\tSQLVersion: " + self.sqlVersion if self.sqlVersion is not None else "") + \
                ("\n\t\tTableName: " + self.table_name if self.table_name is not None else "") + \
                ("\n\t\tQuery: " + self.query if self.query is not None else "")
-
-
-class DataSourceType(Enum):
-    SPARQL_ENDPOINT = "SPARQL_Endpoint"
-
-    MONGODB = "MongoDB"
-    NEO4J = "Neo4j"
-
-    MYSQL = "MySQL"
-    POSTGRESQL = "PostgreSQL"
-    SQLSERVER = "SQLServer"
-
-    HADOOP_CSV = "HADOOP_CSV"
-    HADOOP_TSV = "HADOOP_TSV"
-    HADOOP_JSON = "HADOOP_JSON"
-    HADOOP_XML = "HADOOP_XML"
-
-    REST_SERVICE = "REST_Service"
-
-    LOCAL_CSV = "LOCAL_CSV"
-    LOCAL_TSV = "LOCAL_TSV"
-    LOCAL_JSON = "LOCAL_JSON"
-    LOCAL_XML = "LOCAL_XML"
 
 
 class TermType(Enum):

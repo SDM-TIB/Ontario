@@ -1,4 +1,4 @@
-from ontario.config.model import *
+from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 from ontario.sparql.parser.services import Expression, Argument
 

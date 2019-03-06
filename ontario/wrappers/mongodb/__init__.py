@@ -1,11 +1,7 @@
-import hashlib
-import json
 
 from pymongo import MongoClient
 from ontario.sparql.parser import queryParser as qp
-from ontario.sparql.parser.services import Argument
 from ontario.wrappers.mongodb.s2m_utils import *
-from ontario.config.model import DataSourceType
 from multiprocessing import Process, Queue
 
 

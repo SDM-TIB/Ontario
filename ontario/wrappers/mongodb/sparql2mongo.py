@@ -1,9 +1,6 @@
-from pymongo import MongoClient
 from ontario.sparql.parser import queryParser as qp
 from ontario.wrappers.mongodb.s2m_utils import *
 from ontario.sparql.parser.services import Argument
-
-from ontario.config.model import DataSourceType
 from multiprocessing import Process, Queue
 from ontario.wrappers.mongodb import MongoDBClient
 

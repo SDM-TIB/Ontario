@@ -8,6 +8,7 @@ def getVars(sg):
         s.append(sg.theobject.name)
     return s
 
+
 def getPrefs(ps):
     prefDict = dict()
     for p in ps:

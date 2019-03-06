@@ -1,0 +1,14 @@
+PREFIX drugbank: <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/>
+PREFIX dailymed: <http://www4.wiwiss.fu-berlin.de/dailymed/resource/dailymed/>
+SELECT ?genericName ?indication
+WHERE {
+{
+?da drugbank:genericName ?genericName.
+?da  drugbank:indication  ?indication.
+}
+UNION
+{
+?da dailymed:name  ?genericName.
+?da   dailymed:indication ?indication.
+}
+}

@@ -2,9 +2,8 @@ import logging
 import rdflib
 import json
 
-from tests.rml.rml_model import *
 from tests.rml import query_rml
-from ontario.config.model import RDFMT, MTPredicate, DataSource
+from ontario.model.rdfmt_model import RDFMT, MTPredicate, DataSource
 
 
 class OntarioConfiguration(object):
@@ -41,14 +40,14 @@ class OntarioConfiguration(object):
     def ext_datasources_json(self, ds):
         datasources = {}
         for d in ds:
-            mappings = self.load_mappings(d['mappings'])
+            # mappings = self.load_mappings(d['mappings'])
             datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
                                               d['ID'],
                                               d['url'],
                                               d['type'],
                                               d['params'],
-                                              d['mappings'],
-                                              mappings
+                                              d['mappings']
+                                              #, mappings
                                               )
 
         return datasources

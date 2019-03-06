@@ -1,6 +1,6 @@
 
 from hdfs import Config
-from ontario.config.model import DataSourceType
+from ontario.model import DataSourceType
 from ontario.wrappers.spark.utils import *
 from json import load
 import os

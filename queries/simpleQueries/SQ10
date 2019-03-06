@@ -1,0 +1,15 @@
+PREFIX drugbank: <http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/>
+PREFIX linkedCT: <http://data.linkedct.org/resource/linkedct/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT distinct *
+WHERE
+{
+?intervention a linkedCT:intervention.
+?intervention linkedCT:intervention_name ?intervention_name.
+?intervention linkedCT:intervention_type ?intervention_type.
+?intervention rdfs:seeAlso ?drugbankDrug.
+?drugbankDrug drugbank:structure ?structure.
+?drugbankDrug drugbank:state ?state.
+?drugbankDrug drugbank:proteinBinding   ?proteinBinding.
+?drugbankDrug drugbank:smilesStringCanonical ?smilesStringCanonical .
+}

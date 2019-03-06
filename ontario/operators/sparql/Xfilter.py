@@ -64,21 +64,19 @@ data_types = {
 
 numerical = (int, int, float)
 
+
 class Xfilter(object):
     
     def __init__(self, filter):
         self.input = Queue()
         self.qresults = Queue()
         self.filter = filter
-        
-        
+
     def execute(self, left, dummy, out, processqueue=Queue()):
         # Executes the Xfilter.
         self.left = left
         self.qresults = out
-        #print "self.filter.expr.op", self.filter.expr.op
-        #print "self.filter.expr.left", self.filter.expr.left
-        #print "self.filter.expr.right", self.filter.expr.right
+
         # Apply filter tuple by tuple. 
         tuple = self.left.get(True)
 

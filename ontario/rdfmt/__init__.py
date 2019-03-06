@@ -1,17 +1,16 @@
 #!/usr/bin/env python3.5
 
 import hashlib
-import json
 import pprint as pp
 import pprint
-import random
 from multiprocessing import Queue, Process
 from multiprocessing.queues import Empty
 import logging
 import time
 from pprint import pprint
+import datetime
 
-from ontario.rdfmt.model import *
+from ontario.model.rdfmt_model import *
 from ontario.rdfmt.utils import contactRDFSource, updateRDFSource
 
 

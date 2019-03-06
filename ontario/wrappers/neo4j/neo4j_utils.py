@@ -1,5 +1,4 @@
-from ontario.config.model import *
-from ontario.wrappers import *
+from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 
 

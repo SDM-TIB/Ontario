@@ -1,5 +1,4 @@
-from ontario.config.model import *
-from ontario.wrappers import *
+from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 from ontario.sparql.parser.services import *
 
@@ -331,3 +330,52 @@ def prefix(p):
         return (s[0:pos].strip(), s[(pos+1):].strip())
 
     return None
+
+
+def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
+    res = dict()
+    coltotemplate = dict()
+    subjcols = dict()
+    dbcols = dict()
+    starcollects = dict()
+    molsubj = dict()
+    for s in mapping:
+        for m in mapping[s]:
+            if m in rdfmts:
+                subject = mapping[s][m]['subject']
+                db, col = mapping[s][m]['ls']['iterator'].split('/')
+                dbcols[m] = {'db': db, 'col': col}
+                varmap = dict()
+                if mapping[s][m]['subjtype'] == TermType.TEMPLATE:
+                    subj = mapping[s][m]['subjectCol']
+                    predicates = mapping[s][m]['predConsts']
+                    predObjMap = mapping[s][m]['predObjMap']
+                    predmap = {p: predObjMap[p] for p in predicates}
+
+                    coltotemplate[subj] = subject
+                    subjcols[subj] = subject
+                    starcollects.setdefault(mapping[s][m]['ls']['iterator'], []).append(subj)
+
+                    for t in triplepatterns:
+                        if subj not in varmap and not t.subject.constant:
+                            varmap[t.subject.name] = str(subj)
+                        if t.predicate.constant and not t.theobject.constant:
+                            pred = getUri(t.predicate, prefixes)[1:-1]
+                            pp = [predmap[p]['object'] for p in predmap if p == pred and  predmap[p]['objType'] == TermType.REFERENCE ]
+                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')]  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TEMPLATE ])
+                            tpm = [predmap[p]['object']  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TRIPLEMAP ]
+                            for tp in tpm:
+                                rmol = list(mapping[tp].keys())[0]
+                                rsubject = mapping[tp][rmol]['subject']
+                                rsubj = rsubject[rsubject.find('{') + 1: rsubject.find('}')]
+                                pp.append(rsubj)
+                                coltotemplate[rsubj] = rsubject
+                            if len(pp) > 0:
+                                varmap[t.theobject.name] = pp[0]
+                            else:
+                                varmap = {}
+                                break
+                    if len(varmap) > 0:
+                        res[m] = varmap
+                        #molsubj.setdefault(m, []).append(subj)
+    return res, coltotemplate, subjcols, dbcols, starcollects

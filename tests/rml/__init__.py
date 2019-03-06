@@ -20,10 +20,11 @@ prefixes = """
 """
 
 
-def query_rml(filename):
+def query_rml(filenames, rdfmts=[]):
     templates = {}
     g = rdflib.Graph()
-    g.load(filename, format='n3')
+    for filename in filenames:
+        g.load(filename, format='n3')
 
     ls_query = "?tm rml:logicalSource ?ls . \n\t\t" \
                "?ls rml:source ?source .\n\t\t" \
@@ -75,7 +76,7 @@ def query_rml(filename):
         tableName = triplemaps[tm]['tableName']
         lcQuery = triplemaps[tm]['lcQuery']
 
-        datasource = DataSource(source, source, sourceType)
+        datasource = RMLDataSource(source, source, sourceType)
         logicalSource = LogicalSource(ls, datasource, iterator, refForm)
 
         if sqlVersion is not None or refForm is not None and 'SQL2008' in refForm:
@@ -130,33 +131,41 @@ def query_rml(filename):
         datasource.ds_type = sourceType
         logicalSource.data_source = datasource
 
-        subjectMap, predicate_object_map = query_rml_subj_pred_obj(g, tm)
-
-        tmap = TripleMap(tm, logicalSource, subjectMap, predicate_object_map)
-        # print(tmap)
-        templates[tm] = tmap
+        subjectMap, predicate_object_map = query_rml_subj_pred_obj(g, tm, rdfmts)
+        if subjectMap is not None:
+            tmap = TripleMap(tm, logicalSource, subjectMap, predicate_object_map)
+            # print(tmap)
+            templates[tm] = tmap
 
     return templates
 
 
-def query_rml_subj_pred_obj(g, tm):
-    subjectMap = query_rml_subj(g, tm)
+def query_rml_subj_pred_obj(g, tm, rdfmts=[]):
+    subjectMap = query_rml_subj(g, tm, rdfmts)
     predicate_object_map = query_rml_pred_obj(g, tm)
 
     return subjectMap, predicate_object_map
 
 
-def query_rml_subj(g, tm):
+def query_rml_subj(g, tm, rdfmts=[]):
 
     subj_query = "<" + tm + "> rml:logicalSource ?ls ." \
                  "OPTIONAL { <" + tm + "> rr:subject ?subject . }" \
                  "OPTIONAL { <" + tm + "> rr:subjectMap ?sm . " \
-                 "          OPTIONAL { ?sm rr:class ?rdfmt .} " \
+                 "          " \
                  "          OPTIONAL { ?sm rr:termType ?smtype . }" \
                  "          OPTIONAL { ?sm rr:template ?smtemplate .}" \
                  "          OPTIONAL { ?sm rr:constant ?constsubject .}" \
                  "          OPTIONAL { ?sm rml:reference ?smreference .}" \
-                 "}"
+                 ""
+    if len(rdfmts) > 0:
+        rdfmts = ["?rdfmt = <" + mt + ">" for mt in rdfmts]
+        filter_str = "FILTER (" + " || ".join(rdfmts) + ")"
+        subj_query += "?sm rr:class ?rdfmt .}"
+        subj_query += filter_str
+    else:
+        subj_query += " OPTIONAL { ?sm rr:class ?rdfmt .} }"
+
     subj_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + subj_query + " }"
     res = g.query(subj_query)
     qresults= {}
