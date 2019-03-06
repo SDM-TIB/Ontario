@@ -342,7 +342,7 @@ def sort(lss):
 
 
 def getdsscore(dstype):
-    from ontario.config.model import DataSourceType
+    from ontario.model import DataSourceType
 
     if dstype == DataSourceType.SPARQL_ENDPOINT:
         return 20
