@@ -26,8 +26,10 @@ class MetaWrapperPlanner(object):
         services = []
         filter_pushed = False
         non_match_filters = []
-
-        for s, star in BGP['stars'].items():
+        ssqs = list(BGP['stars'].keys())
+        ssqs = sorted(ssqs)
+        for s in ssqs:
+            star = BGP['stars'][s]
             dss = star['datasources']
             preds = star['predicates']
             sources = set()

@@ -8,7 +8,7 @@ from ontario.sparql.parser.services import Service, Triple, Filter, Optional, Un
 
 
 class MediatorCatalyst(object):
-    def __init__(self, query, config, pushdownssqjoins=False):
+    def __init__(self, query, config, pushdownssqjoins=True):
         self.query = queryParser.parse(query)
         self.prefixes = utils.getPrefs(self.query.prefs)
         self.config = config
@@ -212,7 +212,6 @@ class MediatorCatalyst(object):
         if counter == len(selectedmolecules):
             return res
 
-
         # check predicate level connections
         newfilteredonly = {}
         for s in res:
@@ -333,7 +332,7 @@ class MediatorCatalyst(object):
             if len(ub['Optional']) > 0:
                 opblocks.append(Optional(UnionBlock(self.create_decomposed_query(ub['Optional']))))
 
-            gp = sblocks + joinplans + opblocks
+            gp = joinplans + sblocks + opblocks
             gp = UnionBlock([JoinBlock(gp)])
             unionblocks.append(gp)
 
@@ -342,7 +341,10 @@ class MediatorCatalyst(object):
     def decompose_block(self, BGP, filters):
         joinplans = []
         services = []
-        for s, star in BGP['stars'].items():
+        ssqs = list(BGP['stars'].keys())
+        ssqs = sorted(ssqs)
+        for s in ssqs:
+            star = BGP['stars'][s]
             dss = star['datasources']
             preds = star['predicates']
             sources = set()
