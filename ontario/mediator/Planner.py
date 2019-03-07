@@ -1,5 +1,4 @@
 from ontario.mediator.Tree import *
-from ontario.sparql.parser.services import *
 from ontario.mediator.PlanOperators import *
 from ontario.operators.sparql.Xgjoin import Xgjoin
 from ontario.operators.sparql.NestedHashJoinFilter import NestedHashJoinFilter
@@ -11,6 +10,7 @@ from ontario.operators.sparql.Xproject import Xproject
 from ontario.operators.sparql.Xoffset import Xoffset
 from ontario.operators.sparql.Xlimit import Xlimit
 from ontario.operators.sparql.Xgoptional import Xgoptional
+from .utility import *
 
 
 class MetaWrapperPlanner(object):
@@ -22,104 +22,13 @@ class MetaWrapperPlanner(object):
     def _make_tree(self):
         return self.create_plan_tree(self.decompositions)
 
-    def tree_block(self, BGP, filters):
-        joinplans = []
-        services = []
-        filter_pushed = False
-        non_match_filters = []
-        ssqs = list(BGP['stars'].keys())
-        ssqs = sorted(ssqs)
-        for s in ssqs:
-            star = BGP['stars'][s]
-            dss = star['datasources']
-            preds = star['predicates']
-            sources = set()
-            star_filters = get_filters(list(set(star['triples'])), filters)
-            for ID, rdfmt in dss.items():
-                for mt, mtpred in rdfmt.items():
-                    if len(set(preds).intersection(
-                            mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(set(preds)):
-                        sources.add(ID)
-                        break
-            if len(sources) > 1:
-                sources = sorted(sources)
-                elems = [JoinBlock([
-                            makeBushyTree([
-                                    Service(
-                                           endpoint="<" + self.config.datasources[d].url + ">",
-                                           triples=list(set(star['triples'])),
-                                           datasource=self.config.datasources[d],
-                                           rdfmts=star['rdfmts'],
-                                           star=star)],
-                                star_filters)
-                        ], filters=star_filters) for d in sources]
-
-                ubl = UnionBlock(elems)
-                joinplans = joinplans + [ubl]
-            elif len(sources) == 1:
-                d = sources.pop()
-                serv = Service(endpoint="<" + self.config.datasources[d].url + ">",
-                               triples=list(set(star['triples'])),
-                               datasource=self.config.datasources[d],
-                               rdfmts=star['rdfmts'],
-                               star=star,
-                               filters=star_filters)
-                services.append(serv)
-
-            if len(filters) == len(star_filters):
-                filter_pushed = True
-            else:
-                non_match_filters = list(set(filters).difference(star_filters))
-
-        services = self.push_down_join(services)
-
-        if services and joinplans:
-            joinplans = services + joinplans
-        elif services:
-            joinplans = services
-
-        # joinplans = makeBushyTree(joinplans, filters)
-
-        return joinplans, non_match_filters if not filter_pushed else []
-
-    def push_down_join(self, services):
-        new_services = []
-        services_to_remove = []
-        endpoints = [s.endpoint for s in services if s.datasource.dstype == DataSourceType.SPARQL_ENDPOINT]
-
-        for e in set(endpoints):
-            servs = set([s for s in services if s.endpoint == e])
-            if len(servs) > 1:
-                for s in servs:
-                    for s2 in servs:
-                        if s == s2:
-                            continue
-                        if s in services_to_remove and s2 in services_to_remove:
-                            continue
-                        if len(set(s.getVars()) & set(s2.getVars())) > 0:
-                            new_service = Service(endpoint="<" + e + ">",
-                                   triples = s.triples + s2.triples,
-                                   datasource = s.datasource,
-                                   rdfmts= s.rdfmts+s2.rdfmts,
-                                   star= s.star,
-                                   filters=s.filters + s2.filters)
-                            new_services.append(new_service)
-                            services_to_remove.extend([s, s2])
-
-        if len(services_to_remove) > 0:
-            for s in services_to_remove:
-                services.remove(s)
-            services = services + new_services
-
-        return services
-
     def create_plan_tree(self, decomp):
         unionblocks = []
         sblocks = []
         opblocks = []
         for ub in decomp:
             BGP = ub['BGP']
-            joinplans, non_match_filters = self.tree_block(BGP, ub['Filter'])
+            joinplans, non_match_filters = decompose_block(BGP, ub['Filter'], self.config, isTreeBlock=True)
 
             if len(ub['JoinBlock']) > 0:
                 joinBlock = self.create_plan_tree(ub['JoinBlock'])
@@ -434,17 +343,3 @@ class MetaWrapperPlanner(object):
                 n.right.tree.service.allTriplesGeneral()):
                     n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
         return n
-
-
-def get_filters(triples, filters):
-    result = []
-    t_vars = []
-    for t in triples:
-        t_vars.extend(t.getVars())
-
-    for f in filters:
-        f_vars = f.getVars()
-        if len(set(f_vars).intersection(t_vars)) == len(set(f_vars)):
-            result.append(f)
-
-    return result
