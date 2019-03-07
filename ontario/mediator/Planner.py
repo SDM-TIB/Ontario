@@ -3,6 +3,7 @@ from ontario.sparql.parser.services import *
 from ontario.mediator.PlanOperators import *
 from ontario.operators.sparql.Xgjoin import Xgjoin
 from ontario.operators.sparql.NestedHashJoinFilter import NestedHashJoinFilter
+from ontario.operators.sparql.NestedHashOptional import NestedHashOptional
 from ontario.operators.sparql.Xunion import Xunion
 from ontario.operators.sparql.Xdistinct import Xdistinct
 from ontario.operators.sparql.Xfilter import Xfilter
@@ -208,25 +209,25 @@ class MetaWrapperPlanner(object):
 
 
             # Case 1: left operator is highly selective and right operator is low selective
-            # if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
-            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
-            #     dependent_op = True
-            #
-            # # Case 2: left operator is low selective and right operator is highly selective
-            # elif lowSelectivityLeft and not (lowSelectivityRight) and not (isinstance(right, NodeOperator)):
-            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, right, l)
-            #     dependent_op = True
-            #
-            # elif not lowSelectivityLeft and lowSelectivityRight and not (isinstance(left, NodeOperator) and (left.operator.__class__.__name__ == "NestedHashJoinFilter" or left.operator.__class__.__name__ == "Xgjoin")) \
-            #         and not (isinstance(right, LeafOperator)) \
-            #         and not (right.operator.__class__.__name__ == "NestedHashJoinFilter" or right.operator.__class__.__name__ == "Xgjoin") \
-            #         and (right.operator.__class__.__name__ == "Xunion"):
-            #     l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
-            #     dependent_op = True
-            # # Case 3: both operators are low selective
-            # else:
-            #     l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
-            #     # print "Planner CASE 3: xgoptional"
+            if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
+                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
+                dependent_op = True
+
+            # Case 2: left operator is low selective and right operator is highly selective
+            elif lowSelectivityLeft and not (lowSelectivityRight) and not (isinstance(right, NodeOperator)):
+                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, right, l)
+                dependent_op = True
+
+            elif not lowSelectivityLeft and lowSelectivityRight and not (isinstance(left, NodeOperator) and (left.operator.__class__.__name__ == "NestedHashJoinFilter" or left.operator.__class__.__name__ == "Xgjoin")) \
+                    and not (isinstance(right, LeafOperator)) \
+                    and not (right.operator.__class__.__name__ == "NestedHashJoinFilter" or right.operator.__class__.__name__ == "Xgjoin") \
+                    and (right.operator.__class__.__name__ == "Xunion"):
+                l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
+                dependent_op = True
+            # Case 3: both operators are low selective
+            else:
+                l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
+                # print "Planner CASE 3: xgoptional"
 
             if isinstance(l.left, LeafOperator) and isinstance(l.left.tree, Leaf) and not l.left.tree.service.allTriplesGeneral():
                 if l.left.constantPercentage() <= 0.5:
