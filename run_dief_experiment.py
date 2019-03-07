@@ -2,8 +2,11 @@
 
 __author__ = 'kemele'
 from ontario.config import OntarioConfiguration
-from ontario.mediator.Decomposer import LakeCatalyst
-from ontario.mediator.Planner import LakePlanner
+from ontario.mediator.Planner import MetaWrapperPlanner
+from ontario.mediator.Decomposer import *
+from multiprocessing import Queue
+from time import time
+from pprint import pprint
 
 import getopt, sys
 from ontario.mediator import Catalyst
@@ -43,6 +46,8 @@ def runQuery(queryfile, configfile, res, printResults, result_folder):
     global resulttime
     global resulttrace
 
+    if not os.path.exists(result_folder):
+        os.makedirs(result_folder)
     resulttime = open(result_folder + "/results.csv", 'a+')
     resulttrace = open(result_folder + "/traces.csv", 'a+')
 
@@ -53,26 +58,18 @@ def runQuery(queryfile, configfile, res, printResults, result_folder):
     dt = -1
     global time1
     qname = qu
-    endpointType = 'V'
     logger.info("Query: " + qname)
 
-    #config = ConfigFile(configfile)
-    config = OntarioConfiguration(configfile)
+    configuration = OntarioConfiguration(configfile)
     time1 = time()
 
-    dc = Catalyst(query, config)
-    decomp = LakeCatalyst(dc.query, dc.config)
-    dc.query = decomp.query
-    decomposed_query = decomp.decompose()
-
-    new_query = dc.catalyze(decomposed_query)
-
-    # mdq = MediatorDecomposer(query, config, tempType, joinlocally)
-    # new_query = mdq.decompose()
+    mc = MediatorCatalyst(query, configuration)
+    r = mc.decompose()
+    new_query = mc.query
 
     dt = time() - time1
 
-    if new_query is None or len(new_query) == 0:  # if the query could not be answered by the endpoints
+    if new_query is None:  # if the query could not be answered by the endpoints
         time2 = time() - time1
         t1 = time2
         tn = time2
@@ -83,19 +80,15 @@ def runQuery(queryfile, configfile, res, printResults, result_folder):
         resulttime.close()
         return
 
-    # planner = MediatorPlanner(new_query, adaptive, contactSource, endpointType, config)
-    # plan = planner.createPlan()
-
-    pl = LakePlanner(dc.query, new_query, config)
-    tree = pl.make_tree()
-    plan = pl.make_plan()
+    mwp = MetaWrapperPlanner(new_query, r, configuration)
+    plan = mwp.make_plan()
 
     logger.info("Plan:")
     logger.info(plan)
     pt = time() - time1
     p2 = Process(target=plan.execute, args=(res,))
     p2.start()
-    p3 = Process(target=conclude, args=(res, p2, printResults))
+    p3 = Process(target=conclude, args=(res, p2, printResults,))
     p3.start()
     signal.signal(12, onSignal1)
 
@@ -108,6 +101,7 @@ def runQuery(queryfile, configfile, res, printResults, result_folder):
             break
         elif not p2.is_alive() and not p3.is_alive():
             break
+
 
 def conclude(res, p2, printResults, traces=True):
     signal.signal(12, onSignal2)
@@ -192,6 +186,7 @@ def printInfo():
     resulttime.write('\n' + lr)
     logger.info(lr)
 
+
 def printTraces():
     global tn
     global resulttrace
@@ -267,9 +262,9 @@ def get_options(argv):
 
 def usage():
     usage_str = ("Usage: {program} -c <config.json_file>  -q <query_file> -t "
-                 + "<templateType> -s <isEndpoint>  -r <result_file.tsv>"
+                 + "<templateType> -s <isEndpoint>  -r <result/folder>"
                  + "\n where \n<isEndpoint> - a boolean value "
-                 + "\n<result_file.tsv> - an results.tsv"
+                 + "\n<result/folder> - path where the results will be saved"
                    "\n")
     print(usage_str.format(program=sys.argv[0]), )
 
