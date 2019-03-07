@@ -5,6 +5,7 @@ import logging
 import ontario.sparql.utilities as utils
 from ontario.sparql.parser import queryParser
 from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
+from ontario.model import DataSourceType
 
 
 class MediatorCatalyst(object):
@@ -19,8 +20,8 @@ class MediatorCatalyst(object):
     def decompose(self):
 
         self.decomposition = self.decomposeUnionBlock(self.query.body)
-        unionblocks = self.create_decomposed_query(self.decomposition)
-        self.query.body = UnionBlock(unionblocks)
+        # unionblocks = self.create_decomposed_query(self.decomposition)
+        # self.query.body = UnionBlock(unionblocks)
         return self.decomposition
 
     def decomposeUnionBlock(self, ub):
@@ -374,6 +375,7 @@ class MediatorCatalyst(object):
                                star=star,
                                filters=get_filters(list(set(star['triples'])), filters))
                 services.append(serv)
+        services = self.push_down_join(services)
 
         if services and joinplans:
             joinplans = services + joinplans
@@ -382,7 +384,36 @@ class MediatorCatalyst(object):
 
         return joinplans
 
+    def push_down_join(self, services):
+        new_services = []
+        services_to_remove = []
+        endpoints = [s.endpoint for s in services if s.datasource.dstype == DataSourceType.SPARQL_ENDPOINT]
 
+        for e in set(endpoints):
+            servs = set([s for s in services if s.endpoint == e])
+            if len(servs) > 1:
+                for s in servs:
+                    for s2 in servs:
+                        if s == s2:
+                            continue
+                        if s in services_to_remove and s2 in services_to_remove:
+                            continue
+                        if len(set(s.getVars()) & set(s2.getVars())) > 0:
+                            new_service = Service(endpoint="<" + e + ">",
+                                   triples = s.triples + s2.triples,
+                                   datasource = s.datasource,
+                                   rdfmts= s.rdfmts+s2.rdfmts,
+                                   star= s.star,
+                                   filters=s.filters + s2.filters)
+                            new_services.append(new_service)
+                            services_to_remove.extend([s, s2])
+
+        if len(services_to_remove) > 0:
+            for s in services_to_remove:
+                services.remove(s)
+            services = services + new_services
+
+        return services
     '''
         ===================================================
         ========= FILTERS =================================
