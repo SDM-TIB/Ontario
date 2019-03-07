@@ -123,18 +123,18 @@ class NodeOperator(object):
 
             p1 = Process(target=self.left.execute, args=(qleft, processqueue,  ))
             p1.start()
-            processqueue.put(p1.pid)
+            # processqueue.put(p1.pid)
             if "Nested" in self.operator.__class__.__name__:
                 p3 = Process(target=self.operator.execute, args=(qleft, self.right, outputqueue, processqueue, ))
                 p3.start()
-                processqueue.put(p3.pid)
+                # processqueue.put(p3.pid)
                 return
 
             # Check the right node to determine if evaluate it or not.
             if self.right and ((self.right.__class__.__name__ == "LeafOperator") or (self.right.__class__.__name__ == "NodeOperator")):
                 p2 = Process(target=self.right.execute, args=(qright, processqueue, ))
                 p2.start()
-                processqueue.put(p2.pid)
+                # processqueue.put(p2.pid)
             else:
                 qright = self.right #qright.put("EOF")
 
@@ -143,7 +143,7 @@ class NodeOperator(object):
             #print "left and right "
             # Execute the plan
             p.start()
-            processqueue.put(p.pid)
+            # processqueue.put(p.pid)
 
 
 class LeafOperator(object):
@@ -212,7 +212,7 @@ class LeafOperator(object):
             if v == vars:
                 c = c2
                 break
-        if c == None:
+        if c is None:
             if len(vars) == 0:
                 c = self.getCardinality()
             else:
@@ -247,7 +247,7 @@ class LeafOperator(object):
 
         p = Process(target=self.get_wrapper_fun(self.datasource).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit,-1,))
         p.start()
-        processqueue.put(p.pid)
+        # processqueue.put(p.pid)
 
     def get_wrapper_fun(self, datasource):
         if datasource.dstype == DataSourceType.MONGODB:
