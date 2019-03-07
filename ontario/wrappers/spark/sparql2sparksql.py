@@ -5,7 +5,7 @@ from multiprocessing import Queue
 from ontario.wrappers.spark.utils import *
 from pyspark.sql.types import *
 from ontario.wrappers.hadoop import SparkHDFSClient
-from pprint import pprint
+import json
 
 
 class SPARKXMLWrapper(object):
@@ -463,7 +463,7 @@ class SPARKCSVTSVWrapper(object):
             #filename = self.datasource.url + "/" + filename
             filename = self.datasource.url + "/" + filenameiteratormap[filename]['source']
             print(filename)
-            df = self.spark.read.csv(filename, sep='\t' if ds.dstype == DataSourceType.LOCAL_TSV or \
+            df = self.spark.read.csv(filename, inferSchema=True, sep='\t' if ds.dstype == DataSourceType.LOCAL_TSV or \
                                                            ds.dstype == DataSourceType.HADOOP_TSV or \
                                                            ds.dstype == DataSourceType.SPARK_TSV else ',',
                                      header=True)
