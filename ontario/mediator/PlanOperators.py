@@ -3,7 +3,7 @@ from ontario.model import DataSourceType
 from ontario.wrappers.mongodb.sparql2mongo import SPARQL2Mongo
 from ontario.wrappers.triplestore import RDFStore
 from ontario.wrappers.neo4j.sparql2cypher import SPARQL2Cypher
-from ontario.wrappers.spark.sparql2sparksql import SPARKCSVTSVWrapper
+from ontario.wrappers.spark.sparql2spark  import SPARKWrapper
 from ontario.wrappers.spark.sparql2sparksql import SPARKXMLWrapper
 from ontario.wrappers.mysql.sparql2sql import MySQLWrapper
 from ontario.wrappers.drill.sparql2drill import DrillWrapper
@@ -254,7 +254,6 @@ class LeafOperator(object):
             return SPARQL2Mongo(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.LOCAL_TSV or datasource.dstype == DataSourceType.LOCAL_CSV \
             or datasource.dstype == DataSourceType.LOCAL_JSON:
-            # return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
             return DrillWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.NEO4J:
             return SPARQL2Cypher(datasource, self.config, self.rdfmts, self.star)
@@ -262,7 +261,8 @@ class LeafOperator(object):
             return RDFStore(datasource, self.config)
         elif datasource.dstype == DataSourceType.SPARK_XML or datasource.dstype == DataSourceType.LOCAL_XML:
             return SPARKXMLWrapper(datasource, self.config, self.rdfmts, self.star)
-        elif datasource.dstype == DataSourceType.SPARK_TSV or datasource.dstype == DataSourceType.SPARK_CSV:
-            return SPARKCSVTSVWrapper(datasource, self.config, self.rdfmts, self.star)
+        elif datasource.dstype == DataSourceType.SPARK_TSV or datasource.dstype == DataSourceType.SPARK_CSV\
+            or datasource.dstype == DataSourceType.SPARK_JSON:
+            return SPARKWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.MYSQL:
             return MySQLWrapper(datasource, self.config, self.rdfmts, self.star)
