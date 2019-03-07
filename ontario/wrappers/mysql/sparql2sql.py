@@ -63,6 +63,25 @@ class MySQLWrapper(object):
         # querytxt = query
         self.query = qp.parse(query)
         self.prefixes = getPrefs(self.query.prefs)
+        try:
+            if self.username is None:
+                self.mysql = connector.connect(user='root', host=self.url)
+            else:
+                self.mysql = connector.connect(user=self.username, password=self.password, host=self.host,
+                                               port=self.port)
+        except connector.Error as err:
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Something is wrong with your user name or password")
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Database does not exist")
+            else:
+                print(err)
+            queue.put('EOF')
+            return
+        except Exception as ex:
+            print("Exception while connecting to Mysql", ex)
+            queue.put('EOF')
+            return
 
         query_filters = [f for f in self.query.body.triples[0].triples if isinstance(f, Filter)]
 
@@ -73,22 +92,6 @@ class MySQLWrapper(object):
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
         try:
-            try:
-                if self.username is None:
-                    self.mysql = connector.connect(user='root', host=self.url)
-                else:
-                    self.mysql = connector.connect(user=self.username, password=self.password, host=self.host,
-                                                   port=self.port)
-            except connector.Error as err:
-                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                    print("Something is wrong with your user name or password")
-                elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                    print("Database does not exist")
-                else:
-                    print(err)
-            except Exception as ex:
-                print("Exception while connecting to Mysql", ex)
-
             # print("Connection established: ", time()-start)
             runstart = time()
             cursor = self.mysql.cursor()
