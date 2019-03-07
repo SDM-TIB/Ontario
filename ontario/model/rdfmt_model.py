@@ -21,13 +21,13 @@ class DataSource(object):
             self.dstype = DataSourceType.MONGODB
         elif "Neo4j" in dstype:
             self.dstype = DataSourceType.NEO4J
-        elif "HADOOP_CSV" in dstype or "SPARK_CSV" in dstype:
+        elif "HADOOP_CSV" in dstype:
             self.dstype = DataSourceType.HADOOP_CSV
-        elif "HADOOP_XML" in dstype or "SPARK_XML" in dstype:
+        elif "HADOOP_XML" in dstype:
             self.dstype = DataSourceType.HADOOP_XML
-        elif "HADOOP_JSON" in dstype or "SPARK_JSON" in dstype:
+        elif "HADOOP_JSON" in dstype:
             self.dstype = DataSourceType.HADOOP_JSON
-        elif "HADOOP_TSV" in dstype or "SPARK_TSV" in dstype:
+        elif "HADOOP_TSV" in dstype:
             self.dstype = DataSourceType.HADOOP_TSV
         elif "REST" in dstype:
             self.dstype = DataSourceType.REST_SERVICE
@@ -39,6 +39,12 @@ class DataSource(object):
             self.dstype = DataSourceType.LOCAL_JSON
         elif "LOCAL_XML" in dstype:
             self.dstype = DataSourceType.LOCAL_XML
+        elif "SPARK_CSV" in dstype:
+            self.dstype = DataSourceType.SPARK_CSV
+        elif "SPARK_TSV" in dstype:
+            self.dstype = DataSourceType.SPARK_TSV
+        elif "SPARK_JSON" in dstype:
+            self.dstype = DataSourceType.SPARK_JSON
         elif "MySQL" in dstype or 'mysql' in dstype.lower():
             self.dstype = DataSourceType.MYSQL
         else:
