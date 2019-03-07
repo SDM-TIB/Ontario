@@ -3,7 +3,7 @@ from ontario.sparql.parser.services import *
 from ontario.mediator.PlanOperators import *
 from ontario.operators.sparql.Xgjoin import Xgjoin
 from ontario.operators.sparql.NestedHashJoinFilter import NestedHashJoinFilter
-from ontario.operators.sparql.NestedHashOptional import NestedHashOptional
+from ontario.operators.sparql.NestedHashOptionalFilter import NestedHashOptionalFilter as NestedHashOptional
 from ontario.operators.sparql.Xunion import Xunion
 from ontario.operators.sparql.Xdistinct import Xdistinct
 from ontario.operators.sparql.Xfilter import Xfilter
@@ -239,7 +239,6 @@ class MetaWrapperPlanner(object):
             dependent_op = False
             # l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
 
-
             # Case 1: left operator is highly selective and right operator is low selective
             if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
                 l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
@@ -330,18 +329,18 @@ class MetaWrapperPlanner(object):
         lowSelectivityLeft = left.allTriplesLowSelectivity()
         lowSelectivityRight = right.allTriplesLowSelectivity()
 
-        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
-
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
-            if (n.right.constantPercentage() <= 0.5):
-                n.right.tree.service.limit = 10000
-            if (n.left.constantPercentage() <= 0.5):
-                n.left.tree.service.limit = 10000
 
             # if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
             #      ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
             if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value :
                 return self.make_sparql_endpoint_plan(left, right)
+        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
+        if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
+            if (n.right.constantPercentage() <= 0.5):
+                n.right.tree.service.limit = 10000
+            if (n.left.constantPercentage() <= 0.5):
+                n.left.tree.service.limit = 10000
 
         return n
 
