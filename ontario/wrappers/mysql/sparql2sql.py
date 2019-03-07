@@ -101,7 +101,7 @@ class MySQLWrapper(object):
             #     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
                 for sql in sqlquery:
-                    print(sql)
+                    # print(sql)
                     card = 0
                     if limit == -1:
                         limit = 1000
@@ -121,7 +121,7 @@ class MySQLWrapper(object):
                     limit = 1000
                 if offset == -1:
                     offset = 0
-                print(sqlquery)
+                # print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cursor.execute(query_copy)
