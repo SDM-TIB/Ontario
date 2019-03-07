@@ -59,13 +59,14 @@ class DrillWrapper(object):
 
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
+        totalres = 0
         try:
             try:
                 self.drill = PyDrill(host=self.host, port=self.port)
             except Exception as ex:
                 print("Exception while connecting to Mysql", ex)
             if not self.drill.is_active():
-                print('Please run Drill first')
+                print('EXCEPTION: Please run Drill first')
                 queue.put("EOF")
                 return
 
@@ -73,6 +74,7 @@ class DrillWrapper(object):
             runstart = time()
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
+
             if isinstance(sqlquery, list):
                 for sql in sqlquery:
                     print(sql)
@@ -88,6 +90,7 @@ class DrillWrapper(object):
                             break
 
                         offset = offset + limit
+                    totalres += card
             else:
                 card = 0
                 if limit == -1:
@@ -103,11 +106,12 @@ class DrillWrapper(object):
                         break
 
                     offset = offset + limit
+                totalres += card
             print("Running took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass
-        print('End:', time())
+        print('End:', time(), "Total results:", totalres)
         print("Drill finished after: ", (time()-start))
         queue.put("EOF")
 
@@ -147,7 +151,8 @@ class DrillWrapper(object):
 
             if not skip:
                 queue.put(res)
-
+                # if 'keggCompoundId' in res:
+                #     print(res['keggCompoundId'])
         return c
 
     def get_so_variables(self, triples, proj):
@@ -277,15 +282,15 @@ class DrillWrapper(object):
             tablename = data_source.name
             database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
             if self.datasource.dstype == DataSourceType.LOCAL_TSV:
-                fileext = '.tsv`'
+                fileext = 'dfs.`/data/' + database_name + '/' + tablename +  '.tsv`'
             elif self.datasource.dstype == DataSourceType.LOCAL_CSV:
-                fileext = '.csv`'
+                fileext = 'dfs.`/data/' + database_name + '/' + tablename + '.csv`'
             elif self.datasource.dstype == DataSourceType.LOCAL_JSON:
-                fileext = '.json`'
+                fileext = 'dfs.`/data/json/' + database_name + '/' + tablename + '.json`'
             else:
                 fileext = ''
 
-            fromclauses.append('dfs.`/data/' + database_name + '/' + tablename + fileext + ' ' + tablealias)
+            fromclauses.append(fileext + ' ' + tablealias)
             i += 1
 
             for var, p in var_pred_map.items():
