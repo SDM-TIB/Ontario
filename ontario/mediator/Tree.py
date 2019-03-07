@@ -217,6 +217,7 @@ class Leaf(Tree):
         subquery = self.service.getTriples()
         vs = list(set(self.service.getVars()))  # - set(self.service.filters_vars)) # Modified this by mac: 31-01-2014
         cvs = list(set(self.service.getConsts()))
+
         predictVar = set(self.service.getPredVars())
         variables = [v.lstrip("?$") for v in vs]
         constants = [v for v in cvs]
@@ -246,7 +247,6 @@ class Leaf(Tree):
             d = ""
 
         subquery = "SELECT " + d + subvars + " WHERE {" + subquery + "\n" + query.filter_nested + "\n}"
-
         return self.service.endpoint, query.getPrefixes() + subquery, set(variables), set(constants)
 
     def getCount(self, query, vars, endpointType):
