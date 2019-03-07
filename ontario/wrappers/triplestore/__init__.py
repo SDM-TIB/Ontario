@@ -3,6 +3,8 @@ __author__ = 'kemele'
 
 import urllib
 import urllib.parse as urlparse
+import urllib.parse
+import urllib.request
 import http.client as htclient
 from http import HTTPStatus
 import requests
@@ -16,7 +18,6 @@ class RDFStore(object):
         self.config = config
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=-1):
-
         server = self.url
 
         referer = server
@@ -58,60 +59,62 @@ def contactSourceAux(referer, server, path, port, query, queue):
     b = None
     reslist = 0
 
-    # Formats of the response.
-    json = "application/sparql-results+json"
     if '0.0.0.0' in server:
         server = server.replace('0.0.0.0', 'localhost')
-    # Build the query and header.
-    # params = urllib.urlencode({'query': query})
-    params = urlparse.urlencode({'query': query, 'format': json})
-    headers = {"Accept": "*/*", "Referer": referer, "Host": server}
 
     js = "application/sparql-results+json"
     params = {'query': query, 'format': js}
-    headers = {"User-Agent": "mulder", "Accept": js}
+    headers = {"User-Agent":
+                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
+               "Accept": js}
+    try:
+        data = urllib.parse.urlencode(params)
+        data = data.encode('utf-8')
+        req = urllib.request.Request(referer, data, headers)
+        with urllib.request.urlopen(req) as response:
+            resp = response.read()
+            resp = resp.decode()
+            res = resp.replace("false", "False")
+            res = res.replace("true", "True")
+            res = eval(res)
+            reslist = 0
+            if type(res) == dict:
+                b = res.get('boolean', None)
 
-    resp = requests.get(referer, params=params, headers=headers)
-    if resp.status_code == HTTPStatus.OK:
-        res = resp.text.replace("false", "False")
-        res = res.replace("true", "True")
-        res = eval(res)
-        reslist = 0
-
-        if type(res) == dict:
-            b = res.get('boolean', None)
-
-            if 'results' in res:
-                # print "raw results from endpoint", res
-                for x in res['results']['bindings']:
-                    for key, props in x.items():
-                        # Handle typed-literals and language tags
-                        suffix = ''
-                        if props['type'] == 'typed-literal':
-                            if isinstance(props['datatype'], bytes):
-                                suffix = "^^<" + props['datatype'].decode('utf-8') + ">"
-                            else:
-                                suffix = "^^<" + props['datatype'] + ">"
-                        elif "xml:lang" in props:
-                            suffix = '@' + props['xml:lang']
-                        try:
-                            if isinstance(props['value'], bytes):
-                                x[key] = props['value'].decode('utf-8') + suffix
-                            else:
+                if 'results' in res:
+                    # print "raw results from endpoint", res
+                    for x in res['results']['bindings']:
+                        for key, props in x.items():
+                            # Handle typed-literals and language tags
+                            suffix = ''
+                            if props['type'] == 'typed-literal':
+                                if isinstance(props['datatype'], bytes):
+                                    suffix = "^^<" + props['datatype'].decode('utf-8') + ">"
+                                else:
+                                    suffix = "^^<" + props['datatype'] + ">"
+                            elif "xml:lang" in props:
+                                suffix = '@' + props['xml:lang']
+                            try:
+                                if isinstance(props['value'], bytes):
+                                    x[key] = props['value'].decode('utf-8') + suffix
+                                else:
+                                    x[key] = props['value'] + suffix
+                            except:
                                 x[key] = props['value'] + suffix
-                        except:
-                            x[key] = props['value'] + suffix
 
-                    queue.put(x)
-                    reslist += 1
-                # Every tuple is added to the queue.
-                #for elem in reslist:
-                    # print elem
-                    #queue.put(elem)
+                        queue.put(x)
+                        reslist += 1
+                    # Every tuple is added to the queue.
+                    #for elem in reslist:
+                        # print elem
+                        #queue.put(elem)
 
-        else:
-            print ("the source " + str(server) + " answered in " + res.getheader("content-type") + " format, instead of"
-                   + " the JSON format required, then that answer will be ignored")
+            else:
+                print ("the source " + str(server) + " answered in " + res.getheader("content-type") + " format, instead of"
+                       + " the JSON format required, then that answer will be ignored")
+    except Exception as e:
+        print("Exception while sending request to ", referer, "msg:", e)
+
     # print "b - ", b
     # print server, query, len(reslist)
 
