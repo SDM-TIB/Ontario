@@ -351,7 +351,6 @@ class MediatorCatalyst(object):
                     if len(set(preds).intersection(
                             mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(
                             set(preds)):
-                        print(s, '-> source selected:', ID)
                         sources.add(ID)
                         break
             if len(sources) > 1:
