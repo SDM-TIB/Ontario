@@ -40,9 +40,9 @@ class DrillWrapper(object):
         :param querystr: string query
         :return:
         """
-        from time import time
-        start = time()
-        print("Start:", start)
+        # from time import time
+        # start = time()
+        # print("Start:", start)
         if len(self.mappings) == 0:
             print("Empty Mapping")
             queue.put('EOF')
@@ -64,20 +64,22 @@ class DrillWrapper(object):
             try:
                 self.drill = PyDrill(host=self.host, port=self.port)
             except Exception as ex:
-                print("Exception while connecting to Mysql", ex)
+                print("Exception while connecting to Drill", ex)
+                queue.put("EOF")
+                return
             if not self.drill.is_active():
-                print('EXCEPTION: Please run Drill first')
+                print('Exception: Please run Drill first')
                 queue.put("EOF")
                 return
 
-            print("Connection established: ", time()-start)
-            runstart = time()
+            # print("Connection established: ", time()-start)
+            # runstart = time()
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
 
             if isinstance(sqlquery, list):
                 for sql in sqlquery:
-                    print(sql)
+                    # print(sql)
                     card = 0
                     if limit == -1:
                         limit = 1000
@@ -97,7 +99,7 @@ class DrillWrapper(object):
                     limit = 1000
                 if offset == -1:
                     offset = 0
-                print(sqlquery)
+                # print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
@@ -107,12 +109,12 @@ class DrillWrapper(object):
 
                     offset = offset + limit
                 totalres += card
-            print("Running took:", time() - runstart)
+            # print("Running took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass
-        print('End:', time(), "Total results:", totalres)
-        print("Drill finished after: ", (time()-start))
+        # print('End:', time(), "Total results:", totalres)
+        # print("Drill finished after: ", (time()-start))
         queue.put("EOF")
 
     def process_result(self, sql, queue, projvartocols, coltotemplates):
