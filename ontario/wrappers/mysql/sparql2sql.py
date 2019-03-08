@@ -55,7 +55,6 @@ class MySQLWrapper(object):
         :return:
         """
         from time import time
-        start = time()
         if len(self.mappings) == 0:
             print("Empty Mapping")
             queue.put('EOF')
@@ -63,25 +62,7 @@ class MySQLWrapper(object):
         # querytxt = query
         self.query = qp.parse(query)
         self.prefixes = getPrefs(self.query.prefs)
-        try:
-            if self.username is None:
-                self.mysql = connector.connect(user='root', host=self.url)
-            else:
-                self.mysql = connector.connect(user=self.username, password=self.password, host=self.host,
-                                               port=self.port)
-        except connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-            else:
-                print(err)
-            queue.put('EOF')
-            return
-        except Exception as ex:
-            print("Exception while connecting to Mysql", ex)
-            queue.put('EOF')
-            return
+
         # print("Connection time: ", time()-start)
         query_filters = [f for f in self.query.body.triples[0].triples if isinstance(f, Filter)]
 
@@ -93,11 +74,6 @@ class MySQLWrapper(object):
         # print(sqlquery)
         # print(sqlquery, '\tTranslate took: ', time() - start)
         try:
-            # print("Connection established: ", time()-start)
-            runstart = time()
-            cursor = self.mysql.cursor()
-            db = filenametablename
-            cursor.execute("use " + db + ';')
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
@@ -125,6 +101,29 @@ class MySQLWrapper(object):
                     for q in toremove:
                         processqueues.remove(q)
             else:
+                try:
+                    if self.username is None:
+                        self.mysql = connector.connect(user='root', host=self.url)
+                    else:
+                        self.mysql = connector.connect(user=self.username, password=self.password, host=self.host,
+                                                       port=self.port)
+                except connector.Error as err:
+                    if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                        print("Something is wrong with your user name or password")
+                    elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                        print("Database does not exist")
+                    else:
+                        print(err)
+                    queue.put('EOF')
+                    return
+                except Exception as ex:
+                    print("Exception while connecting to Mysql", ex)
+                    queue.put('EOF')
+                    return
+
+                cursor = self.mysql.cursor()
+                db = filenametablename
+                cursor.execute("use " + db + ';')
                 card = 0
                 if limit == -1:
                     limit = 1000
@@ -225,8 +224,8 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                # if 'drugName' in res:
-                #     print(res['drugName'])
+                # if 'drugbankDrug' in res:
+                #     print(res['drugbankDrug'])
 
         return c
 
