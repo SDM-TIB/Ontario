@@ -5,7 +5,7 @@ from multiprocessing import Process, Queue
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
-
+from time import time
 
 class MySQLWrapper(object):
 
@@ -82,26 +82,27 @@ class MySQLWrapper(object):
             print("Exception while connecting to Mysql", ex)
             queue.put('EOF')
             return
-
+        # print("Connection time: ", time()-start)
         query_filters = [f for f in self.query.body.triples[0].triples if isinstance(f, Filter)]
 
         # if limit > -1 or offset > -1:
         #     self.query.limit = limit
         #     self.query.offset = offset
-
+        start = time()
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
+        # print(sqlquery, '\tTranslate took: ', time() - start)
         try:
             # print("Connection established: ", time()-start)
             runstart = time()
             cursor = self.mysql.cursor()
             db = filenametablename
-            cursor.execute("use " + db)
+            cursor.execute("use " + db + ';')
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
+                print(" UNION ".join(sqlquery))
                 for sql in sqlquery:
-                    # print(sql)
                     card = 0
                     if limit == -1:
                         limit = 1000
@@ -121,7 +122,7 @@ class MySQLWrapper(object):
                     limit = 1000
                 if offset == -1:
                     offset = 0
-                # print(sqlquery)
+                print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cursor.execute(query_copy)
@@ -177,8 +178,8 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                # if 'drugbor' in res:
-                #     print(res['drugbor'])
+                # if 'drugName' in res:
+                #     print(res['drugName'])
 
         return c
 
