@@ -7,6 +7,7 @@ from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
 from time import time
 
+
 class MySQLWrapper(object):
 
     def __init__(self, datasource, config, rdfmts, star):
@@ -462,7 +463,7 @@ class MySQLWrapper(object):
 
         if len(mapping_preds) > 0:
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
-            projections = " SELECT  " + ", ".join(list(set(projections.values())))
+            projections = " SELECT  " + ("DISTINCT " if self.query.distinct else "") + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
                 whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
             else:
