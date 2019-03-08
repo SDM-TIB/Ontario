@@ -13,6 +13,7 @@ class OntarioConfiguration(object):
         self.metadata = {}
         self.datasources = {}
         self.predicateMTindex = {}
+
         self.read_config()
 
     def read_config(self):
