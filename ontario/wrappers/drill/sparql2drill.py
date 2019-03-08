@@ -59,7 +59,7 @@ class DrillWrapper(object):
 
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
-        totalres = 0
+        # totalres = 0
         try:
             try:
                 self.drill = PyDrill(host=self.host, port=self.port)
@@ -72,34 +72,36 @@ class DrillWrapper(object):
                 queue.put("EOF")
                 return
 
-            # print("Connection established: ", time()-start)
-            # runstart = time()
-            # if isinstance(sqlquery, list) and len(sqlquery) > 3:
-            #     sqlquery = " UNION ".join(sqlquery)
-
             if isinstance(sqlquery, list):
+                # print(" UNION ".join(sqlquery))
+                processqueues = []
+                processes = []
                 for sql in sqlquery:
-                    # print(sql)
-                    card = 0
-                    if limit == -1:
-                        limit = 1000
-                    offset = 0
-                    while True:
-                        query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                        cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
-                        card += cardinality
-                        if cardinality < limit:
-                            break
+                    processquery = Queue()
+                    processqueues.append(processquery)
+                    p = Process(target=self.run_union, args=(sql, queue, projvartocols, coltotemplates, limit, processquery,))
+                    p.start()
+                    processes.append(p)
 
-                        offset = offset + limit
-                    totalres += card
+                while len(processqueues) > 0:
+                    toremove = []
+                    try:
+                        for q in processqueues:
+                            if q.get(False) == 'EOF':
+                                toremove.append(q)
+                        for p in processes:
+                            if p.is_alive():
+                                p.terminate()
+                    except:
+                        pass
+                    for q in toremove:
+                        processqueues.remove(q)
             else:
                 card = 0
                 if limit == -1:
                     limit = 1000
                 if offset == -1:
                     offset = 0
-                # print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
@@ -108,7 +110,6 @@ class DrillWrapper(object):
                         break
 
                     offset = offset + limit
-                totalres += card
             # print("Running took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
@@ -116,6 +117,23 @@ class DrillWrapper(object):
         # print('End:', time(), "Total results:", totalres)
         # print("Drill finished after: ", (time()-start))
         queue.put("EOF")
+
+    def run_union(self, sql, queue, projvartocols, coltotemplates, limit, processqueue):
+
+        card = 0
+        if limit == -1:
+            limit = 1000
+        offset = 0
+        while True:
+            query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+            cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
+            card += cardinality
+            if cardinality < limit:
+                break
+
+            offset = offset + limit
+
+        processqueue.put("EOF")
 
     def process_result(self, sql, queue, projvartocols, coltotemplates):
 
@@ -284,9 +302,9 @@ class DrillWrapper(object):
             tablename = data_source.name
             database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
             if self.datasource.dstype == DataSourceType.LOCAL_TSV:
-                fileext = 'dfs.`/data/' + database_name + '/' + tablename +  '.tsv`'
+                fileext = 'dfs.`/data/tsv/' + database_name + '/' + tablename +  '.tsv`'
             elif self.datasource.dstype == DataSourceType.LOCAL_CSV:
-                fileext = 'dfs.`/data/' + database_name + '/' + tablename + '.csv`'
+                fileext = 'dfs.`/data/csv/' + database_name + '/' + tablename + '.csv`'
             elif self.datasource.dstype == DataSourceType.LOCAL_JSON:
                 fileext = 'dfs.`/data/json/' + database_name + '/' + tablename + '.json`'
             else:
