@@ -2,8 +2,8 @@
 
 if __name__ == '__main__':
     from pprint import pprint
-    # query = open("../queries/simpleQueries/SQ9").read()
-    query = open("../queries/complexqueries/CQ9").read()
+    query = open("queries/simpleQueries/SQ10").read()
+    # query = open("queries/complexqueries/CQ9").read()
 
     from ontario.config import OntarioConfiguration
     from ontario.mediator.Planner import MetaWrapperPlanner
@@ -12,9 +12,10 @@ if __name__ == '__main__':
     from time import time
     from pprint import pprint
 
-    # configfile = '../configurations/lslod-rdf-distributed.json'
-    configfile = '../configurations/lslod_rdf_rdb.json'
-    # configfile = '../configurations/lslod_rdf_rdb_tsv_json.json'
+    configfile = 'configurations/lslod-rdf-distributed.json'
+    # configfile = 'configurations/lslod_rdf_rdb.json'
+    # configfile = 'configurations/lslod_rdf_rdb_tsv_json.json'
+    # configfile = 'configurations/lslod_tsv_rdb.json'
     configuration = OntarioConfiguration(configfile)
     start = time()
     print("\nDecomposition:\n")
