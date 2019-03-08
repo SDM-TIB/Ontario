@@ -41,14 +41,14 @@ class OntarioConfiguration(object):
     def ext_datasources_json(self, ds):
         datasources = {}
         for d in ds:
-            # mappings = self.load_mappings(d['mappings'])
+            mappings = self.load_mappings(d['mappings'])
             datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
                                               d['ID'],
                                               d['url'],
                                               d['type'],
                                               d['params'],
                                               d['mappings']
-                                              #, mappings
+                                              ,mappings
                                               )
 
         return datasources
