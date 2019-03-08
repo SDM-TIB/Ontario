@@ -101,28 +101,36 @@ class MySQLWrapper(object):
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
-                print(" UNION ".join(sqlquery))
+                # print(" UNION ".join(sqlquery))
+                processqueues = []
+                processes = []
                 for sql in sqlquery:
-                    card = 0
-                    if limit == -1:
-                        limit = 1000
-                    offset = 0
-                    while True:
-                        query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                        cursor.execute(query_copy)
-                        cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
-                        card += cardinality
-                        if cardinality < limit:
-                            break
+                    processquery = Queue()
+                    processqueues.append(processquery)
+                    p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,))
+                    p.start()
+                    processes.append(p)
 
-                        offset = offset + limit
+                while len(processqueues) > 0:
+                    toremove = []
+                    try:
+                        for q in processqueues:
+                            if q.get(False) == 'EOF':
+                                toremove.append(q)
+                        for p in processes:
+                            if p.is_alive():
+                                p.terminate()
+                    except:
+                        pass
+                    for q in toremove:
+                        processqueues.remove(q)
             else:
                 card = 0
                 if limit == -1:
                     limit = 1000
                 if offset == -1:
                     offset = 0
-                print(sqlquery)
+                # print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cursor.execute(query_copy)
@@ -139,6 +147,45 @@ class MySQLWrapper(object):
 
         # print("MySQL finished after: ", (time()-start))
         queue.put("EOF")
+
+    def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue):
+        try:
+            if self.username is None:
+                mysql = connector.connect(user='root', host=self.url)
+            else:
+                mysql = connector.connect(user=self.username, password=self.password, host=self.host,
+                                               port=self.port)
+        except connector.Error as err:
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                print("Something is wrong with your user name or password")
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                print("Database does not exist")
+            else:
+                print(err)
+            processqueue.put('EOF')
+            return
+        except Exception as ex:
+            print("Exception while connecting to Mysql", ex)
+            processqueue.put('EOF')
+            return
+        cursor = mysql.cursor()
+        db = filenametablename
+        cursor.execute("use " + db + ';')
+        card = 0
+        if limit == -1:
+            limit = 1000
+        offset = 0
+        while True:
+            query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+            cursor.execute(query_copy)
+            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+            card += cardinality
+            if cardinality < limit:
+                break
+
+            offset = offset + limit
+
+        processqueue.put("EOF")
 
     def process_result(self, cursor, queue, projvartocols, coltotemplates):
         header = [h[0] for h in cursor._description]
