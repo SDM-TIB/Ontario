@@ -325,7 +325,7 @@ def sort(lss):
             if lss[i].constantPercentage() > lss[m].constantPercentage():
                 m = i
         for i in range(len(lss)):
-            if isinstance(lss[i], Service) and getdsscore(lss[i].datasource.dstype) > getdsscore(lss[m]):
+            if isinstance(lss[i], Service) and getdsscore(lss[i].datasource.dstype) < getdsscore(lss[m]):
                 m = i
         lo.append(lss[m])
         lss.pop(m)
@@ -333,7 +333,7 @@ def sort(lss):
     while not(lo == []):
         m = 0
         for i in range(len(lo)):
-            if isinstance(lo[i], Service) and getdsscore(lo[i].datasource.dstype) > getdsscore(lo[m]):
+            if isinstance(lo[i], Service) and getdsscore(lo[i].datasource.dstype) < getdsscore(lo[m]):
                 m = i
         llo.append(lo[m])
         lo.pop(m)
