@@ -6,6 +6,15 @@ from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
 from time import time
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('ontario.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class MySQLWrapper(object):
@@ -78,7 +87,7 @@ class MySQLWrapper(object):
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
-                # print(" UNION ".join(sqlquery))
+                logger.info(" UNION ".join(sqlquery))
                 processqueues = []
                 processes = []
                 for sql in sqlquery:
@@ -127,10 +136,10 @@ class MySQLWrapper(object):
                 cursor.execute("use " + db + ';')
                 card = 0
                 if limit == -1:
-                    limit = 1000
+                    limit = 100
                 if offset == -1:
                     offset = 0
-                # print(sqlquery)
+                logger.info(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cursor.execute(query_copy)
@@ -173,7 +182,7 @@ class MySQLWrapper(object):
         cursor.execute("use " + db + ';')
         card = 0
         if limit == -1:
-            limit = 1000
+            limit = 100
         offset = 0
         while True:
             query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
@@ -225,7 +234,7 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                # if 'drugbankDrug' in res:
+                # if 'medicareDrug' in res:
                 #     print(res['drugbankDrug'])
 
         return c

@@ -6,6 +6,15 @@ from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
 from pydrill.client import PyDrill
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('ontario.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class DrillWrapper(object):
@@ -73,7 +82,7 @@ class DrillWrapper(object):
                 return
 
             if isinstance(sqlquery, list):
-                # print(" UNION ".join(sqlquery))
+                logger.info(" UNION ".join(sqlquery))
                 processqueues = []
                 processes = []
                 for sql in sqlquery:
@@ -99,9 +108,10 @@ class DrillWrapper(object):
             else:
                 card = 0
                 if limit == -1:
-                    limit = 1000
+                    limit = 100
                 if offset == -1:
                     offset = 0
+                logger.info(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
@@ -122,7 +132,7 @@ class DrillWrapper(object):
 
         card = 0
         if limit == -1:
-            limit = 1000
+            limit = 100
         offset = 0
         while True:
             query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
@@ -332,7 +342,7 @@ class DrillWrapper(object):
                     elif omap.objectt.resource_type == TripleMapType.REFERENCE:
                         column = omap.objectt.value
                         if "'" not in var and '"' not in var:
-                            var = "'" + var + '"'
+                            var = "'" + var + "'"
                     else:
                         column = []
                     if isinstance(column, list):
