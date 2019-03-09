@@ -85,10 +85,11 @@ class DrillWrapper(object):
                 logger.info(" UNION ".join(sqlquery))
                 processqueues = []
                 processes = []
+                res_dict = []
                 for sql in sqlquery:
                     processquery = Queue()
                     processqueues.append(processquery)
-                    p = Process(target=self.run_union, args=(sql, queue, projvartocols, coltotemplates, limit, processquery,))
+                    p = Process(target=self.run_union, args=(sql, queue, projvartocols, coltotemplates, limit, processquery, res_dict,))
                     p.start()
                     processes.append(p)
 
@@ -107,8 +108,8 @@ class DrillWrapper(object):
                         processqueues.remove(q)
             else:
                 card = 0
-                if limit == -1:
-                    limit = 100
+                # if limit == -1:
+                limit = 1000
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
@@ -128,15 +129,15 @@ class DrillWrapper(object):
         # print("Drill finished after: ", (time()-start))
         queue.put("EOF")
 
-    def run_union(self, sql, queue, projvartocols, coltotemplates, limit, processqueue):
+    def run_union(self, sql, queue, projvartocols, coltotemplates, limit, processqueue, res_dict):
 
         card = 0
-        if limit == -1:
-            limit = 100
+        # if limit == -1:
+        limit = 1000
         offset = 0
         while True:
             query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-            cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
+            cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates, res_dict)
             card += cardinality
             if cardinality < limit:
                 break
@@ -145,12 +146,19 @@ class DrillWrapper(object):
 
         processqueue.put("EOF")
 
-    def process_result(self, sql, queue, projvartocols, coltotemplates):
+    def process_result(self, sql, queue, projvartocols, coltotemplates, res_dict=None):
 
         results = self.drill.query(sql)
         c = 0
         for row in results:
             c += 1
+            if res_dict is not None:
+                rowtxt = ",".join(list(row.values()))
+                if rowtxt in res_dict:
+                    continue
+                else:
+                    res_dict.append(rowtxt)
+
             res = {}
             skip = False
             for r in row:
@@ -427,7 +435,7 @@ class DrillWrapper(object):
 
         if len(mapping_preds) > 0:
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
-            projections = " SELECT DISTINCT " + ", ".join(list(set(projections.values())))
+            projections = " SELECT " + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
                 whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
             else:

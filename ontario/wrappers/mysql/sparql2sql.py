@@ -2,6 +2,7 @@ from ontario.sparql.parser import queryParser as qp
 from mysql import connector
 from mysql.connector import errorcode
 from multiprocessing import Process, Queue
+from multiprocessing.queues import Empty
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
@@ -58,7 +59,7 @@ class MySQLWrapper(object):
             # self.mappings = self.config.mappings
             self.mappings = self.datasource.mappings
 
-    def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
+    def executeQuery(self, query, queue, limit=-1, offset=0):
         """
         Entry point for query execution on csv files
         :param querystr: string query
@@ -85,15 +86,16 @@ class MySQLWrapper(object):
         # print(sqlquery, '\tTranslate took: ', time() - start)
         try:
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
-            #     sqlquery = " UNION ".join(sqlquery)
+            #     print(" UNION ".join(sqlquery))
             if isinstance(sqlquery, list):
                 logger.info(" UNION ".join(sqlquery))
                 processqueues = []
                 processes = []
+                res_dict = []
                 for sql in sqlquery:
                     processquery = Queue()
                     processqueues.append(processquery)
-                    p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,))
+                    p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict,))
                     p.start()
                     processes.append(p)
 
@@ -101,12 +103,16 @@ class MySQLWrapper(object):
                     toremove = []
                     try:
                         for q in processqueues:
-                            if q.get(False) == 'EOF':
+                            v = q.get(False)
+                            if v == 'EOF':
                                 toremove.append(q)
                         for p in processes:
                             if p.is_alive():
                                 p.terminate()
-                    except:
+                    except Empty:
+                        pass
+                    except Exception as e:
+                        print("Exception: ", e, len(processqueues))
                         pass
                     for q in toremove:
                         processqueues.remove(q)
@@ -135,8 +141,8 @@ class MySQLWrapper(object):
                 db = filenametablename
                 cursor.execute("use " + db + ';')
                 card = 0
-                if limit == -1:
-                    limit = 100
+                # if limit == -1:
+                limit = 1000
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
@@ -149,7 +155,6 @@ class MySQLWrapper(object):
                         break
 
                     offset = offset + limit
-            # print("Running took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass
@@ -157,7 +162,7 @@ class MySQLWrapper(object):
         # print("MySQL finished after: ", (time()-start))
         queue.put("EOF")
 
-    def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue):
+    def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue, res_dict):
         try:
             if self.username is None:
                 mysql = connector.connect(user='root', host=self.url)
@@ -181,26 +186,33 @@ class MySQLWrapper(object):
         db = filenametablename
         cursor.execute("use " + db + ';')
         card = 0
-        if limit == -1:
-            limit = 100
+        # if limit == -1:
+        limit = 1000
         offset = 0
         while True:
             query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+
             cursor.execute(query_copy)
-            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
             card += cardinality
             if cardinality < limit:
                 break
-
             offset = offset + limit
-
+        # print("DONE UNION:", card, sql)
         processqueue.put("EOF")
+        return
 
-    def process_result(self, cursor, queue, projvartocols, coltotemplates):
+    def process_result(self, cursor, queue, projvartocols, coltotemplates, res_dict=None):
         header = [h[0] for h in cursor._description]
         c = 0
         for line in cursor:
             c += 1
+            if res_dict is not None:
+                linetxt = ",".join(line)
+                if linetxt in res_dict:
+                    continue
+                else:
+                    res_dict.append(linetxt)
             row = {}
             res = {}
             skip = False
@@ -234,9 +246,10 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                # if 'medicareDrug' in res:
-                #     print(res['drugbankDrug'])
-
+                # if 'drug' in res:
+                #     print(res['transform'])
+        # if res_dict is not None:
+        #     print("Total: ", c)
         return c
 
     def get_so_variables(self, triples, proj):
@@ -383,11 +396,11 @@ class MySQLWrapper(object):
                         var = var.replace(splits[0], '').replace('}', '')
                         if '<' in var and '>' in var:
                             var = var[1:-1]
-                        var = "'" + var +  "'"
+                        var = "'" + var + "'"
                     elif omap.objectt.resource_type == TripleMapType.REFERENCE:
                         column = omap.objectt.value
                         if "'" not in var and '"' not in var:
-                            var = "'" + var + '"'
+                            var = "'" + var + "'"
                     else:
                         column = []
                     if isinstance(column, list):
@@ -472,7 +485,7 @@ class MySQLWrapper(object):
 
         if len(mapping_preds) > 0:
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
-            projections = " SELECT  DISTINCT " + ", ".join(list(set(projections.values())))
+            projections = " SELECT  " + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
                 whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
             else:

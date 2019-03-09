@@ -5,6 +5,15 @@ from ontario.sparql.parser.services import Filter, Expression, Argument
 from ontario.model.rml_model import TripleMapType
 from pyspark.sql import SparkSession
 import json
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('ontario.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class SPARKWrapper(object):
@@ -25,7 +34,7 @@ class SPARKWrapper(object):
             self.host, self.port = self.url.split(':')
         else:
             self.host = self.url
-            self.port = '8047'
+            self.port = '7077'
 
         if len(self.datasource.mappings) == 0:
             self.mappings = self.config.load_mappings(self.datasource.mappingfiles, self.rdfmts)
@@ -55,7 +64,7 @@ class SPARKWrapper(object):
             self.query.offset = offset
 
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
-        print(sqlquery)
+        # logger.info(sqlquery)
         if self.spark is None:
             # url = 'spark://node3.research.tib.eu:7077' # self.mapping['url']
             params = {
@@ -67,10 +76,11 @@ class SPARKWrapper(object):
                 "spark.driver.memory": "12g",
                 "spark.driver.maxResultSize": "8g",
                 "spark.python.worker.memory": "10g",
-                "spark.local.dir": "/tmp"
+                "spark.local.dir": "/tmp",
+                "spark.debug.maxToStringFields": "50"
             }
 
-            start = time()
+            # start = time()
             # self.config['params']
             self.spark = SparkSession.builder.master('local[*]') \
                 .appName("OntarioSparkWrapper" + str(self.datasource.url) + query)
@@ -78,15 +88,15 @@ class SPARKWrapper(object):
                 self.spark = self.spark.config(p, params[p])
 
             self.spark = self.spark.getOrCreate()
-            print("SPARK Initialization cost:", time()-start)
-        start = time()
+            # print("SPARK Initialization cost:", time()-start)
+        # start = time()
 
         for filename, tablename in filenametablename.items():
             # schema = self.make_schema(schemadict[filename])
             # filename = "hdfs://node3.research.tib.eu:9000" + filename
             # filename = self.datasource.url + "/" + filename
             # filename = "/media/kemele/DataHD/LSLOD-flatfiles/" + filename
-            print(filename)
+            # print(filename)
             if self.datasource.dstype == DataSourceType.LOCAL_JSON or \
                     self.datasource.dstype == DataSourceType.SPARK_JSON:
                 df = self.spark.read.json(filename)
@@ -97,7 +107,7 @@ class SPARKWrapper(object):
                                                            self.datasource.dstype == DataSourceType.SPARK_TSV else ',',
                                          header=True)
             df.createOrReplaceTempView(tablename)
-        print("time for reading file", time() - start)
+        # print("time for reading file", time() - start)
 
         totalres = 0
         try:
@@ -105,29 +115,39 @@ class SPARKWrapper(object):
             runstart = time()
             # if isinstance(sqlquery, list) and len(sqlquery) > 3:
             #     sqlquery = " UNION ".join(sqlquery)
-
+            # print(sqlquery)
             if isinstance(sqlquery, list):
+                logger.info(" UNION ".join(sqlquery))
+                res_dict = []
                 for sql in sqlquery:
-                    cardinality = self.process_result(sql, queue, projvartocols, coltotemplates)
+                    cardinality = self.process_result(sql, queue, projvartocols, coltotemplates, res_dict)
                     totalres += cardinality
             else:
+                logger.info(sqlquery)
                 cardinality = self.process_result(sqlquery, queue, projvartocols, coltotemplates)
                 totalres += cardinality
-            print("Running in SPARK took:", time() - runstart)
+            # print("Running in SPARK took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass
-        print('SPARK End:', time(), "Total results:", totalres)
-        print("SPARK finished after: ", (time()-start))
+        # print('SPARK End:', time(), "Total results:", totalres)
+        # print("SPARK finished after: ", (time()-start))
         queue.put("EOF")
 
-    def process_result(self, sql, queue, projvartocols, coltotemplates):
+    def process_result(self, sql, queue, projvartocols, coltotemplates, res_dict=None):
         c = 0
         result = self.spark.sql(sql).toJSON()
         # print('count-----',result.count())
         for row in result.collect():
-            row = json.loads(row)
             c += 1
+            row = json.loads(row)
+            if res_dict is not None:
+                rowtxt = ",".join(list(row.values()))
+                if rowtxt in res_dict:
+                    continue
+                else:
+                    res_dict.append(rowtxt)
+
             res = {}
             skip = False
             for r in row:
@@ -292,11 +312,16 @@ class SPARKWrapper(object):
             database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
 
             if self.datasource.dstype == DataSourceType.LOCAL_TSV or self.datasource.dstype == DataSourceType.SPARK_TSV:
-                fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.tsv'
+                # fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.tsv'
+                fileext = '/data/tsv/' + database_name + '/' + tablename + '.tsv'
+
             elif self.datasource.dstype == DataSourceType.LOCAL_CSV or self.datasource.dstype == DataSourceType.SPARK_CSV:
-                fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.csv'
+                # fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.csv'
+                fileext = '/data/csv/' + database_name + '/' + tablename + '.csv'
             elif self.datasource.dstype == DataSourceType.LOCAL_JSON or self.datasource.dstype == DataSourceType.SPARK_JSON:
-                fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.json'
+                # fileext = self.datasource.url + '/' + database_name + '/' + tablename + '.json'
+                fileext = '/data/json/' + database_name + '/' + tablename + '.json'
+                # fileext = '/media/kemele/DataHD/LSLOD-flatfile/json/' + database_name + '/' + tablename + '.json'
             else:
                 fileext = ''
 
@@ -320,11 +345,11 @@ class SPARKWrapper(object):
                         var = var.replace(splits[0], '').replace('}', '')
                         if '<' in var and '>' in var:
                             var = var[1:-1]
-                        var = "'" + var +  "'"
+                        var = "'" + var + "'"
                     elif omap.objectt.resource_type == TripleMapType.REFERENCE:
                         column = omap.objectt.value
                         if "'" not in var and '"' not in var:
-                            var = "'" + var + '"'
+                            var = "'" + var + "'"
                     else:
                         column = []
                     if isinstance(column, list):
