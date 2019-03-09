@@ -26,12 +26,27 @@ class NodeOperator(object):
         self.operator = operator
         self.vars = vars
         self.left = left
+        self.left_ds_type = DataSourceType.SPARQL_ENDPOINT
+        if isinstance(left, LeafOperator):
+            self.left_ds_type = left.datasource.dstype
+        elif isinstance(left, NodeOperator):
+            self.left_ds_type = left.dstype
+
         self.consts = consts
         self.right = right
+        self.right_ds_type = DataSourceType.SPARQL_ENDPOINT
+        if isinstance(right, LeafOperator):
+            self.right_ds_type = right.datasource.dstype
+        elif isinstance(right, NodeOperator):
+            self.right_ds_type = right.dstype
         self.cardinality = None
         self.joinCardinality = []
         self.query = query
         self.config = config
+        self.dstype = None
+        if self.left_ds_type is not None and self.right_ds_type is not None:
+            if self.left_ds_type == self.right_ds_type:
+                self.dstype = self.left_ds_type
 
     def __repr__(self):
         return self.aux(" ")

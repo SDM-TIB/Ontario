@@ -146,7 +146,9 @@ class MetaWrapperPlanner(object):
             lowSelectivityRight = right.allTriplesLowSelectivity()
             join_variables = l.vars & right.vars
             dependent_op = False
-            # l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
+            if isinstance(l, NodeOperator) and (l.dstype is None or l.dstype != DataSourceType.SPARQL_ENDPOINT) or \
+                    isinstance(l, LeafOperator) and l.datasource.dstype != DataSourceType.SPARQL_ENDPOINT:
+                return NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
 
             # Case 1: left operator is highly selective and right operator is low selective
             if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
@@ -232,18 +234,18 @@ class MetaWrapperPlanner(object):
             return n
 
     def make_joins(self, left, right):
-        join_variables = left.vars & right.vars
-        all_variables = left.vars | right.vars
-        consts = left.consts & right.consts
-        lowSelectivityLeft = left.allTriplesLowSelectivity()
-        lowSelectivityRight = right.allTriplesLowSelectivity()
 
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
-
             # if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
             #      ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
             if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value :
                 return self.make_sparql_endpoint_plan(left, right)
+
+        join_variables = left.vars & right.vars
+        all_variables = left.vars | right.vars
+        consts = left.consts & right.consts
+        # lowSelectivityLeft = left.allTriplesLowSelectivity()
+        # lowSelectivityRight = right.allTriplesLowSelectivity()
         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
             if (n.right.constantPercentage() <= 0.5):
