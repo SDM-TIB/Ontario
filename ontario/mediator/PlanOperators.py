@@ -257,7 +257,6 @@ class LeafOperator(object):
             self.tree.service.limit = 10000
 
         # Evaluate the independent operator.
-        self.q = None
         self.q = Queue()
 
         p = Process(target=self.get_wrapper_fun(self.datasource).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit,-1,))

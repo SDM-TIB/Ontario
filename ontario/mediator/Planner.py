@@ -238,8 +238,10 @@ class MetaWrapperPlanner(object):
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
             # if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
             #      ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
-            if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value :
+            if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value:
                 return self.make_sparql_endpoint_plan(left, right)
+            # if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
+            #     return self.make_sparql_endpoint_plan(left, right)
 
         join_variables = left.vars & right.vars
         all_variables = left.vars | right.vars
@@ -249,9 +251,9 @@ class MetaWrapperPlanner(object):
         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
             if (n.right.constantPercentage() <= 0.5):
-                n.right.tree.service.limit = 10000
+                n.right.tree.service.limit = 1000
             if (n.left.constantPercentage() <= 0.5):
-                n.left.tree.service.limit = 10000
+                n.left.tree.service.limit = 1000
 
         return n
 
