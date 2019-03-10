@@ -401,6 +401,8 @@ class MySQLWrapper(object):
                         column = omap.objectt.value
                         if "'" not in var and '"' not in var:
                             var = "'" + var + "'"
+                        if '"' in var:
+                            var = "'" + var[1:-1] + "'"
                     else:
                         column = []
                     if isinstance(column, list):
