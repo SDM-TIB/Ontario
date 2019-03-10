@@ -85,8 +85,9 @@ class MySQLWrapper(object):
         # print(sqlquery)
         # print(sqlquery, '\tTranslate took: ', time() - start)
         try:
-            # if isinstance(sqlquery, list) and len(sqlquery) > 3:
-            #     print(" UNION ".join(sqlquery))
+            if isinstance(sqlquery, list) and len(sqlquery) > 3:
+                if len(sqlquery) > 3:
+                    sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
                 logger.info(" UNION ".join(sqlquery))
                 processqueues = []
@@ -146,6 +147,7 @@ class MySQLWrapper(object):
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
+                print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cursor.execute(query_copy)
@@ -246,8 +248,10 @@ class MySQLWrapper(object):
 
             if not skip:
                 queue.put(res)
-                # if 'drug' in res:
-                #     print(res['transform'])
+                if 'drugbor' in res and res['drugbor'] == 'http://tcga.deri.ie/TCGA-22-5483-D14623':
+                    print(res)
+                if 'petient' in res and res['patient'] == 'http://tcga.deri.ie/TCGA-22-5483':
+                    print(res)
         # if res_dict is not None:
         #     print("Total: ", c)
         return c
@@ -504,8 +508,10 @@ class MySQLWrapper(object):
         projvartocols = {}
         database_name = ""
         unions = []
-
-        for rdfmt, tm in tounions.items():
+        rdfmts = list(tounions.keys())
+        rdfmts = list(reversed(sorted(rdfmts)))
+        print(rdfmts)
+        for rdfmt in rdfmts:
             mappingpreds = tounions[rdfmt]
             un, projvartocols, coltotemplates, database_name = self.makeJoin(mappingpreds, query_filters)
             unions.append(un)

@@ -113,8 +113,8 @@ class SPARKWrapper(object):
         try:
 
             runstart = time()
-            # if isinstance(sqlquery, list) and len(sqlquery) > 3:
-            #     sqlquery = " UNION ".join(sqlquery)
+            if isinstance(sqlquery, list) and len(sqlquery) > 3:
+                sqlquery = " UNION ".join(sqlquery)
             # print(sqlquery)
             if isinstance(sqlquery, list):
                 logger.info(" UNION ".join(sqlquery))

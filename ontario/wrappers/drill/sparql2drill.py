@@ -80,7 +80,8 @@ class DrillWrapper(object):
                 print('Exception: Please run Drill first')
                 queue.put("EOF")
                 return
-
+            if isinstance(sqlquery, list) and len(sqlquery) > 3:
+                sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
                 logger.info(" UNION ".join(sqlquery))
                 processqueues = []
