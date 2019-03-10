@@ -133,6 +133,7 @@ class SPARKWrapper(object):
         # print('SPARK End:', time(), "Total results:", totalres)
         # print("SPARK finished after: ", (time()-start))
         queue.put("EOF")
+        self.spark.stop()
 
     def process_result(self, sql, queue, projvartocols, coltotemplates, res_dict=None):
         c = 0
