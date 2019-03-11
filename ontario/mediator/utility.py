@@ -7,6 +7,7 @@ def push_down_join(services):
     new_services = []
     endpoints = [s.endpoint for s in services if s.datasource.dstype == DataSourceType.SPARQL_ENDPOINT]
     starsendp = {}
+    services_to_remove = []
     for e in set(endpoints):
         servs = list(set([s for s in services if s.endpoint == e]))
         starsendp[e] = servs
@@ -29,6 +30,9 @@ def push_down_join(services):
                                           filters=list(set(l.filters + r.filters)))
                     servs.append(new_service)
                     done = True
+                    services_to_remove.append(l)
+                    services_to_remove.append(r)
+
                     break
             if not done:
                 others.append(l)
@@ -37,8 +41,9 @@ def push_down_join(services):
             new_services.extend(others)
         elif others:
             new_services.extend(others)
-
-    services = list(set(new_services))
+        for s in services_to_remove:
+            services.remove(s)
+    services = services + list(set(new_services))
     return services
 
 
