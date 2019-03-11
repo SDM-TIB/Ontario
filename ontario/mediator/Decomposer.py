@@ -283,7 +283,8 @@ class MediatorCatalyst(object):
         bgpstars = {}
         mtres = {}
         relevant_mts = {}
-        for s in stars:
+        starnames = sorted(list(stars.keys()))
+        for s in starnames:
             spred = self.get_pred_objs(stars[s])
             bgpstars[s] = {}
             bgpstars[s]['triples'] = stars[s]
