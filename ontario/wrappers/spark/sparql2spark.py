@@ -80,7 +80,7 @@ class SPARKWrapper(object):
                 "spark.debug.maxToStringFields": "50"
             }
 
-            # start = time()
+            start = time()
             # self.config['params']
             self.spark = SparkSession.builder.master('local[*]') \
                 .appName("OntarioSparkWrapper" + str(self.datasource.url) + query)
@@ -88,8 +88,8 @@ class SPARKWrapper(object):
                 self.spark = self.spark.config(p, params[p])
 
             self.spark = self.spark.getOrCreate()
-            # print("SPARK Initialization cost:", time()-start)
-        # start = time()
+            print("SPARK Initialization cost:", time()-start)
+        start = time()
 
         for filename, tablename in filenametablename.items():
             # schema = self.make_schema(schemadict[filename])
@@ -107,7 +107,7 @@ class SPARKWrapper(object):
                                                            self.datasource.dstype == DataSourceType.SPARK_TSV else ',',
                                          header=True)
             df.createOrReplaceTempView(tablename)
-        # print("time for reading file", time() - start)
+        print("time for reading file", filenametablename, time() - start)
 
         totalres = 0
         try:
@@ -126,7 +126,7 @@ class SPARKWrapper(object):
                 logger.info(sqlquery)
                 cardinality = self.process_result(sqlquery, queue, projvartocols, coltotemplates)
                 totalres += cardinality
-            # print("Running in SPARK took:", time() - runstart)
+            print("Exec in SPARK took:", time() - runstart)
         except Exception as e:
             print("Exception ", e)
             pass

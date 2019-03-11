@@ -49,7 +49,7 @@ class DrillWrapper(object):
         :param querystr: string query
         :return:
         """
-        # from time import time
+        from time import time
         # start = time()
         # print("Start:", start)
         if len(self.mappings) == 0:
@@ -69,7 +69,9 @@ class DrillWrapper(object):
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
         # totalres = 0
+
         try:
+            start = time()
             try:
                 self.drill = PyDrill(host=self.host, port=self.port)
             except Exception as ex:
@@ -80,6 +82,8 @@ class DrillWrapper(object):
                 print('Exception: Please run Drill first')
                 queue.put("EOF")
                 return
+            print("Drill Initialization cost:", time() - start)
+            start = time()
             if isinstance(sqlquery, list) and len(sqlquery) > 3:
                 sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
@@ -122,7 +126,7 @@ class DrillWrapper(object):
                         break
 
                     offset = offset + limit
-            # print("Running took:", time() - runstart)
+            print("Exec in Drill took:", time() - start)
         except Exception as e:
             print("Exception ", e)
             pass
