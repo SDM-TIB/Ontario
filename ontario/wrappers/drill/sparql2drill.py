@@ -92,6 +92,7 @@ class DrillWrapper(object):
                 processes = []
                 res_dict = []
                 for sql in sqlquery:
+                    print(sql)
                     processquery = Queue()
                     processqueues.append(processquery)
                     p = Process(target=self.run_union, args=(sql, queue, projvartocols, coltotemplates, limit, processquery, res_dict,))
@@ -118,6 +119,7 @@ class DrillWrapper(object):
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
+                print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
@@ -330,6 +332,12 @@ class DrillWrapper(object):
                 fileext = 'dfs.`/data/csv/' + database_name + '/' + tablename + '.csv`'
             elif self.datasource.dstype == DataSourceType.LOCAL_JSON:
                 fileext = 'dfs.`/data/json/' + database_name + '/' + tablename + '.json`'
+            elif self.datasource.dstype == DataSourceType.HADOOP_TSV:
+                fileext = 'hdfs.`/user/kemele/data/tsv/' + database_name + '/' + tablename + '.tsv`'
+            elif self.datasource.dstype == DataSourceType.HADOOP_CSV:
+                fileext = 'hdfs.`/user/kemele/data/csv/' + database_name + '/' + tablename + '.csv`'
+            elif self.datasource.dstype == DataSourceType.HADOOP_JSON:
+                fileext = 'hdfs.`/user/kemele/data/json/' + database_name + '/' + tablename + '.json`'
             else:
                 fileext = ''
 

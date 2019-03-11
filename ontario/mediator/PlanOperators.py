@@ -267,7 +267,9 @@ class LeafOperator(object):
         if datasource.dstype == DataSourceType.MONGODB:
             return SPARQL2Mongo(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.LOCAL_TSV or datasource.dstype == DataSourceType.LOCAL_CSV \
-            or datasource.dstype == DataSourceType.LOCAL_JSON:
+            or datasource.dstype == DataSourceType.LOCAL_JSON or \
+                datasource.dstype == DataSourceType.HADOOP_TSV or datasource.dstype == DataSourceType.HADOOP_CSV \
+                or datasource.dstype == DataSourceType.HADOOP_JSON:
             return DrillWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.NEO4J:
             return SPARQL2Cypher(datasource, self.config, self.rdfmts, self.star)
