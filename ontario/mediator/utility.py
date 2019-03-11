@@ -42,7 +42,8 @@ def push_down_join(services):
         elif others:
             new_services.extend(others)
         for s in services_to_remove:
-            services.remove(s)
+            if s in services:
+                services.remove(s)
     services = services + list(set(new_services))
     return services
 
