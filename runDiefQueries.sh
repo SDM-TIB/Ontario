@@ -19,4 +19,5 @@ for n in {1..3}; do
       (timeout -s 12 300 run_dief_experiment.py -c $2 -q $query -r $RES_DIR/"exec_res_$n" -t MULDER -s True -j $6 ) 2>> $5 >> $4;
       killall -9 --quiet run_dief_experiment.py
   done
+mv ontario.log $RES_DIR/ontario_$n.log
 done
