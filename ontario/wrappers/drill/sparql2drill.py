@@ -92,7 +92,7 @@ class DrillWrapper(object):
                 processes = []
                 res_dict = []
                 for sql in sqlquery:
-                    print(sql)
+                    # print(sql)
                     processquery = Queue()
                     processqueues.append(processquery)
                     p = Process(target=self.run_union, args=(sql, queue, projvartocols, coltotemplates, limit, processquery, res_dict,))
@@ -119,7 +119,7 @@ class DrillWrapper(object):
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
-                print(sqlquery)
+                # print(sqlquery)
                 while True:
                     query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                     cardinality = self.process_result(query_copy, queue, projvartocols, coltotemplates)
@@ -159,12 +159,12 @@ class DrillWrapper(object):
         c = 0
         for row in results:
             c += 1
-            if res_dict is not None:
-                rowtxt = ",".join(list(row.values()))
-                if rowtxt in res_dict:
-                    continue
-                else:
-                    res_dict.append(rowtxt)
+            # if res_dict is not None:
+            #     rowtxt = ",".join(list(row.values()))
+            #     if rowtxt in res_dict:
+            #         continue
+            #     else:
+            #         res_dict.append(rowtxt)
 
             res = {}
             skip = False

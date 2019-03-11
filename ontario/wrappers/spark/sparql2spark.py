@@ -68,14 +68,14 @@ class SPARKWrapper(object):
         if self.spark is None:
             # url = 'spark://node3.research.tib.eu:7077' # self.mapping['url']
             params = {
-                "spark.driver.cores": "4",
-                "spark.executor.cores": "4",
-                "spark.cores.max": "8",
-                "spark.default.parallelism": "4",
-                "spark.executor.memory": "6g",
-                "spark.driver.memory": "12g",
-                "spark.driver.maxResultSize": "8g",
-                "spark.python.worker.memory": "10g",
+                "spark.driver.cores": "24",
+                "spark.executor.cores": "24",
+                "spark.cores.max": "48",
+                "spark.default.parallelism": "24",
+                "spark.executor.memory": "64g",
+                "spark.driver.memory": "32g",
+                "spark.driver.maxResultSize": "32g",
+                "spark.python.worker.memory": "32g",
                 "spark.local.dir": "/tmp",
                 "spark.debug.maxToStringFields": "50"
             }
@@ -100,11 +100,19 @@ class SPARKWrapper(object):
             if self.datasource.dstype == DataSourceType.LOCAL_JSON or \
                     self.datasource.dstype == DataSourceType.SPARK_JSON:
                 df = self.spark.read.json(filename)
+            elif self.datasource.dstype == DataSourceType.HADOOP_JSON:
+                filename = "hdfs://node3.research.tib.eu:9000" + filename
+                df = self.spark.read.json(filename)
+            elif self.datasource.dstype == DataSourceType.HADOOP_TSV or \
+                    self.datasource.dstype == DataSourceType.HADOOP_CSV:
+                filename = "hdfs://node3.research.tib.eu:9000" + filename
+                df = self.spark.read.csv(filename, inferSchema=True, sep='\t'
+                                         if self.datasource.dstype == DataSourceType.HADOOP_TSV else ',',
+                                         header=True)
             else:
                 df = self.spark.read.csv(filename, inferSchema=True,
                                          sep='\t' if self.datasource.dstype == DataSourceType.LOCAL_TSV or \
-                                                           self.datasource.dstype == DataSourceType.HADOOP_TSV or \
-                                                           self.datasource.dstype == DataSourceType.SPARK_TSV else ',',
+                                                     self.datasource.dstype == DataSourceType.SPARK_TSV else ',',
                                          header=True)
             df.createOrReplaceTempView(tablename)
         print("time for reading file", filenametablename, time() - start)
@@ -142,12 +150,12 @@ class SPARKWrapper(object):
         for row in result.collect():
             c += 1
             row = json.loads(row)
-            if res_dict is not None:
-                rowtxt = ",".join(list(row.values()))
-                if rowtxt in res_dict:
-                    continue
-                else:
-                    res_dict.append(rowtxt)
+            # if res_dict is not None:
+            #     rowtxt = ",".join(list(row.values()))
+            #     if rowtxt in res_dict:
+            #         continue
+            #     else:
+            #         res_dict.append(rowtxt)
 
             res = {}
             skip = False

@@ -209,12 +209,12 @@ class MySQLWrapper(object):
         c = 0
         for line in cursor:
             c += 1
-            if res_dict is not None:
-                linetxt = ",".join(line)
-                if linetxt in res_dict:
-                    continue
-                else:
-                    res_dict.append(linetxt)
+            # if res_dict is not None:
+            #     linetxt = ",".join(line)
+            #     if linetxt in res_dict:
+            #         continue
+            #     else:
+            #         res_dict.append(linetxt)
             row = {}
             res = {}
             skip = False
