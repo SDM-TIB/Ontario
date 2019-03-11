@@ -5,51 +5,40 @@ from ontario.mediator.Tree import *
 
 def push_down_join(services):
     new_services = []
-    services_to_remove = []
     endpoints = [s.endpoint for s in services if s.datasource.dstype == DataSourceType.SPARQL_ENDPOINT]
-
+    starsendp = {}
     for e in set(endpoints):
-        servs = set([s for s in services if s.endpoint == e])
-        if len(servs) > 1:
-            joinables = []
-            for s in servs:
-                for s2 in servs:
-                    if s == s2:
-                        continue
-                    if s in services_to_remove and s2 in services_to_remove:
-                        continue
-                    if len(set(s.getVars()) & set(s2.getVars())) > 0:
-                        new_service = Service(endpoint="<" + e + ">",
-                                              triples=list(set(s.triples + s2.triples)),
-                                              datasource=s.datasource,
-                                              rdfmts=list(set(s.rdfmts + s2.rdfmts)),
-                                              star=s.star,
-                                              filters=list(set(s.filters + s2.filters)))
-                        joinables.append(new_service)
-                        services_to_remove.extend([s, s2])
-                    elif s2 not in services_to_remove:
-                        ext = []
-                        for j in set(joinables):
-                            if len(set(j.getVars()) & set(s2.getVars())) > 0:
-                                new_service = Service(endpoint="<" + e + ">",
-                                                      triples=list(set(j.triples + s2.triples)),
-                                                      datasource=j.datasource,
-                                                      rdfmts=list(set(j.rdfmts + s2.rdfmts)),
-                                                      star=j.star,
-                                                      filters=list(set(j.filters + s2.filters)))
-                                joinables.append(new_service)
-                                services_to_remove.extend([s2])
-                                ext.append(j)
-                        if len(ext) > 0:
-                            for j in ext:
-                                joinables.remove(j)
+        servs = list(set([s for s in services if s.endpoint == e]))
+        starsendp[e] = servs
+        others = []
+        while len(servs) > 1:
+            done = False
+            l = servs.pop(0)  # heapq.heappop(pq)
+            lpq = servs  # heapq.nsmallest(len(pq), pq)
 
-            new_services.extend(joinables)
-    if len(services_to_remove) > 0:
-        for s in set(services_to_remove):
-            services.remove(s)
-        services = services + list(set(new_services))
+            for i in range(0, len(servs)):
+                r = lpq[i]
 
+                if len(set(l.getVars()) & set(r.getVars())) > 0:
+                    servs.remove(r)
+                    new_service = Service(endpoint="<" + e + ">",
+                                          triples=list(set(l.triples + r.triples)),
+                                          datasource=l.datasource,
+                                          rdfmts=list(set(l.rdfmts + r.rdfmts)),
+                                          star=l.star,
+                                          filters=list(set(l.filters + r.filters)))
+                    servs.append(new_service)
+                    done = True
+                    break
+            if not done:
+                others.append(l)
+        if len(servs) == 1:
+            new_services.append(servs[0])
+            new_services.extend(others)
+        elif others:
+            new_services.extend(others)
+
+    services = list(set(new_services))
     return services
 
 
