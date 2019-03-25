@@ -18,7 +18,7 @@ from ontario.operators.Join import Join
 from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
 from ontario.operators.sparql.NestedHashJoin import NestedHashJoin
 
-WINDOW_SIZE = 10
+WINDOW_SIZE = 20
 
 
 class NestedHashJoinFilter(Join):
@@ -50,7 +50,7 @@ class NestedHashJoinFilter(Join):
         right_queues = dict()
         filter_bag = []
         count = 0
-        while (not (tuple1 == "EOF") or (len(right_queues) > 0)):
+        while not (tuple1 == "EOF") or (len(right_queues) > 0):
 
             try:
                 tuple1 = self.left_queue.get(False)
@@ -158,15 +158,17 @@ class NestedHashJoinFilter(Join):
                     else:
                         if '^^<' not in v:
                             v = '"' + v + '"'
-                            vf = "(?" + var + "=" + v + " || " + "?" + var + "=" + v + "^^<http://www.w3.org/2001/XMLSchema#string>)"
+                            vf = "?" + var + "=" + v  # + " || " + "?" + var + "=" + v + "^^<http://www.w3.org/2001/XMLSchema#string>)"
                             and_expr.append(vf)
                         else:
                             loc = v.find('^^<')
                             vf = '"' + v[:loc] + '"' + v[loc:]
                             v = "(?" + var + "=" + vf + ' || ' + "?" + var + '="' + v[:loc] + '")'
                             and_expr.append(v)
-
-                or_expr.append('(' + ' && '.join(and_expr) + ')')
+                if len(and_expr) > 1:
+                    or_expr.append('(' + ' && '.join(and_expr) + ')')
+                else:
+                    or_expr.append(' && '.join(and_expr))
             filter_str = filter_str.replace('__expr__', ' || '.join(or_expr))
         new_operator = operators.instantiateFilter(set(new_vars), filter_str)
         # print "type(new_operator)", type(new_operator)
