@@ -21,14 +21,7 @@ class Query(object):
 
     def __repr__(self):
         body_str = str(self.body)
-        args_str = " ".join(map(str, self.args))
-        if self.args == []:
-            args_str = "*"
-        if self.distinct:
-            d = "DISTINCT "
-        else:
-            d = ""
-        return self.getPrefixes()+"SELECT "+d+args_str+"\nWHERE {"+body_str+"\n"+self.filter_nested+"\n}"
+        return self._show(body_str)
 
     def instantiate(self, d):
         new_args = []
@@ -58,26 +51,32 @@ class Query(object):
     def show(self):
 
         body_str = self.body.show(" ")
-        args_str = " ".join(map(str, self.args))
-        if self.args == []:
-            args_str = "*"
-        if self.distinct:
-            d = "DISTINCT "
-        else:
-            d = ""
-        return self.getPrefixes()+"SELECT "+d+args_str+"\nWHERE {"+body_str+"\n"+self.filter_nested+"\n}"
+        return self._show(body_str)
 
     def show2(self):
 
         body_str = self.body.show2(" ")
-        args_str = " ".join(map(str, self.args))
-        if self.args == []:
-            args_str = "*"
-        if self.distinct:
-            d = "DISTINCT "
+        return self._show(body_str)
+
+    def _show(self, body_str):
+        d = ""
+        qtype = "SELECT"
+
+        if self.args is not None:
+            if len(self.args) == 0:
+                args_str = "*"
+            else:
+                args_str = " ".join(map(str, self.args))
+
+            args_str += "\n"
         else:
-            d = ""
-        return self.getPrefixes() + "SELECT " + d + args_str + "\nWHERE {" + body_str + "\n" + self.filter_nested + "\n}"
+            qtype = "ASK"
+            args_str = ""
+
+        if self.distinct is not None and self.distinct:
+            d = "DISTINCT "
+
+        return self.getPrefixes() + qtype + " " + d + args_str + " WHERE {" + body_str + "\n" + self.filter_nested + "\n}"
 
     def getPrefixes(self):
         r = ""
@@ -785,6 +784,7 @@ class Triple(object):
                  #   ('rdf:type' in self.predicate.name or 'a' == self.predicate.name or
                  #     'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in self.predicate.name))
                 )
+
     def show(self, x):
         return x+self.subject.name+" " + self.predicate.name + " " + str(self.theobject)
 
@@ -852,12 +852,13 @@ class Triple(object):
 
 class Argument(object):
 
-    def __init__(self, name, constant, desc=False, datatype=None, lang=None):
+    def __init__(self, name, constant, desc=False, datatype=None, lang=None, isuri=False):
         self.name = name
         self.constant = constant
         self.desc = desc
         self.datatype = datatype
         self.lang = lang
+        self.isUri = isuri
 
     def __repr__(self):
         arg = self.name
@@ -932,6 +933,11 @@ def readGeneralPredicates(fileName):
 
 
 def getUri(p, prefs):
+    prefs.update({
+        'rdfs': "<http://www.w3.org/2000/01/rdf-schema#>",
+        'owl': "<http://www.w3.org/2002/07/owl#>",
+        'rdf': "<http://www.w3.org/1999/02/22-rdf-syntax-ns#>"
+    })
     if p.datatype or p.lang:
         return p.name + ("^^" + p.datatype if p.datatype else "") + ("@" + p.lang if p.lang else "")
     if "'" in p.name or '"' in p.name:

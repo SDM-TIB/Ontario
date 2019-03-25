@@ -10,6 +10,7 @@ reserved = {
     'FILTER' : 'FILTER',
     'OPTIONAL' : 'OPTIONAL',
     'SELECT' : 'SELECT',
+    'ASK' : 'ASK',
     'DISTINCT' : 'DISTINCT',
     'WHERE' : 'WHERE',
     'PREFIX' : 'PREFIX',
@@ -38,6 +39,8 @@ reserved = {
 
 tokens = [
 #    "RDFTYPE",
+    "DOUBLECONST",
+    "DECIMALCONST",
     "CONSTANT",
     "NUMBER",
     "VARIABLE",
@@ -94,7 +97,11 @@ def t_ID(t):
     return t
 
 
-t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?" #[<]http[://]+www[.]w3[.]org[/]2001[/]XMLSchema[#]\w+
+#t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?" #[<]http[://]+www[.]w3[.]org[/]2001[/]XMLSchema[#]\w+
+t_DOUBLECONST = r"[0-9]+'.'[0-9]*[eE][+-]?[0-9]+|'.'([0-9])+[eE][+-]?[0-9]+|([0-9])+[eE][+-]?[0-9]+"
+t_DECIMALCONST = r"[0-9]*'.'[0-9]+"
+t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?"
+
 t_NUMBER = r"([0-9])+"
 t_VARIABLE = r"([\?]|[\$])([A-Z]|[a-z])\w*"
 t_LKEY = r"\{"
@@ -145,31 +152,41 @@ t_ignore = ' \t\n'
 
 xsd = "http://www.w3.org/2001/XMLSchema#"
 
+
 def t_error(t):
-    raise TypeError("Unknown text '%s' in line %d " % (t.value,t.lexer.lineno,))
+    print(t, repr(xstring))
+
+    if t is None:
+        raise TypeError("Unknown text '%s' in line %d " % (t.value,t.lexer.lineno,))
+    else:
+        raise TypeError("Unknown text ")
+
 
 # Define a rule so we can track line numbers
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
 
+
 lexer = lex.lex()
 
-# Parser
 
+# Parser
 def p_parse_sparql_0(p):
     """
     parse_sparql : prefix_list query order_by limit offset
     """
     (vs, ts, d) = p[2]
-    p[0] = Query(p[1], vs, ts, d,p[3],p[4],p[5])
+    p[0] = Query(p[1], vs, ts, d, p[3], p[4], p[5])
+
 
 def p_parse_sparql_1(p):
     """
     parse_sparql : prefix_list query order_by offset limit
     """
     (vs, ts, d) = p[2]
-    p[0] = Query(p[1], vs, ts, d,p[3], p[5],p[4])
+    p[0] = Query(p[1], vs, ts, d, p[3], p[5],p[4])
+
 
 def p_prefix_list(p):
     """
@@ -177,11 +194,13 @@ def p_prefix_list(p):
     """
     p[0] = [p[1]] + p[2]
 
+
 def p_empty_prefix_list(p):
     """
     prefix_list : empty
     """
     p[0] = []
+
 
 def p_empty(p):
     """
@@ -189,11 +208,13 @@ def p_empty(p):
     """
     pass
 
+
 def p_prefix(p):
     """
     prefix : PREFIX uri
     """
     p[0] = p[2]
+
 
 def p_uri_0(p):
     """
@@ -201,11 +222,13 @@ def p_uri_0(p):
     """
     p[0] = p[1]+p[2]+p[3]
 
+
 def p_uri_1(p):
     """
     uri : ID COLON URI
     """
     p[0] = p[1]+p[2]+p[3]
+
 
 def p_uri_2(p):
     """
@@ -213,11 +236,13 @@ def p_uri_2(p):
     """
     p[0] = p[1]
 
+
 def p_order_by_0(p):
     """
     order_by : ORDER BY var_order_list desc_var
     """
     p[0] = p[3] + [p[4]]
+
 
 def p_order_by_1(p):
     """
@@ -225,11 +250,13 @@ def p_order_by_1(p):
     """
     p[0] = []
 
+
 def p_var_order_list_0(p):
     """
     var_order_list : empty
     """
     p[0] = []
+
 
 def p_var_order_list_1(p):
     """
@@ -237,11 +264,13 @@ def p_var_order_list_1(p):
     """
     p[0] = p[1] + [p[2]]
 
+
 def p_desc_var_0(p):
     """
     desc_var : DESC LPAR VARIABLE RPAR
     """
     p[0] = Argument(p[3],False,True)
+
 
 def p_desc_var_1(p):
     """
@@ -249,11 +278,13 @@ def p_desc_var_1(p):
     """
     p[0] = Argument(p[1],False,False)
 
+
 def p_desc_var_2(p):
     """
     desc_var : ASC LPAR VARIABLE RPAR
     """
     p[0] = Argument(p[3],False,False)
+
 
 def p_desc_var_3(p):
     """
@@ -261,11 +292,13 @@ def p_desc_var_3(p):
     """
     p[0] = Expression(p[1],p[3],None)
 
+
 def p_limit_0(p):
     """
     limit : LIMIT NUMBER
     """
     p[0] = p[2]
+
 
 def p_limit_1(p):
     """
@@ -273,11 +306,13 @@ def p_limit_1(p):
     """
     p[0] = -1
 
+
 def p_offset_0(p):
     """
     offset : OFFSET NUMBER
     """
     p[0] = p[2]
+
 
 def p_offset_1(p):
     """
@@ -285,11 +320,13 @@ def p_offset_1(p):
     """
     p[0] = -1
 
+
 def p_query_0(p):
     """
     query : SELECT distinct var_list WHERE LKEY group_graph_pattern RKEY
     """
     p[0] = (p[3], p[6], p[2])
+
 
 def p_query_1(p):
     """
@@ -297,17 +334,34 @@ def p_query_1(p):
     """
     p[0] = ([], p[6], p[2])
 
+
+def p_query_2(p):
+    """
+    query : ASK WHERE LKEY group_graph_pattern RKEY
+    """
+    p[0] = (None, p[4], None)
+
+
+def p_query_3(p):
+    """
+    query : ASK LKEY group_graph_pattern RKEY
+    """
+    p[0] = (None, p[3], None)
+
+
 def p_distinct_0(p):
     """
     distinct : DISTINCT
     """
     p[0] = True
 
+
 def p_distinct_1(p):
     """
     distinct : empty
     """
     p[0] = False
+
 
 def p_ggp_0(p):
     """
@@ -514,7 +568,7 @@ def p_express_arg_0(p):
     """
     express_arg : uri
     """
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, isuri=True)
 
 def p_express_arg_1(p):
     """
@@ -847,11 +901,11 @@ def p_predicate_rdftype(p):
     """
     predicate : ID
     """
-    if  p[1] == 'a':
+    if p[1] == 'a':
         value = '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>'
-        p[0] = Argument(value,True)
+        p[0] = Argument(value,True, isuri=True)
     else:
-        print ('raising')
+        print('raising syntax error:')
         p_error(p[1])
         raise SyntaxError
 
@@ -860,7 +914,8 @@ def p_predicate_uri(p):
     """
     predicate : uri
     """
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, isuri=True)
+
 
 def p_predicate_var(p):
     """
@@ -873,7 +928,8 @@ def p_subject_uri(p):
     """
     subject : uri
     """
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, isuri=True)
+
 
 def p_subject_variable(p):
     """
@@ -881,11 +937,12 @@ def p_subject_variable(p):
     """
     p[0] = Argument(p[1], False)
 
+
 def p_object_uri(p):
     """
     object : uri
     """
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, isuri=True)
 
 def p_object_variable(p):
     """
@@ -893,7 +950,8 @@ def p_object_variable(p):
     """
     p[0] = Argument(p[1], False)
 
-def p_object_constant(p):
+
+def p_object_constant_0(p):
     """
     object : CONSTANT
     """
@@ -902,20 +960,66 @@ def p_object_constant(p):
     if xsd in p[1]:
         p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^")+1:])
     if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>",lang=c[c.rfind("@")+1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@")+1:])
+
+def p_object_constant_1(p):
+    """
+    object : DOUBLECONST
+    """
+    c = p[1].strip()
+    p[0] = Argument(p[1], True)
+    if xsd in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
+    if "@" in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+
+
+def p_object_constant_2(p):
+    """
+    object : DECIMALCONST
+    """
+    c = p[1].strip()
+    p[0] = Argument(p[1], True)
+    if xsd in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
+    if "@" in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+
+
+def p_object_constant_3(p):
+    """
+    object : NUMBER
+    """
+    c = p[1].strip()
+    p[0] = Argument(p[1], True)
+    if xsd in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
+    if "@" in p[1]:
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+
+
 
 def p_error(p):
     print (p)
     if isinstance(p, str):
         value = p
     else:
-        value = p.value
-    raise TypeError("unknown text at %r" % (value,))
+        if p is not None:
+            value = p.value
+        else:
+            value = p
+    print(repr(xstring))
+    import traceback
+    traceback.print_exc()
+    raise TypeError("unknown text at %r %s" % (value,xstring,))
+
 
 parser = yacc.yacc(debug=0)
 
 # Helpers
-
+xstring = ""
 def parse(string):
+    global xstring
+    xstring = string
     return parser.parse(string, lexer=lexer)
 
