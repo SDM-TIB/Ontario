@@ -64,7 +64,6 @@ class Xgjoin(Join):
 
         # Get the tuples from the queues.
         while tuple1 != "EOF" or tuple2 != "EOF":
-
             # Try to get and process tuple from left queue.
             if tuple1 != "EOF":
                 try:
@@ -83,6 +82,7 @@ class Xgjoin(Join):
                     pass
                 except IOError:
                     # IOError: when a tuple is received, but the alarm is fired.
+                    print("IOError, tuple1")
                     self.sourcesBlocked = False
                     pass
 
@@ -103,6 +103,7 @@ class Xgjoin(Join):
                     # TypeError: in resource = resource + tuple[var], when the tuple is "EOF".
                     pass
                 except IOError:
+                    print("IOError: tupel2")
                     # IOError: when a tuple is received, but the alarm is fired.
                     self.sourcesBlocked = False
                     pass
@@ -110,8 +111,8 @@ class Xgjoin(Join):
             #print "(LEFT, RIGHT) = >", self.leftcount, self.rightcount, self.vars
             if (len(self.left_table) + len(self.right_table) >= self.memorySize):
                 self.flushRJT()
-                #print "Flushed RJT!"
 
+                #print "Flushed RJT!"
         # Turn off alarm to stage 2.
         signal.alarm(0)
         # Perform the last probes.
