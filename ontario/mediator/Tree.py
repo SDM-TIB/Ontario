@@ -1,6 +1,6 @@
 from __future__ import division
 import abc
-
+from ontario.sparql.parser.services import Service, Triple
 
 class Tree(object):
 
@@ -316,24 +316,48 @@ def shareAtLeastOneVar(l, r):
     return len(l.vars & r.vars) > 0
 
 
+def get_so_variables(triples):
+    tvars = []
+    for t in triples:
+        if isinstance(t, Triple):
+            if not t.subject.constant:
+                tvars.append(t.subject.name)
+            if not t.predicate.constant:
+                tvars.append(t.predicate.name)
+            # exclude variables that are not projected
+            if not t.theobject.constant:
+                tvars.append(t.theobject.name)
+        else:
+            tvars.extend(get_so_variables(t.triples))
+
+    return tvars
+
+
 def sort(lss):
-    from ontario.sparql.parser.services import Service
+
     lo = []
     while not(lss == []):
         m = 0
         for i in range(len(lss)):
             if lss[i].constantPercentage() > lss[m].constantPercentage():
                 m = i
+            elif isinstance(lss[i], Service) and isinstance(lss[m], Service) and lss[i].constantPercentage() == lss[m].constantPercentage():
+                if len(lss[i].star['triples']) > len(lss[m].star['triples']):
+                    m = i
+                elif len(get_so_variables(lss[i].star['triples'])) < len(get_so_variables(lss[m].star['triples'])):
+                    m = i
+
         for i in range(len(lss)):
-            if isinstance(lss[i], Service) and getdsscore(lss[i].datasource.dstype) < getdsscore(lss[m]):
+            if isinstance(lss[i], Service) and isinstance(lss[m], Service) and getdsscore(lss[i].datasource.dstype) > getdsscore(lss[m].datasource.dstype):
                 m = i
         lo.append(lss[m])
         lss.pop(m)
+
     llo = []
     while not(lo == []):
         m = 0
         for i in range(len(lo)):
-            if isinstance(lo[i], Service) and getdsscore(lo[i].datasource.dstype) < getdsscore(lo[m]):
+            if isinstance(lo[i], Service) and isinstance(lo[m], Service) and getdsscore(lo[i].datasource.dstype) < getdsscore(lo[m]):
                 m = i
         llo.append(lo[m])
         lo.pop(m)
@@ -357,6 +381,14 @@ def getdsscore(dstype):
     elif dstype == DataSourceType.HADOOP_JSON:
         return 8
     elif dstype == DataSourceType.HADOOP_TSV:
+        return 12
+    elif dstype == DataSourceType.SPARK_CSV:
+        return 12
+    elif dstype == DataSourceType.SPARK_XML:
+        return 5
+    elif dstype == DataSourceType.SPARK_JSON:
+        return 8
+    elif dstype == DataSourceType.SPARK_TSV:
         return 12
     elif dstype == DataSourceType.REST_SERVICE:
         return 5
