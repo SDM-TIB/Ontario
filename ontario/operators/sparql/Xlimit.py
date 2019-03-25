@@ -29,8 +29,19 @@ class Xlimit(object):
             self.qresults.put(tuple)
             count = count + 1
             tuple = self.left.get(True)
-            
+
         # Put EOF in queue and exit. 
         self.qresults.put("EOF")
+        processqueue.put("EOF")
+        p = processqueue.get()
+        import os
+        while p != 'EOF':
+            try:
+                os.kill(p, 9)
+            except Exception as ex:
+                pass
+            except:
+                pass
+            p = processqueue.get()
         return
     
