@@ -53,9 +53,14 @@ class MetaWrapperPlanner(object):
         return unionblocks
 
     def make_plan(self):
-        self.query.body = UnionBlock(self._make_tree())
+        trree = self._make_tree()
+        # print("------------->>", trree)
+        # print(self.decompositions)
+        self.query.body = UnionBlock(trree)
         operatorTree = self.includePhysicalOperatorsQuery()
-
+        # print(operatorTree)
+        if operatorTree is None:
+            return []
         # Adds the project operator to the plan.
         operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
 
@@ -234,12 +239,15 @@ class MetaWrapperPlanner(object):
             return n
 
     def make_joins(self, left, right):
+        #return self.make_sparql_endpoint_plan(left, right)
 
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
-            # if ('SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value) and \
-            #      ('SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value):
-            if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value:
+            if ('SPARQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value) or \
+                 ('SQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value):
                 return self.make_sparql_endpoint_plan(left, right)
+
+            if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value:
+                return self.make_mulder_joins(left, right)
             # if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
             #     return self.make_sparql_endpoint_plan(left, right)
 
@@ -261,6 +269,134 @@ class MetaWrapperPlanner(object):
         join_variables = l.vars & r.vars
         all_variables = l.vars | r.vars
         consts = l.consts & l.consts
+        lowSelectivityLeft = l.allTriplesLowSelectivity()
+        lowSelectivityRight = r.allTriplesLowSelectivity()
+        n = None
+        dependent_join = False
+
+        if isinstance(l, LeafOperator) and l.tree.service.triples[0].subject.constant:
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                dependent_join = True
+        elif isinstance(r, LeafOperator) and r.tree.service.triples[0].subject.constant:
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                dependent_join = True
+        elif isinstance(r, LeafOperator) and isinstance(l, LeafOperator):
+            if len(join_variables) > 0:
+                print(lowSelectivityLeft, lowSelectivityRight)
+                if "SQL" in l.datasource.dstype.value and 'SPARQL' in r.datasource.dstype.value:
+                    if lowSelectivityLeft and lowSelectivityRight:
+                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts,
+                                         self.query)
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts,
+                                     self.query)
+                    # if not lowSelectivityLeft and lowSelectivityRight:
+                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    # elif lowSelectivityLeft and not lowSelectivityRight:
+                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    # elif not lowSelectivityLeft and not lowSelectivityRight:
+                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    dependent_join = True
+                elif "SQL" in r.datasource.dstype.value and 'SPARQL' in l.datasource.dstype.value:
+                    if lowSelectivityLeft and lowSelectivityRight:
+                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                else:
+                    if not lowSelectivityLeft and lowSelectivityRight:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    elif lowSelectivityLeft and not lowSelectivityRight:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                    elif not lowSelectivityLeft and not lowSelectivityRight:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                    elif lowSelectivityLeft and lowSelectivityRight:
+                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts,
+                                         self.query)
+
+                    dependent_join = True
+        elif isinstance(r, NodeOperator) and r.operator.__class__.__name__ == "Xunion" and \
+                isinstance(l, NodeOperator) and l.operator.__class__.__name__ == "Xunion":
+            # both are Union operators
+            n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
+
+        elif not lowSelectivityLeft and not lowSelectivityRight and (not isinstance(l, NodeOperator) or not isinstance(r, NodeOperator)):
+            # if both are selective and one of them (or both) are Independent Operator
+            if len(join_variables) > 0:
+                if l.constantPercentage() > r.constantPercentage():
+                    if not isinstance(r, NodeOperator):
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                        dependent_join = True
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                        dependent_join = True
+                else:
+                    if not isinstance(l, NodeOperator):
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                        dependent_join = True
+                    else:
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                        dependent_join = True
+
+        elif not lowSelectivityLeft and lowSelectivityRight and not isinstance(r, NodeOperator):
+
+            # If left is selective, if left != NHJ and right != NHJ -> NHJ (l,r)
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                dependent_join = True
+
+        elif lowSelectivityLeft and not lowSelectivityRight and not isinstance(l, NodeOperator):
+            # if right is selective if left != NHJ and right != NHJ -> NHJ (r,l)
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                dependent_join = True
+
+        elif not lowSelectivityLeft and lowSelectivityRight \
+                and (isinstance(l, NodeOperator) and not l.operator.__class__.__name__ == "NestedHashJoinFilter") \
+                and (isinstance(r, NodeOperator) and not (r.operator.__class__.__name__ == "NestedHashJoinFilter"
+                                                      or r.operator.__class__.__name__ == "Xgjoin")):
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                dependent_join = True
+        elif lowSelectivityLeft and not lowSelectivityRight and (
+                isinstance(r, NodeOperator) and not r.operator.__class__.__name__ == "NestedHashJoinFilter") \
+                and (isinstance(l, NodeOperator) and not (
+                l.operator.__class__.__name__ == "NestedHashJoinFilter" or l.operator.__class__.__name__ == "Xgjoin")):
+            if len(join_variables) > 0:
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
+                dependent_join = True
+        elif lowSelectivityLeft and lowSelectivityRight and isinstance(l, LeafOperator) and isinstance(r, LeafOperator):
+            # both are non-selective and both are Independent Operators
+            n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, r, l, consts, self.query)
+
+        if n is None:
+            n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
+
+        if n and isinstance(n.left, LeafOperator) and isinstance(n.left.tree, Leaf):
+            if (n.left.constantPercentage() <= 0.5) and not (n.left.tree.service.allTriplesGeneral()):
+                n.left.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
+
+        if isinstance(n.right, LeafOperator) and isinstance(n.right.tree, Leaf):
+            if not dependent_join:
+                if (n.right.constantPercentage() <= 0.5) and not (n.right.tree.service.allTriplesGeneral()):
+                    n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
+                    # print "modifying limit right ..."
+            else:
+                new_constants = 0
+                for v in join_variables:
+                    new_constants = new_constants + n.right.query.show().count(v)
+                if ((n.right.constantNumber() + new_constants) / n.right.places() <= 0.5) and not (
+                n.right.tree.service.allTriplesGeneral()):
+                    n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
+        return n
+
+    def make_mulder_joins(self, l, r):
+        join_variables = l.vars & r.vars
+        all_variables = l.vars | r.vars
+        consts = l.consts & l.consts
+        # noInstantiatedLeftStar = False
+        # noInstantiatedRightStar = False
         lowSelectivityLeft = l.allTriplesLowSelectivity()
         lowSelectivityRight = r.allTriplesLowSelectivity()
         n = None
@@ -302,13 +438,46 @@ class MetaWrapperPlanner(object):
             if len(join_variables) > 0:
                 n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
                 dependent_join = True
+                #
+                # if not isinstance(l, TreePlan):
+                #     if isinstance(r, TreePlan):
+                #         if not isinstance(r.operator, NestedHashJoin) and not isinstance(r.operator, Xgjoin):
+                #             n = TreePlan(NestedHashJoin(join_variables), all_variables, l, r)
+                #             dependent_join = True
+                #     else:
+                #         # IF both are Independent Operators
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, l, r)
+                #         dependent_join = True
+                # elif isinstance(l, TreePlan) and not isinstance(l.operator, NestedHashJoin):
+                #     if not isinstance(r, TreePlan):
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, l, r)
+                #         dependent_join = True
+                #     elif isinstance(r, TreePlan) and not isinstance(r.operator, NestedHashJoin) and not isinstance(r.operator, Xgjoin):
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, l, r)
+                #         dependent_join = True
 
         elif lowSelectivityLeft and not lowSelectivityRight and not isinstance(l, NodeOperator):
             # if right is selective if left != NHJ and right != NHJ -> NHJ (r,l)
             if len(join_variables) > 0:
-                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
                 dependent_join = True
-
+                #
+                # if not isinstance(r, TreePlan):
+                #     if isinstance(l, TreePlan):
+                #         if not isinstance(l.operator, NestedHashJoin) and not isinstance(l.operator, Xgjoin):
+                #             n = TreePlan(NestedHashJoin(join_variables), all_variables, r, l)
+                #             dependent_join = True
+                #     else:
+                #         # IF both are Independent Operators
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, r, l)
+                #         dependent_join = True
+                # elif isinstance(r, TreePlan) and not isinstance(r.operator, NestedHashJoin):
+                #     if not isinstance(l, TreePlan):
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, r, l)
+                #         dependent_join = True
+                #     elif isinstance(l, TreePlan) and not isinstance(l.operator, NestedHashJoin) and not isinstance(l.operator, Xgjoin):
+                #         n = TreePlan(NestedHashJoin(join_variables), all_variables, r, l)
+                #         dependent_join = True
         elif not lowSelectivityLeft and lowSelectivityRight \
                 and (isinstance(l, NodeOperator) and not l.operator.__class__.__name__ == "NestedHashJoinFilter") \
                 and (isinstance(r, NodeOperator) and not (r.operator.__class__.__name__ == "NestedHashJoinFilter"
@@ -323,7 +492,7 @@ class MetaWrapperPlanner(object):
             if len(join_variables) > 0:
                 n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, r, l, consts, self.query)
                 dependent_join = True
-        elif lowSelectivityLeft and lowSelectivityRight and isinstance(l, LeafOperator) and isinstance(r, LeafOperator):
+        elif lowSelectivityLeft and lowSelectivityRight and isinstance(l, LeafOperator) and isinstance(r,   LeafOperator):
             # both are non-selective and both are Independent Operators
             n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, r, l, consts, self.query)
 

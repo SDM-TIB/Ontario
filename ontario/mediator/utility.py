@@ -63,8 +63,9 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
         star_filters = get_filters(list(set(star['triples'])), filters)
         for ID, rdfmt in dss.items():
             for mt, mtpred in rdfmt.items():
+                ppred = [p for p in preds if '?' not in p]
                 if len(set(preds).intersection(
-                        mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(set(preds)):
+                        mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(set(preds)) or len(ppred) == 0:
                     sources.add(ID)
                     break
         if len(sources) > 1:
