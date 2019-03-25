@@ -11,7 +11,10 @@ from .utility import *
 
 class MediatorCatalyst(object):
     def __init__(self, query, config, pushdownssqjoins=True):
-        self.query = queryParser.parse(query)
+        if isinstance(query, str):
+            self.query = queryParser.parse(query)
+        else:
+            self.query = query
         self.prefixes = utils.getPrefs(self.query.prefs)
         self.config = config
         self.relevant_mts = {}
@@ -37,6 +40,8 @@ class MediatorCatalyst(object):
             pjb = self.decomposeJoinBlock(jb)
             if pjb:
                 r.append(pjb)
+            else:
+                return []
         return r
 
     def decomposeJoinBlock(self, jb):
@@ -72,6 +77,8 @@ class MediatorCatalyst(object):
             bgp_preds = self.get_preds(tl)
             stars = self.bgp_stars(tl)
             bgpstars, star_conn, mt_conn = self.decompose_bgp(stars, bgp_preds)
+            if len(bgpstars) == 0:
+                return None
             tl_bgp['stars_conn'] = star_conn
             tl_bgp['mts_conn'] = mt_conn
             tl_bgp['stars'] = bgpstars
@@ -180,8 +187,9 @@ class MediatorCatalyst(object):
         typemols = {}
         for t in types:
             tt = utils.getUri(t.theobject, self.prefixes)[1:-1]
-            mt = self.config.metadata[tt]
-            typemols[tt] = mt
+            if tt in self.config.metadata:
+                mt = self.config.metadata[tt]
+                typemols[tt] = mt
         if len(types) > 0 and len(typemols) == 0:
             return {}
 
@@ -262,13 +270,13 @@ class MediatorCatalyst(object):
                     if len(new_res) == 0:
                         newfilteredonly[s].remove(m)
 
-                for m in c_newfilter:
-                    con = res_conn[m]
-                    if len(con) == 0:
-                        continue
-                    new_res = list(set(con).intersection(s_newfilter))
-                    if len(new_res) == 0:
-                        newfilteredonly[c].remove(m)
+                # for m in c_newfilter:
+                #     con = res_conn[m]
+                #     if len(con) == 0:
+                #         continue
+                #     new_res = list(set(con).intersection(s_newfilter))
+                #     if len(new_res) == 0:
+                #         newfilteredonly[c].remove(m)
 
         for s in newfilteredonly:
             res[s] = list(set(newfilteredonly[s]))
@@ -313,6 +321,14 @@ class MediatorCatalyst(object):
                     preds = list(set(bgpstars[s]['predicates']).intersection(dspreds))
                     if len(preds) > 0:
                         datasources.setdefault(d, {}).setdefault(m, []).extend(preds)
+                    else:
+                        datasources.setdefault(d, {}).setdefault(m, []).extend(dspreds)
+                        if len(bgpstars[s]['predicates']) == 0:
+                            preds = {tr.predicate.name: (utils.getUri(tr.theobject, self.prefixes) if tr.theobject.constant else tr.theobject.name)
+                                     for tr in stars[s]}
+                            bgpstars[s]['predicates'] = preds
+            if len(datasources) == 0:
+                return [], [], []
             bgpstars[s]['datasources'] = datasources
 
         return bgpstars, star_conn, mt_conn
