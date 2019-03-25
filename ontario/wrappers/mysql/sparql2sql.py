@@ -4,8 +4,8 @@ from mysql.connector import errorcode
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty
 from ontario.wrappers.mysql.utils import *
-from ontario.sparql.parser.services import Filter, Expression, Argument
-from ontario.model.rml_model import TripleMapType
+from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
+from ontario.model.rml_model import TripleMapType, SubjectMap
 from time import time
 import logging
 
@@ -83,40 +83,59 @@ class MySQLWrapper(object):
         start = time()
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
         # print(sqlquery)
+        if sqlquery is None or len(sqlquery) == 0:
+            queue.put("EOF")
+            return []
+
         # print(sqlquery, '\tTranslate took: ', time() - start)
         try:
-            if isinstance(sqlquery, list) and len(sqlquery) > 3:
+            if isinstance(sqlquery, list):
+                sqlquery = [sql for sql in sqlquery if sql is not None and len(sql) > 0]
                 if len(sqlquery) > 3:
                     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
-                logger.info(" UNION ".join(sqlquery))
-                processqueues = []
-                processes = []
-                res_dict = []
-                for sql in sqlquery:
-                    processquery = Queue()
-                    processqueues.append(processquery)
-                    p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict,))
-                    p.start()
-                    processes.append(p)
+                try:
+                    sqlquery = [sql for sql in sqlquery if sql is not None and len(sql) > 0]
+                    logger.info(" UNION ".join(sqlquery))
+                    processqueues = []
+                    processes = []
+                    res_dict = []
+                    for sql in sqlquery:
+                        processquery = Queue()
+                        # self.run_union(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict)
+                        processqueues.append(processquery)
+                        p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict,))
+                        p.daemon = True
+                        p.start()
+                        processes.append(p)
 
-                while len(processqueues) > 0:
-                    toremove = []
-                    try:
-                        for q in processqueues:
-                            v = q.get(False)
-                            if v == 'EOF':
-                                toremove.append(q)
-                        for p in processes:
-                            if p.is_alive():
-                                p.terminate()
-                    except Empty:
-                        pass
-                    except Exception as e:
-                        print("Exception: ", e, len(processqueues))
-                        pass
-                    for q in toremove:
-                        processqueues.remove(q)
+                    while len(processqueues) > 0:
+                        toremove = []
+                        try:
+                            for q in processqueues:
+                                v = q.get(False)
+                                if v == 'EOF':
+                                    toremove.append(q)
+                            for p in processes:
+                                if p.is_alive():
+                                    p.terminate()
+                        except Empty:
+                            pass
+                        except Exception as e:
+                            print("Exception: ", e, len(processqueues))
+                            pass
+                        for q in toremove:
+                            processqueues.remove(q)
+                    logger.info("MySQL Done running:")
+                    sw = " UNION ".join(sqlquery)
+                    logger.info(sw)
+                except Exception as e:
+                    logger.error(" UNION ".join(sqlquery))
+                    logger.error("Exception while running query" + str(e))
+                    pass
+                except IOError:
+                    logger.error("IOError while running query")
+                    pass
             else:
                 try:
                     if self.username is None:
@@ -143,64 +162,84 @@ class MySQLWrapper(object):
                 cursor.execute("use " + db + ';')
                 card = 0
                 # if limit == -1:
-                limit = 1000
+                limit = 100
                 if offset == -1:
                     offset = 0
                 logger.info(sqlquery)
                 # print(sqlquery)
-                while True:
-                    query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                    cursor.execute(query_copy)
-                    cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
-                    card += cardinality
-                    if cardinality < limit:
-                        break
+                try:
+                    # rs = time()
+                    while True:
+                        query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                        cursor.execute(query_copy)
+                        cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+                        card += cardinality
+                        # if (time()-rs) > 20:
+                        #     print(card, 'results found -..')
+                        if cardinality < limit:
+                            break
 
-                    offset = offset + limit
+                        offset = offset + limit
+                except Exception as e:
+                    print("EXception: ", e)
+                    logger.error("Exception while running query" + str(e))
+                    pass
+                except IOError as ie:
+                    print("IO ERROR:", ie)
+                    logger.error("IOError while running query" + str(ie))
+                    pass
         except Exception as e:
             print("Exception ", e)
             pass
-
+        logger.info("Running query: " + str(query) + " DONE")
         # print("MySQL finished after: ", (time()-start))
         queue.put("EOF")
 
     def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue, res_dict):
         try:
-            if self.username is None:
-                mysql = connector.connect(user='root', host=self.url)
-            else:
-                mysql = connector.connect(user=self.username, password=self.password, host=self.host,
-                                               port=self.port)
-        except connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Something is wrong with your user name or password")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-            else:
-                print(err)
-            processqueue.put('EOF')
-            return
-        except Exception as ex:
-            print("Exception while connecting to Mysql", ex)
-            processqueue.put('EOF')
-            return
-        cursor = mysql.cursor()
-        db = filenametablename
-        cursor.execute("use " + db + ';')
-        card = 0
-        # if limit == -1:
-        limit = 1000
-        offset = 0
-        while True:
-            query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-
-            cursor.execute(query_copy)
-            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
-            card += cardinality
-            if cardinality < limit:
-                break
-            offset = offset + limit
-        # print("DONE UNION:", card, sql)
+            try:
+                if self.username is None:
+                    mysql = connector.connect(user='root', host=self.url)
+                else:
+                    mysql = connector.connect(user=self.username, password=self.password, host=self.host,
+                                                   port=self.port)
+            except connector.Error as err:
+                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                    print("Something is wrong with your user name or password")
+                elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                    print("Database does not exist")
+                else:
+                    print("Something is wrong ", err)
+                processqueue.put('EOF')
+                return
+            except Exception as ex:
+                print("Exception while connecting to Mysql", ex)
+                processqueue.put('EOF')
+                return
+            cursor = mysql.cursor()
+            db = filenametablename
+            cursor.execute("use " + db + ';')
+            card = 0
+            # if limit == -1:
+            limit = 100
+            offset = 0
+            # print(sql)
+            rs = time()
+            while True:
+                query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                cursor.execute(query_copy)
+                cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
+                card += cardinality
+                # if (time()-rs) > 20:
+                #     print(card, ' results found ...')
+                if cardinality < limit:
+                    break
+                offset = offset + limit
+            # print("DONE UNION:", card, sql)
+            logger.info("Running:" + sql +" is DONE!")
+        except Exception as e:
+            logger.error("Exception while running " + sql + " " + str(e))
+            pass
         processqueue.put("EOF")
         return
 
@@ -267,13 +306,7 @@ class MySQLWrapper(object):
 
         return tvars
 
-    def get_obj_filter(self, f, var_pred_map, predicate_object_map, coltotemplates, tablealias):
-        l = f.expr.left
-        r = f.expr.right
-        op = f.expr.op
-        if op.upper() == 'REGEX' and isinstance(l, Expression):
-            l = l.left
-
+    def getsqlfil(self, l, r, op, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias):
         if r is not None and '?' in r.name:
             var = r.name
             val = l.name
@@ -284,10 +317,53 @@ class MySQLWrapper(object):
         if '(' in var and ')' in var:
             var = var[var.find('(') + 1:var.find(')')]
 
+        if var not in var_pred_map:
+            subjcol = subjmap.value
+            splits = subjcol.split('{')
+            coltotemplates[var[1:]] = subjcol
+            column = []
+            for sp in splits[1:]:
+                column.append(sp[:sp.find('}')])
+
+            if len(column) > 1:
+                objfilters = []
+                for col in column:
+                    vcolumn = "`" + col + '`'
+
+                    if '<' in val and '>' in val:
+                        val = val.replace('<', '').replace('>', '')
+                    if '"' not in val and "'" not in val:
+                        val = "'" + val + "'"
+
+                    if op == 'REGEX':
+                        val = "'%" + val[1:-1] + "%'"
+                        objectfilter = tablealias + '.' + vcolumn + " LIKE " + val
+                    else:
+                        objectfilter = tablealias + '.' + vcolumn + op + val
+                    objfilters.append(objectfilter)
+
+                return " AND ".join(objfilters)
+            elif len(column) == 1:
+                column = "`" + column[0] + '`'
+
+                if '<' in val and '>' in val:
+                    val = val.replace('<', '').replace('>', '').replace(splits[0], '')
+
+                if '"' not in val and "'" not in val:
+                    val = "'" + val + "'"
+
+                if op == 'REGEX':
+                    val = "'%" + val[1:-1] + "%'"
+                    objectfilter = tablealias + '.' + column + " LIKE " + val
+                else:
+                    objectfilter = tablealias + '.' + column + op + val
+
+                return objectfilter
+
         p = var_pred_map[var]
         pmap, omap = predicate_object_map[p]
         if omap.objectt.resource_type == TripleMapType.TEMPLATE:
-            coltotemplates[l[1:]] = omap.objectt.value
+            coltotemplates[var[1:]] = omap.objectt.value
             splits = omap.objectt.value.split('{')
             column = []
             for sp in splits[1:]:
@@ -305,10 +381,12 @@ class MySQLWrapper(object):
             if len(column) > 0:
                 column = column[0]
         column = "`" + column + '`'
+
         if '<' in val and '>' in val:
             val = val.replace('<', '').replace('>', '')
         if '"' not in val and "'" not in val:
             val = "'" + val + "'"
+
         if op == 'REGEX':
             val = "'%" + val[1:-1] + "%'"
             objectfilter = tablealias + '.' + column + " LIKE " + val
@@ -316,6 +394,44 @@ class MySQLWrapper(object):
             objectfilter = tablealias + '.' + column + op + val
 
         return objectfilter
+
+    def get_Expression_value(self, exp, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
+
+        left = exp.left
+        right = exp.right
+        op = exp.op
+
+        if op in unaryFunctor:
+            if isinstance(left, Expression) and isinstance(left.left, Argument):
+                left = left.left
+                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                return fil
+
+        elif op in binaryFunctor:
+            if op == 'REGEX' and right.desc is not False:
+                return op + "(" + str(left) + "," + right.name + "," + right.desc + ")"
+            else:
+                return op + "(" + str(left) + "," + str(right) + ")"
+
+        elif right is None:
+            return op + str(left)
+
+        else:
+            if isinstance(left, Argument) and isinstance(right, Argument):
+                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                return fil
+            if isinstance(left, Expression) and isinstance(right, Expression):
+                leftexp = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                rightexp = self.get_Expression_value(right, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                if op == '||' or op == '|':
+                    return leftexp + ' OR ' + rightexp
+                else:
+                    return leftexp + ' AND ' + rightexp
+            print(op, type(left), left, type(right), right)
+            return "(" + str(exp.left) + " " + exp.op + " " + str(exp.right)
+
+    def get_obj_filter(self, f, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
+        return self.get_Expression_value(f.expr, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
 
     def makeJoin(self, mapping_preds, query_filters):
 
@@ -331,33 +447,33 @@ class MySQLWrapper(object):
 
         projvartocols = {}
         query = ""
-
+        invalidsubj = False
         for tm, predicate_object_map in mapping_preds.items():
             sparqlprojected = set(self.get_so_variables(self.star['triples'], [c.name for c in self.query.args]))
             tablealias = 'Ontario_' + str(i)
-            var_pred_map = {var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map}
-            for var in sparqlprojected:
-                if var not in var_pred_map:
-                    continue
-                p = var_pred_map[var]
-                pmap, omap = predicate_object_map[p]
-                if omap.objectt.resource_type == TripleMapType.TEMPLATE:
-                    coltotemplates[var[1:]] = omap.objectt.value
-                    splits = omap.objectt.value.split('{')
+            if isinstance(predicate_object_map, SubjectMap):
+                subjvar = self.star['triples'][0].subject.name
+                var = subjvar
+                var_pred_map = {subjvar: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'}
+                if predicate_object_map.subject.resource_type == TripleMapType.TEMPLATE:
+                    coltotemplates[subjvar[1:]] = predicate_object_map.subject.value
+                    splits = predicate_object_map.subject.value.split('{')
                     column = []
                     for sp in splits[1:]:
                         column.append(sp[:sp.find('}')])
                     if len(column) == 1:
                         column = column[0]
-                elif omap.objectt.resource_type == TripleMapType.REFERENCE:
-                    column = omap.objectt.value
+                elif predicate_object_map.subject.resource_type == TripleMapType.REFERENCE:
+                    column = predicate_object_map.subject.value
                 else:
                     column = []
                 if isinstance(column, list):
                     j = 0
                     for col in column:
                         vcolumn = "`" + col + '`'
-                        projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + var[1:] + '_Ontario_' + str(j)
+                        projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + var[
+                                                                                                            1:] + '_Ontario_' + str(
+                            j)
                         projvartocol.setdefault(var[1:], []).append(col)
                         objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                         objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
@@ -369,9 +485,46 @@ class MySQLWrapper(object):
                     projvartocol[var[1:]] = col
                     objectfilters.append(tablealias + '.' + column + " is not null ")
                     objectfilters.append(tablealias + '.' + column + " <> '' ")
+            else:
+                var_pred_map = {var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map}
+                column = []
+                for var in sparqlprojected:
+                    if var not in var_pred_map:
+                        continue
+                    p = var_pred_map[var]
+                    pmap, omap = predicate_object_map[p]
+                    if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+                        coltotemplates[var[1:]] = omap.objectt.value
+                        splits = omap.objectt.value.split('{')
+                        column = []
+                        for sp in splits[1:]:
+                            column.append(sp[:sp.find('}')])
+                        if len(column) == 1:
+                            column = column[0]
+                    elif omap.objectt.resource_type == TripleMapType.REFERENCE:
+                        column = omap.objectt.value
+                    else:
+                        column = []
+                    if isinstance(column, list):
+                        j = 0
+                        for col in column:
+                            vcolumn = "`" + col + '`'
+                            projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + var[1:] + '_Ontario_' + str(j)
+                            projvartocol.setdefault(var[1:], []).append(col)
+                            objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
+                            objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                            j += 1
+                    else:
+                        col = column
+                        column = "`" + column + '`'
+                        projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
+                        projvartocol[var[1:]] = col
+                        objectfilters.append(tablealias + '.' + column + " is not null ")
+                        objectfilters.append(tablealias + '.' + column + " <> '' ")
             for f in query_filters:
-                if len(set(f.getVars()).intersection(list(var_pred_map.keys()))) == len(set(f.getVars())):
-                    fil = self.get_obj_filter(f, var_pred_map, predicate_object_map, coltotemplates, tablealias)
+                #if len(set(f.getVars()).intersection(list(var_pred_map.keys()))) == len(set(f.getVars())):
+                fil = self.get_obj_filter(f, var_pred_map, self.mappings[tm].subject_map.subject, predicate_object_map, coltotemplates, tablealias)
+                if fil is not None and len(fil) > 0:
                     objectfilters.append(fil)
             tm_tablealias[tablealias] = tm
 
@@ -380,8 +533,12 @@ class MySQLWrapper(object):
 
             logicalsource = triplemap.logical_source
             data_source = logicalsource.data_source
-            tablename = data_source.name
-            database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
+            # tablename = data_source.name
+            # database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
+            database_name = data_source.name
+            if '/' in database_name:
+                database_name = database_name.split('/')[-1]
+            tablename = logicalsource.table_name
             fromclauses.append(tablename + ' ' + tablealias)
             i += 1
 
@@ -448,15 +605,33 @@ class MySQLWrapper(object):
 
                     objectfilters.append(tablealias + '.' + column + " is not null ")
                     objectfilters.append(tablealias + '.' + column + " <> '' ")
+        else:
+            subj = self.star['triples'][0].subject.name
+            for tm, subject in subjects.items():
+                subjcol = subject.value
+                tablealias = [v for v in tm_tablealias if tm_tablealias[v] == tm][0]
+                splits = subjcol.split('{')
+                column = []
+                for sp in splits[1:]:
+                    column.append(sp[:sp.find('}')])
 
-                # if len(tm_tablealias) > 1:
-                #     for tm1, t1 in tm_tablealias.items():
-                #         if tm == tm1:
-                #             continue
-                #         if t1 + tablealias not in filtersadded and tablealias + t1 not in filtersadded:
-                #             objectfilters.append(t1 + '.' + column + ' = ' + tablealias + '.' + column)
-                #             filtersadded.append(t1 + tablealias)
-                #             filtersadded.append(tablealias + t1)
+                if len(splits[0]) > 0 and splits[0] not in subj:
+                    invalidsubj = True
+                    break
+                var = subj.replace(splits[0], '').replace('}', '')
+
+                if '<' in var and '>' in var:
+                    var = var[1:-1]
+                var = "'" + var + "'"
+                # if isinstance(column, list):
+                j = 0
+                for col in column:
+                    vcolumn = "`" + col + '`'
+                    objectfilters.append(tablealias + "." + vcolumn + " = " + var)
+                    j += 1
+        if invalidsubj:
+            mapping_preds = []
+
         if len(subjects) > 1:
             aliases = list(tm_tablealias.keys())
             raliases = aliases.copy()
@@ -502,7 +677,7 @@ class MySQLWrapper(object):
 
         return query, projvartocols, coltotemplates, database_name
 
-    def makeunion(self, tounions, query_filters):
+    def makeunion(self, tounions, query_filters, subjectunions=False):
 
         coltotemplates = {}
         projvartocols = {}
@@ -513,8 +688,15 @@ class MySQLWrapper(object):
         # print(rdfmts)
         for rdfmt in rdfmts:
             mappingpreds = tounions[rdfmt]
-            un, projvartocols, coltotemplates, database_name = self.makeJoin(mappingpreds, query_filters)
-            unions.append(un)
+            if subjectunions:
+                for tm, submaps in mappingpreds.items():
+                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm:submaps}, query_filters)
+                    if un is not None and len(un) > 0:
+                        unions.append(un)
+            else:
+                un, projvartocols, coltotemplates, database_name = self.makeJoin(mappingpreds, query_filters)
+                if un is not None and len(un) > 0:
+                    unions.append(un)
 
         #query = " UNION ".join(unions)
         # print(query)
@@ -522,31 +704,55 @@ class MySQLWrapper(object):
 
     def translate(self, query_filters):
         rdfmts = self.star['rdfmts']
-        star_preds = list(self.star['predicates'].keys())
+        starpreds = list(self.star['predicates'].keys())
+        star_preds = [p for p in starpreds if '?' not in p]
         if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
-        mapping_preds = {tm: triplemap for tm, triplemap in self.mappings.items() for p in star_preds if p in triplemap.predicate_object_map }
-        # if len(set(star_preds).intersection(['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'] + list(triplemap.predicate_object_map.keys()))) == len(set(star_preds))
+
         touninon = {}
         completematch = {}
-        for tm, triplemap in mapping_preds.items():
-            for rdfmt in triplemap.subject_map.rdf_types:
-                if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) ==  len(set(star_preds)):
-                    completematch[rdfmt] = {}
-                    completematch[rdfmt][tm] = triplemap.predicate_object_map
-                if rdfmt in rdfmts and \
-                        len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) > 0:
-                    touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
-        if len(completematch) > 0:
-            if len(completematch) ==1:
-                query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]], query_filters)
+
+        if len(star_preds) == 0:
+            subjectonly = False
+            for tm, triplemap in self.mappings.items():
+                for rdfmt in triplemap.subject_map.rdf_types:
+                    if rdfmt in rdfmts:
+                        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in starpreds:
+                            touninon.setdefault(rdfmt, {})[tm] = triplemap.subject_map
+                            subjectonly = True
+                        else:
+                            touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+            if len(touninon) > 1 or subjectonly:
+                return self.makeunion(touninon, query_filters, subjectonly)
+            elif len(touninon) == 1:
+                query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]],
+                                                                                    query_filters)
                 return query, projvartocols, coltotemplates, database_name
             else:
-                return self.makeunion(completematch, query_filters)
-        elif len(touninon) > 1:
-            return self.makeunion(touninon, query_filters)
-        elif len(touninon) == 1:
-            query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]], query_filters)
-            return query, projvartocols, coltotemplates, database_name
+                return None, None, None, None
         else:
-            return None, None, None, None
+            mapping_preds = {tm: triplemap for tm, triplemap in self.mappings.items() for p in star_preds if
+                             p in triplemap.predicate_object_map}
+            for tm, triplemap in mapping_preds.items():
+                for rdfmt in triplemap.subject_map.rdf_types:
+                    if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) == len(set(star_preds)):
+                        completematch[rdfmt] = {}
+                        completematch[rdfmt][tm] = triplemap.predicate_object_map
+
+                    if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) > 0:
+                        touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+            if len(completematch) > 0:
+                if len(completematch) == 1:
+                    query, projvartocols, coltotemplates, database_name = self.makeJoin(
+                        touninon[list(touninon.keys())[0]], query_filters)
+                    return query, projvartocols, coltotemplates, database_name
+                else:
+                    return self.makeunion(completematch, query_filters)
+            elif len(touninon) > 1:
+                return self.makeunion(touninon, query_filters)
+            elif len(touninon) == 1:
+                query, projvartocols, coltotemplates, database_name = self.makeJoin(touninon[list(touninon.keys())[0]],
+                                                                                    query_filters)
+                return query, projvartocols, coltotemplates, database_name
+            else:
+                return None, None, None, None
