@@ -40,8 +40,12 @@ class OntarioConfiguration(object):
 
     def ext_datasources_json(self, ds):
         datasources = {}
+        from time import time
+        start = time()
         for d in ds:
+
             mappings = self.load_mappings(d['mappings'])
+
             datasources[d['ID']] = DataSource(d['name'] if 'name' in d else d['ID'],
                                               d['ID'],
                                               d['url'],
@@ -50,7 +54,6 @@ class OntarioConfiguration(object):
                                               d['mappings']
                                               ,mappings
                                               )
-
         return datasources
 
     def load_mappings(self, mappingslist, rdfmts=[]):
@@ -84,11 +87,14 @@ class OntarioConfiguration(object):
 
     def find_rdfmt_by_preds(self, preds):
         res = []
+        if len(preds) == 0:
+            return self.metadata
         for p in preds:
             if p == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type':
                 continue
             if p in self.predicateMTindex:
                 res.append(self.predicateMTindex[p])
+
         for r in res[1:]:
             res[0] = res[0].intersection(r)
         results = {}
@@ -100,37 +106,37 @@ class OntarioConfiguration(object):
 
 
 prefixes = """
-    prefix rr: <http://www.w3.org/ns/r2rml#> 
-    prefix rml: <http://semweb.mmlab.be/ns/rml#> 
-    prefix ql: <http://semweb.mmlab.be/ns/ql#> 
-    prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
-    prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> 
-    prefix rev: <http://purl.org/stuff/rev#> 
-    prefix schema: <http://schema.org/> 
-    prefix xsd: <http://www.w3.org/2001/XMLSchema#> 
-    prefix base: <http://tib.de/ontario/mapping#> 
-    prefix iasis: <http://project-iasis.eu/vocab/> 
-    prefix hydra: <http://www.w3.org/ns/hydra/core#> 
+prefix rr: <http://www.w3.org/ns/r2rml#> 
+prefix rml: <http://semweb.mmlab.be/ns/rml#> 
+prefix ql: <http://semweb.mmlab.be/ns/ql#> 
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> 
+prefix rev: <http://purl.org/stuff/rev#> 
+prefix schema: <http://schema.org/> 
+prefix xsd: <http://www.w3.org/2001/XMLSchema#> 
+prefix base: <http://tib.de/ontario/mapping#> 
+prefix iasis: <http://project-iasis.eu/vocab/> 
+prefix hydra: <http://www.w3.org/ns/hydra/core#> 
 """
 
 
 def query_rml(filenames, rdfmts=[]):
     templates = {}
-    g = rdflib.Graph()
+    graph = rdflib.Graph()
     for filename in filenames:
-        g.load(filename, format='n3')
+        graph.load(filename, format='n3')
 
     ls_query = "?tm rml:logicalSource ?ls . \n\t\t" \
-               "?ls rml:source ?source .\n\t\t" \
-               "OPTIONAL {?source ?p ?o }\n\t\t" \
+               "?ls rml:source ?source " \
+               "OPTIONAL {?source ?p ?o . }\n\t\t" \
                "OPTIONAL {?ls rml:iterator ?iterator . }\n\t\t" \
                "OPTIONAL {?ls rr:sqlVersion ?sqlVersion. }\n\t\t" \
                "OPTIONAL {?ls rml:query ?lcQuery .} \n\t\t" \
                "OPTIONAL {?ls rr:tableName ?tableName. }\n\t\t" \
                "OPTIONAL {?ls rml:referenceFormulation ?refForm . }\n\t\t"
-    ls_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + ls_query + " }"
+    ls_query = prefixes + '\n' + " SELECT DISTINCT ?tm ?ls ?source  ?p ?o ?iterator ?sqlVersion ?lcQuery ?tableName ?refForm WHERE {\n\t\t" + ls_query + " }"
 
-    res = g.query(ls_query)
+    res = graph.query(ls_query)
     triplemaps = {}
     for row in res:
         tm = row['tm'].n3()[1:-1]
@@ -225,7 +231,7 @@ def query_rml(filenames, rdfmts=[]):
         datasource.ds_type = sourceType
         logicalSource.data_source = datasource
 
-        subjectMap, predicate_object_map = query_rml_subj_pred_obj(g, tm, rdfmts)
+        subjectMap, predicate_object_map = query_rml_subj_pred_obj(graph, tm, rdfmts)
         if subjectMap is not None:
             tmap = TripleMap(tm, logicalSource, subjectMap, predicate_object_map)
             # print(tmap)
@@ -234,14 +240,14 @@ def query_rml(filenames, rdfmts=[]):
     return templates
 
 
-def query_rml_subj_pred_obj(g, tm, rdfmts=[]):
-    subjectMap = query_rml_subj(g, tm, rdfmts)
-    predicate_object_map = query_rml_pred_obj(g, tm)
+def query_rml_subj_pred_obj(graph, tm, rdfmts=[]):
+    subjectMap = query_rml_subj(graph, tm, rdfmts)
+    predicate_object_map = query_rml_pred_obj(graph, tm)
 
     return subjectMap, predicate_object_map
 
 
-def query_rml_subj(g, tm, rdfmts=[]):
+def query_rml_subj(graph, tm, rdfmts=[]):
 
     subj_query = "<" + tm + "> rml:logicalSource ?ls ." \
                  "OPTIONAL { <" + tm + "> rr:subject ?subject . }" \
@@ -261,7 +267,7 @@ def query_rml_subj(g, tm, rdfmts=[]):
         subj_query += " OPTIONAL { ?sm rr:class ?rdfmt .} }"
 
     subj_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + subj_query + " }"
-    res = g.query(subj_query)
+    res = graph.query(subj_query)
     qresults= {}
     subjTerm = None
     sm = None
@@ -299,7 +305,7 @@ def query_rml_subj(g, tm, rdfmts=[]):
     return subj
 
 
-def query_rml_pred_obj(g, tm):
+def query_rml_pred_obj(graph, tm):
     predicate_object_map = {}
 
     pred_query = " <" + tm + "> rr:predicateObjectMap ?pom . " \
@@ -327,7 +333,7 @@ def query_rml_pred_obj(g, tm):
                           " } "
 
     pred_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + pred_query + obj_query + " }"
-    res = g.query(pred_query)
+    res = graph.query(pred_query)
     pom = None
 
     for row in res:
