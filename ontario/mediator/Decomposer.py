@@ -295,7 +295,9 @@ class MediatorCatalyst(object):
         for s in starnames:
             spred = self.get_pred_objs(stars[s])
             bgpstars[s] = {}
-            bgpstars[s]['triples'] = stars[s]
+
+            bgpstars[s]['triples'] = sorted(stars[s])
+
             bgpstars[s]['predicates'] = spred
             types = self.checkRDFTypeStatemnt(stars[s])
             if len(types) > 0:
