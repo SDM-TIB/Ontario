@@ -241,18 +241,18 @@ class DrillWrapper(object):
 
         return tvars
 
-    def getsqlfil(self, l, r, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
+    def getsqlfil(self, l, r, op, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias):
         if r is not None and '?' in r.name:
             var = r.name
             val = l.name
         else:
             var = l.name
             val = r.name
-
+        # print(val)
         if '(' in var and ')' in var:
             var = var[var.find('(') + 1:var.find(')')]
 
-        if var not in var_pred_map:
+        if len(var_pred_map) == 0: #   var not in var_pred_map:
             subjcol = subjmap.value
             splits = subjcol.split('{')
             coltotemplates[var[1:]] = subjcol
@@ -294,6 +294,8 @@ class DrillWrapper(object):
                     objectfilter = tablealias + '.' + column + op + val
 
                 return objectfilter
+        if var not in var_pred_map:
+            return None
 
         p = var_pred_map[var]
         pmap, omap = predicate_object_map[p]
@@ -339,13 +341,24 @@ class DrillWrapper(object):
         if op in unaryFunctor:
             if isinstance(left, Expression) and isinstance(left.left, Argument):
                 left = left.left
-                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates,
-                                     tablealias)
+                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 return fil
 
         elif op in binaryFunctor:
             if op == 'REGEX' and right.desc is not False:
-                return op + "(" + str(left) + "," + right.name + "," + right.desc + ")"
+                if isinstance(left, Expression):
+                    if 'xsd:string' in left.op:
+                        left = left.left
+                        fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                        return fil
+                    # else:
+                    #     left = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                    #     right = self.get_Expression_value(right, var_pred_map, subjmap, predicate_object_map, coltotemplates,tablealias)
+                else:
+                    fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map,
+                                         coltotemplates, tablealias)
+                    return fil
+                # return op + "(" + str(left) + "," + right.name + "," + right.desc + ")"
             else:
                 return op + "(" + str(left) + "," + str(right) + ")"
 
@@ -354,17 +367,18 @@ class DrillWrapper(object):
 
         else:
             if isinstance(left, Argument) and isinstance(right, Argument):
-                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates,
-                                     tablealias)
+                fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 return fil
             if isinstance(left, Expression) and isinstance(right, Expression):
-                leftexp = self.get_Expression_value(left, var_pred_map, subjmap, predicate_object_map, coltotemplates,
-                                                    tablealias)
-                rightexp = self.get_Expression_value(right, var_pred_map, subjmap, predicate_object_map, coltotemplates,
-                                                     tablealias)
+                leftexp = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                rightexp = self.get_Expression_value(right, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
                 if op == '||' or op == '|':
+                    if leftexp is None or rightexp is None:
+                        return None
                     return leftexp + ' OR ' + rightexp
                 else:
+                    if leftexp is None or rightexp is None:
+                        return None
                     return leftexp + ' AND ' + rightexp
             print(op, type(left), left, type(right), right)
             return "(" + str(exp.left) + " " + exp.op + " " + str(exp.right)
@@ -379,6 +393,7 @@ class DrillWrapper(object):
         projections = {}
         projvartocol = {}
         objectfilters = []
+        constfilters = []
         fromclauses = []
         database_name = ""
         i = 0
@@ -426,10 +441,10 @@ class DrillWrapper(object):
                     if '[*]' in col:
                         col = col.replace('[*]', '')
                         column = "`" + col + '`'
-                        projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS " + var[1:]
+                        projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:]  + '`'
                     else:
                         column = "`" + column + '`'
-                        projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
+                        projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
                     projvartocol[var[1:]] = col
                     objectfilters.append(tablealias + '.' + column + " is not null ")
                     objectfilters.append(tablealias + '.' + column + " <> '' ")
@@ -463,7 +478,7 @@ class DrillWrapper(object):
                                 projections[var[1:] + '_Ontario_' + str(j)] = "FLATTEN(" + tablealias + "." + vcolumn + ") AS " + var[1:] + '_Ontario_' + str(j)
                             else:
                                 vcolumn = "`" + col + '`'
-                                projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + var[1:] + '_Ontario_' + str(j)
+                                projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j)  + '`'
 
                             projvartocol.setdefault(var[1:], []).append(col)
                             objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
@@ -474,10 +489,10 @@ class DrillWrapper(object):
                         if '[*]' in col:
                             col = col.replace('[*]', '')
                             column = "`" + col + '`'
-                            projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS " + var[1:]
+                            projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:]  + '`'
                         else:
                             column = "`" + column + '`'
-                            projections[var[1:]] = tablealias + "." + column + " AS " + var[1:]
+                            projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
                         projvartocol[var[1:]] = col
                         objectfilters.append(tablealias + '.' + column + " is not null ")
                         objectfilters.append(tablealias + '.' + column + " <> '' ")
@@ -485,7 +500,7 @@ class DrillWrapper(object):
                 #if len(set(f.getVars()).intersection(list(var_pred_map.keys()))) == len(set(f.getVars())):
                 fil = self.get_obj_filter(f, var_pred_map, self.mappings[tm].subject_map.subject, predicate_object_map, coltotemplates, tablealias)
                 if fil is not None and len(fil) > 0:
-                    objectfilters.append(fil)
+                    constfilters.append(fil)
             tm_tablealias[tablealias] = tm
 
             triplemap = self.mappings[tm]
@@ -551,23 +566,12 @@ class DrillWrapper(object):
                     if isinstance(column, list):
                         j = 0
                         for col in column:
-                            if '[*]' in col:
-                                col = col.replace('[*]', '')
-                                vcolumn = "`" + col + '`'
-                                projections[var[1:] + '_Ontario_' + str(j)] = "FLATTEN(" + tablealias + "." + vcolumn + ") AS " + var[1:] + '_Ontario_' + str(j)
-                                objectfilters.append("FLATTEN(" + tablealias + "." + vcolumn + ") = " + var)
-                            else:
-                                vcolumn = "`" + col + '`'
-                                objectfilters.append(tablealias + "." + vcolumn + " = " + var)
+                            vcolumn = "`" + col + '`'
+                            constfilters.append(tablealias + "." + vcolumn + " = " + var)
                             j += 1
                     else:
-                        if '[*]' in column:
-                            column = column.replace('[*]', '')
-                            column = "`" + column + '`'
-                            projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS " + var[1:]
-                        else:
-                            column = "`" + column + '`'
-                            objectfilters.append(tablealias + "." + column + " = " + var)
+                        column = "`" + column + '`'
+                        constfilters.append(tablealias + "." + column + " = " + var)
 
         subj = self.star['triples'][0].subject.name if not self.star['triples'][0].subject.constant else None
         invalidsubj = False
@@ -586,7 +590,7 @@ class DrillWrapper(object):
                     j = 0
                     for col in column:
                         vcolumn = "`" + col + '`'
-                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS " + subj[ 1:] + '_Ontario_' + str(j)
+                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[ 1:] + '_Ontario_' + str(j) + '`'
                         projvartocol.setdefault(subj[1:], []).append(col)
                         objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                         objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
@@ -594,7 +598,7 @@ class DrillWrapper(object):
                 elif len(column) == 1:
                     col = column[0]
                     column = "`" + col + '`'
-                    projections[subj[1:]] = tablealias + "." + column + " AS " + subj[1:]
+                    projections[subj[1:]] = tablealias + "." + column + " AS `" + subj[1:] + '`'
                     projvartocol[subj[1:]] = col
 
                     objectfilters.append(tablealias + '.' + column + " is not null ")
@@ -621,7 +625,7 @@ class DrillWrapper(object):
                 j = 0
                 for col in column:
                     vcolumn = "`" + col + '`'
-                    objectfilters.append(tablealias + "." + vcolumn + " = " + var)
+                    constfilters.append(tablealias + "." + vcolumn + " = " + var)
                     j += 1
         if invalidsubj:
             mapping_preds = []
@@ -657,10 +661,13 @@ class DrillWrapper(object):
                     column2 = '`' + column2 + '`'
                     if column1 == column2:
                         objectfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
-
+        objectfilters.extend(constfilters)
         if len(mapping_preds) > 0:
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
-            projections = " SELECT " + ", ".join(list(set(projections.values())))
+            distinct = ""
+            if self.query.distinct:
+                distinct = "DISTINCT "
+            projections = " SELECT  " + distinct + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
                 whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
             else:
