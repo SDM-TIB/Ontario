@@ -754,7 +754,7 @@ class Triple(object):
         self.isGeneral = False
 
     def __repr__(self):
-        return ("\n        " + self.subject.name + " " + self.predicate.name + " "    + str(self.theobject))
+        return "\n        " + self.subject.name + " " + self.predicate.name + " "    + str(self.theobject)
 
     def setGeneral(self, ps, genPred):
         self.isGeneral = (getUri(self.predicate, ps) in genPred)
@@ -764,6 +764,17 @@ class Triple(object):
         return ((self.subject == other.subject) and
                 (self.predicate == other.predicate) and
                 (self.theobject == other.theobject))
+
+    def __lt__(self, other):
+        if other.subject.constant and not self.subject.constant:
+            return False
+        if self.subject.constant and not other.subject.constant:
+            return True
+        if other.predicate.constant and self.predicate.constant and other.theobject.constant and not self.theobject.constant:
+            return False
+        if other.predicate.constant and self.predicate.constant and self.theobject.constant and not other.theobject.constant:
+            return True
+        return self.constantPercentage() > other.constantPercentage()
 
     def __hash__(self):
         return hash((self.subject,self.predicate,self.theobject))
