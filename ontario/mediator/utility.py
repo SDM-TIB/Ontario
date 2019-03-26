@@ -75,7 +75,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
                             makeBushyTree([
                                     Service(
                                            endpoint="<" + config.datasources[d].url + ">",
-                                           triples=list(set(star['triples'])),
+                                           triples=star['triples'],
                                            datasource=config.datasources[d],
                                            rdfmts=star['rdfmts'],
                                            star=star)],
@@ -83,7 +83,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
                         ], filters=star_filters) for d in sources]
             else:
                 elems = [JoinBlock([Service(endpoint="<" + config.datasources[d].url + ">",
-                                            triples=list(set(star['triples'])),
+                                            triples=star['triples'],
                                             datasource=config.datasources[d],
                                             rdfmts=star['rdfmts'],
                                             star=star,
@@ -94,7 +94,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
         elif len(sources) == 1:
             d = sources.pop()
             serv = Service(endpoint="<" + config.datasources[d].url + ">",
-                           triples=list(set(star['triples'])),
+                           triples=star['triples'],
                            datasource=config.datasources[d],
                            rdfmts=star['rdfmts'],
                            star=star,
