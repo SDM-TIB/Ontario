@@ -168,6 +168,45 @@ class Service(object):
         return (" { SERVICE <" + self.endpoint + "> { "
                 + triples_str + filters_str + " }   \n }")
 
+    def __lt__(self, other):
+        """
+        compares two triples patterns based on the position of contants
+        :param other:
+        :return:
+        """
+        if other.const_subjects() + other.const_predicates() > self.const_subjects() + self.const_predicates():
+            return False
+        elif other.const_subjects() + other.const_predicates() < self.const_subjects() + self.const_predicates():
+            return True
+        elif other.const_subjects() > self.const_subjects():
+            return False
+        elif other.const_subjects() < self.const_subjects():
+            return True
+        elif other.const_objects() + other.const_predicates() > self.const_objects() + self.const_predicates():
+            return False
+        elif other.const_objects() + other.const_predicates() < self.const_objects() + self.const_predicates():
+            return True
+        elif other.const_objects() > self.const_objects():
+            return False
+        elif other.const_objects() < self.const_objects():
+            return True
+        elif other.const_subjects() == self.const_subjects():
+            if other.const_predicates() > self.const_predicates():
+                return False
+            elif other.const_predicates() < self.const_predicates():
+                return True
+            elif other.const_objects() > self.const_objects():
+                return False
+            elif other.const_objects() < self.const_objects():
+                return True
+        if other.constantPercentage() == self.constantPercentage():
+            if other.constantNumber() > self.constantNumber():
+                return False
+            else:
+                return True
+
+        return self.constantPercentage() > other.constantPercentage()
+
     def allTriplesGeneral(self):
         a = True
         if isinstance(self.triples, list):
@@ -287,6 +326,33 @@ class Service(object):
             p = self.triples.constantNumber()
         return p
 
+    def const_subjects(self):
+        p = 0
+        if isinstance(self.triples, list):
+            for t in self.triples:
+                p = p + t.const_subjects()
+        else:
+            p = self.triples.const_subjects()
+        return p
+
+    def const_objects(self):
+        p = 0
+        if isinstance(self.triples, list):
+            for t in self.triples:
+                p = p + t.const_objects()
+        else:
+            p = self.triples.const_objects()
+        return p
+
+    def const_predicates(self):
+        p = 0
+        if isinstance(self.triples, list):
+            for t in self.triples:
+                p = p + t.const_predicates()
+        else:
+            p = self.triples.const_predicates()
+        return p
+
     def constantPercentage(self):
         if self.places() == 0:
             return 0
@@ -396,6 +462,24 @@ class UnionBlock(object):
         c = 0
         for e in self.triples:
             c = c + e.constantNumber()
+        return c
+
+    def const_subjects(self):
+        c = 0
+        for e in self.triples:
+            c = c + e.const_subjects()
+        return c
+
+    def const_objects(self):
+        c = 0
+        for e in self.triples:
+            c = c + e.const_objects()
+        return c
+
+    def const_predicates(self):
+        c = 0
+        for e in self.triples:
+            c = c + e.const_predicates()
         return c
 
     def constantPercentage(self):
@@ -557,6 +641,33 @@ class JoinBlock(object):
             p = self.triples.places()
         return p
 
+    def const_subjects(self):
+        c = 0
+        if isinstance(self.triples, list):
+            for e in self.triples:
+                c = c + e.const_subjects()
+        else:
+            c = self.triples.const_subjects()
+        return c
+
+    def const_objects(self):
+        c = 0
+        if isinstance(self.triples, list):
+            for e in self.triples:
+                c = c + e.const_objects()
+        else:
+            c = self.triples.const_objects()
+        return c
+
+    def const_predicates(self):
+        c = 0
+        if isinstance(self.triples, list):
+            for e in self.triples:
+                c = c + e.const_predicates()
+        else:
+            c = self.triples.const_predicates()
+        return c
+
     def constantNumber(self):
         c = 0
         if isinstance(self.triples, list):
@@ -608,6 +719,153 @@ class Optional(object):
 
     def constantNumber(self):
         return self.bgg.constantNumber()
+
+    def const_subjects(self):
+        return self.bgg.const_subjects()
+
+    def const_objects(self):
+        return self.bgg.const_obbjects()
+
+    def const_predicates(self):
+        return self.bgg.const_predicates()
+
+    def constantPercentage(self):
+        return self.constantNumber()/self.places()
+
+
+class Triple(object):
+    def __init__(self, subject, predicate, theobject):
+        self.subject = subject
+        self.predicate = predicate
+        self.theobject = theobject
+        self.isGeneral = False
+
+    def __repr__(self):
+        return "\n        " + self.subject.name + " " + self.predicate.name + " "    + str(self.theobject)
+
+    def setGeneral(self, ps, genPred):
+        self.isGeneral = (getUri(self.predicate, ps) in genPred)
+
+    def __eq__(self, other):
+
+        return ((self.subject == other.subject) and
+                (self.predicate == other.predicate) and
+                (self.theobject == other.theobject))
+
+    def __lt__(self, other):
+        """
+        compares two triples patterns based on the position of contants
+        :param other:
+        :return:
+        """
+        if other.subject.constant and not self.subject.constant:
+            return False
+        if self.subject.constant and not other.subject.constant:
+            return True
+        if other.predicate.constant and self.predicate.constant and other.theobject.constant and not self.theobject.constant:
+            return False
+        if other.predicate.constant and self.predicate.constant and self.theobject.constant and not other.theobject.constant:
+            return True
+        return self.constantPercentage() > other.constantPercentage()
+
+    def const_subjects(self):
+        n = 0
+        if self.subject.constant:
+            n = n + 1
+        return n
+
+    def const_objects(self):
+        n = 0
+        if self.theobject.constant:
+            n = n + 1
+        return n
+
+    def const_predicates(self):
+        n = 0
+        if self.predicate.constant:
+            n = n + 1
+        return n
+
+    def __hash__(self):
+        return hash((self.subject,self.predicate,self.theobject))
+
+    def allTriplesGeneral(self):
+        return self.isGeneral
+
+    #Modified 17-12-2013. General predicates are not considered to decide if the triple is selective or not
+    def allTriplesLowSelectivity(self):
+        return ((not self.predicate.constant)
+                #or ((self.isGeneral) and (not self.subject.constant)
+                 or ((not self.subject.constant)
+                    and (not self.theobject.constant))
+                 # or
+                 #   # added 09/03/2018
+                 #   (self.theobject.constant and
+                 #   self.predicate.constant and
+                 #   ('rdf:type' in self.predicate.name or 'a' == self.predicate.name or
+                 #     'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in self.predicate.name))
+                )
+
+    def show(self, x):
+        return x+self.subject.name+" " + self.predicate.name + " " + str(self.theobject)
+
+    def getVars(self):
+
+        l = []
+        if not self.subject.constant:
+            l.append(self.subject.name)
+        if not self.theobject.constant:
+            l.append(self.theobject.name)
+        return l
+
+    def getConsts(self):
+        c = []
+        if self.subject.constant:
+            c.append(self.subject.name)
+        if self.theobject.constant:
+            c.append(self.theobject.name)
+        return c
+
+    def getPredVars(self):
+
+        l = []
+        if not self.predicate.constant:
+            l.append(self.predicate.name)
+        return l
+
+    def places(self):
+        return 3
+
+    def instantiate(self, d):
+        sn = self.subject.name.lstrip('?$')
+        pn = self.predicate.name.lstrip('?$')
+        on = self.theobject.name.lstrip('?$')
+        if (not self.subject.constant) and (sn in d):
+            s = Argument(d[sn], True)
+        else:
+            s = self.subject
+        if (not self.predicate.constant) and (pn in d):
+            p = Argument(d[pn], True)
+        else:
+            p = self.predicate
+        if (not self.theobject.constant) and (on in d):
+            o = Argument(d[on], True)
+        else:
+            o = self.theobject
+        return Triple(s, p, o)
+
+    def instantiateFilter(self, d, filter_str):
+        return Triple(self.subject, self.predicate, self.theobject)
+
+    def constantNumber(self):
+        n = 0
+        if self.subject.constant:
+            n = n + 1
+        if self.predicate.constant:
+            n = n + 1
+        if self.theobject.constant:
+            n = n + 1
+        return n
 
     def constantPercentage(self):
         return self.constantNumber()/self.places()
@@ -741,121 +999,6 @@ class Expression(object):
             return self.left.constantNumber()
         else:
             return self.left.constantNumber() + self.right.constantNumber()
-
-    def constantPercentage(self):
-        return self.constantNumber()/self.places()
-
-
-class Triple(object):
-    def __init__(self, subject, predicate, theobject):
-        self.subject = subject
-        self.predicate = predicate
-        self.theobject = theobject
-        self.isGeneral = False
-
-    def __repr__(self):
-        return "\n        " + self.subject.name + " " + self.predicate.name + " "    + str(self.theobject)
-
-    def setGeneral(self, ps, genPred):
-        self.isGeneral = (getUri(self.predicate, ps) in genPred)
-
-    def __eq__(self, other):
-
-        return ((self.subject == other.subject) and
-                (self.predicate == other.predicate) and
-                (self.theobject == other.theobject))
-
-    def __lt__(self, other):
-        if other.subject.constant and not self.subject.constant:
-            return False
-        if self.subject.constant and not other.subject.constant:
-            return True
-        if other.predicate.constant and self.predicate.constant and other.theobject.constant and not self.theobject.constant:
-            return False
-        if other.predicate.constant and self.predicate.constant and self.theobject.constant and not other.theobject.constant:
-            return True
-        return self.constantPercentage() > other.constantPercentage()
-
-    def __hash__(self):
-        return hash((self.subject,self.predicate,self.theobject))
-
-    def allTriplesGeneral(self):
-        return self.isGeneral
-
-    #Modified 17-12-2013. General predicates are not considered to decide if the triple is selective or not
-    def allTriplesLowSelectivity(self):
-        return ((not self.predicate.constant)
-                #or ((self.isGeneral) and (not self.subject.constant)
-                 or ((not self.subject.constant)
-                    and (not self.theobject.constant))
-                 # or
-                 #   # added 09/03/2018
-                 #   (self.theobject.constant and
-                 #   self.predicate.constant and
-                 #   ('rdf:type' in self.predicate.name or 'a' == self.predicate.name or
-                 #     'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in self.predicate.name))
-                )
-
-    def show(self, x):
-        return x+self.subject.name+" " + self.predicate.name + " " + str(self.theobject)
-
-    def getVars(self):
-
-        l = []
-        if not self.subject.constant:
-            l.append(self.subject.name)
-        if not self.theobject.constant:
-            l.append(self.theobject.name)
-        return l
-
-    def getConsts(self):
-        c = []
-        if self.subject.constant:
-            c.append(self.subject.name)
-        if self.theobject.constant:
-            c.append(self.theobject.name)
-        return c
-
-    def getPredVars(self):
-
-        l = []
-        if not self.predicate.constant:
-            l.append(self.predicate.name)
-        return l
-
-    def places(self):
-        return 3
-
-    def instantiate(self, d):
-        sn = self.subject.name.lstrip('?$')
-        pn = self.predicate.name.lstrip('?$')
-        on = self.theobject.name.lstrip('?$')
-        if (not self.subject.constant) and (sn in d):
-            s = Argument(d[sn], True)
-        else:
-            s = self.subject
-        if (not self.predicate.constant) and (pn in d):
-            p = Argument(d[pn], True)
-        else:
-            p = self.predicate
-        if (not self.theobject.constant) and (on in d):
-            o = Argument(d[on], True)
-        else:
-            o = self.theobject
-        return Triple(s, p, o)
-
-    def instantiateFilter(self, d, filter_str):
-        return Triple(self.subject, self.predicate, self.theobject)
-
-    def constantNumber(self):
-        n = 0
-        if self.subject.constant:
-            n = n + 1
-        if self.predicate.constant:
-            n = n + 1
-        if self.theobject.constant:
-            n = n + 1
-        return n
 
     def constantPercentage(self):
         return self.constantNumber()/self.places()
