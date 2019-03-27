@@ -334,34 +334,40 @@ def get_so_variables(triples):
 
 
 def sort(lss):
-
+    lss = sorted(lss)
     lo = []
     while not(lss == []):
         m = 0
         for i in range(len(lss)):
             if lss[i].constantPercentage() > lss[m].constantPercentage():
                 m = i
-            elif isinstance(lss[i], Service) and isinstance(lss[m], Service) and lss[i].constantPercentage() == lss[m].constantPercentage():
+
+            # Ordering between two leaf operators, i.e., SSQs
+            if isinstance(lss[i], Service) and isinstance(lss[m], Service) and \
+                    lss[i].constantPercentage() == lss[m].constantPercentage():
                 if len(lss[i].star['triples']) > len(lss[m].star['triples']):
                     m = i
-                elif len(get_so_variables(lss[i].star['triples'])) < len(get_so_variables(lss[m].star['triples'])):
+                if len(get_so_variables(lss[i].star['triples'])) < len(get_so_variables(lss[m].star['triples'])):
                     m = i
-
+        # Ordering between two leaf operators, i.e., SSQs,
+        # based on type of data source (scores given manually from experience)
         for i in range(len(lss)):
-            if isinstance(lss[i], Service) and isinstance(lss[m], Service) and getdsscore(lss[i].datasource.dstype) > getdsscore(lss[m].datasource.dstype):
+            if isinstance(lss[i], Service) and isinstance(lss[m], Service) and \
+                    getdsscore(lss[i].datasource.dstype) > getdsscore(lss[m].datasource.dstype):
                 m = i
         lo.append(lss[m])
         lss.pop(m)
 
     llo = []
+    # Global ordering based on data source type scores
     while not(lo == []):
         m = 0
         for i in range(len(lo)):
-            if isinstance(lo[i], Service) and isinstance(lo[m], Service) and getdsscore(lo[i].datasource.dstype) < getdsscore(lo[m]):
+            if isinstance(lo[i], Service) and isinstance(lo[m], Service) and \
+                    getdsscore(lo[i].datasource.dstype) < getdsscore(lo[m]):
                 m = i
         llo.append(lo[m])
         lo.pop(m)
-
     return llo
 
 
@@ -452,7 +458,6 @@ def makeBushyTree(ss, filters=None):
     if filters is None:
         filters = []
     (d, pq) = createLeafs(ss, filters)
-
     others = []
     while len(pq) > 1:
         done = False
