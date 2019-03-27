@@ -93,7 +93,7 @@ class DrillWrapper(object):
                     sqlquery = " UNION ".join(sqlquery)
             if isinstance(sqlquery, list):
                 sqlquery = [sql for sql in sqlquery if sql is not None and len(sql) > 0]
-                logger.info(" UNION ".join(sqlquery))
+                # logger.info(" UNION ".join(sqlquery))
                 processqueues = []
                 processes = []
                 res_dict = []
@@ -271,8 +271,8 @@ class DrillWrapper(object):
                         val = "'" + val + "'"
 
                     if op == 'REGEX':
-                        val = "'%" + val[1:-1] + "%'"
-                        objectfilter = tablealias + '.' + vcolumn + " LIKE " + val
+                        val = "LOWER('%" + val[1:-1] + "%')"
+                        objectfilter = 'LOWER(' + tablealias + '.' + vcolumn + ") LIKE " + val
                     else:
                         objectfilter = tablealias + '.' + vcolumn + op + val
                     objfilters.append(objectfilter)
@@ -288,8 +288,8 @@ class DrillWrapper(object):
                     val = "'" + val + "'"
 
                 if op == 'REGEX':
-                    val = "'%" + val[1:-1] + "%'"
-                    objectfilter = tablealias + '.' + column + " LIKE " + val
+                    val = "LOWER('%" + val[1:-1] + "%')"
+                    objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
                 else:
                     objectfilter = tablealias + '.' + column + op + val
 
@@ -325,8 +325,8 @@ class DrillWrapper(object):
             val = "'" + val + "'"
 
         if op == 'REGEX':
-            val = "'%" + val[1:-1] + "%'"
-            objectfilter = tablealias + '.' + column + " LIKE " + val
+            val = "LOWER('%" + val[1:-1] + "%')"
+            objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
         else:
             objectfilter = tablealias + '.' + column + op + val
 
