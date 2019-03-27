@@ -89,7 +89,7 @@ class SPARKWrapper(object):
                 self.spark = self.spark.config(p, params[p])
 
             self.spark = self.spark.getOrCreate()
-            logger.info("SPARK Initialization cost:", time()-start)
+            logger.info("SPARK Initialization cost:" + str(time()-start))
         start = time()
 
         for filename, tablename in filenametablename.items():
@@ -117,7 +117,7 @@ class SPARKWrapper(object):
                                          header=True)
 
             df.createOrReplaceTempView(tablename)
-        logger.info("time for reading file", filenametablename, time() - start)
+        logger.info("time for reading file" + str(filenametablename) + str(time() - start))
 
         totalres = 0
         try:
@@ -136,7 +136,7 @@ class SPARKWrapper(object):
                 logger.info(sqlquery)
                 cardinality = self.process_result(sqlquery, queue, projvartocols, coltotemplates)
                 totalres += cardinality
-            logger.info("Exec in SPARK took:", time() - runstart)
+            logger.info("Exec in SPARK took:" + str(time() - runstart))
         except Exception as e:
             print("Exception ", e)
             pass
@@ -236,8 +236,8 @@ class SPARKWrapper(object):
                         val = "'" + val + "'"
 
                     if op == 'REGEX':
-                        val = "'%" + val[1:-1] + "%'"
-                        objectfilter = tablealias + '.' + vcolumn + " LIKE " + val
+                        val = "LOWER('%" + val[1:-1] + "%')"
+                        objectfilter = 'LOWER(' + tablealias + '.' + vcolumn + ") LIKE " + val
                     else:
                         objectfilter = tablealias + '.' + vcolumn + op + val
                     objfilters.append(objectfilter)
@@ -253,8 +253,8 @@ class SPARKWrapper(object):
                     val = "'" + val + "'"
 
                 if op == 'REGEX':
-                    val = "'%" + val[1:-1] + "%'"
-                    objectfilter = tablealias + '.' + column + " LIKE " + val
+                    val = "LOWER('%" + val[1:-1] + "%')"
+                    objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
                 else:
                     objectfilter = tablealias + '.' + column + op + val
 
@@ -290,8 +290,8 @@ class SPARKWrapper(object):
             val = "'" + val + "'"
 
         if op == 'REGEX':
-            val = "'%" + val[1:-1] + "%'"
-            objectfilter = tablealias + '.' + column + " LIKE " + val
+            val = "LOWER('%" + val[1:-1] + "%')"
+            objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
         else:
             objectfilter = tablealias + '.' + column + op + val
 
