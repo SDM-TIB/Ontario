@@ -44,7 +44,8 @@ def push_down_join(services):
         for s in services_to_remove:
             if s in services:
                 services.remove(s)
-    services = list(set(services + new_services))
+
+    [services.append(s) for s in new_services if s not in services]
     return services
 
 
@@ -105,9 +106,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
             filter_pushed = True
         else:
             non_match_filters = list(set(filters).difference(star_filters))
-
     services = push_down_join(services)
-
     if services and joinplans:
         joinplans = services + joinplans
     elif services:
