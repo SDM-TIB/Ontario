@@ -42,8 +42,9 @@ class MetaWrapperPlanner(object):
 
             bgp_triples = []
             [bgp_triples.extend(BGP['stars'][s]['triples']) for s in BGP['stars']]
+            [joinplans.append(s) for s in sblocks]
 
-            gp = makeBushyTree(joinplans + sblocks, get_filters(bgp_triples, non_match_filters))
+            gp = makeBushyTree(joinplans, get_filters(bgp_triples, non_match_filters))
 
             gp = [gp] + opblocks
 
