@@ -23,7 +23,7 @@ def push_down_join(services):
                 if len(set(l.getVars()) & set(r.getVars())) > 0:
                     servs.remove(r)
                     new_service = Service(endpoint="<" + e + ">",
-                                          triples=list(set(l.triples + r.triples)),
+                                          triples=sorted(l.triples + r.triples),
                                           datasource=l.datasource,
                                           rdfmts=list(set(l.rdfmts + r.rdfmts)),
                                           star=l.star,
