@@ -97,7 +97,7 @@ class MySQLWrapper(object):
             if isinstance(sqlquery, list):
                 try:
                     sqlquery = [sql for sql in sqlquery if sql is not None and len(sql) > 0]
-                    logger.info(" UNION ".join(sqlquery))
+                    # logger.info(" UNION ".join(sqlquery))
                     processqueues = []
                     processes = []
                     res_dict = []
@@ -147,14 +147,18 @@ class MySQLWrapper(object):
                 except connector.Error as err:
                     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                         print("Something is wrong with your user name or password")
+                        logger.error("Something is wrong with your user name or password")
                     elif err.errno == errorcode.ER_BAD_DB_ERROR:
                         print("Database does not exist")
+                        logger.error("Database does not exist")
                     else:
                         print(err)
+                        logger.error("Error:" + str(err))
                     queue.put('EOF')
                     return
                 except Exception as ex:
                     print("Exception while connecting to Mysql", ex)
+                    logger.error("Exception while connecting to Mysql" + str(ex))
                     queue.put('EOF')
                     return
 
@@ -193,7 +197,7 @@ class MySQLWrapper(object):
             print("Exception ", e)
             pass
         logger.info("Running query: " + str(query) + " DONE")
-        logger.info("MySQL finished after: ", (time()-start))
+        logger.info("MySQL finished after: " + str(time()-start))
         queue.put("EOF")
 
     def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue, res_dict):
@@ -210,14 +214,18 @@ class MySQLWrapper(object):
             except connector.Error as err:
                 if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                     print("Something is wrong with your user name or password")
+                    logger.error("Something is wrong with your user name or password")
                 elif err.errno == errorcode.ER_BAD_DB_ERROR:
                     print("Database does not exist")
+                    logger.error("Database does not exist")
                 else:
                     print("Something is wrong ", err)
+                    logger.error("Something is wrong " + str(err))
                 processqueue.put('EOF')
                 return
             except Exception as ex:
                 print("Exception while connecting to Mysql", ex)
+                logger.error("Exception while connecting to Mysql" + str(ex))
                 processqueue.put('EOF')
                 return
             cursor = mysql.cursor()
@@ -240,7 +248,7 @@ class MySQLWrapper(object):
                     break
                 offset = offset + limit
             # print("DONE UNION:", card, sql)
-            logger.info("Running:" + sql +" is DONE!")
+            logger.info("Running:" + sql + " is DONE!")
         except Exception as e:
             logger.error("Exception while running " + sql + " " + str(e))
             pass
@@ -340,8 +348,8 @@ class MySQLWrapper(object):
                         val = "'" + val + "'"
 
                     if op == 'REGEX':
-                        val = "'%" + val[1:-1] + "%'"
-                        objectfilter = tablealias + '.' + vcolumn + " LIKE " + val
+                        val = "LOWER('%" + val[1:-1] + "%')"
+                        objectfilter = 'LOWER(' + tablealias + '.' + vcolumn + ") LIKE " + val
                     else:
                         objectfilter = tablealias + '.' + vcolumn + op + val
                     objfilters.append(objectfilter)
@@ -357,8 +365,8 @@ class MySQLWrapper(object):
                     val = "'" + val + "'"
 
                 if op == 'REGEX':
-                    val = "'%" + val[1:-1] + "%'"
-                    objectfilter = tablealias + '.' + column + " LIKE " + val
+                    val = "LOWER('%" + val[1:-1] + "%')"
+                    objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
                 else:
                     objectfilter = tablealias + '.' + column + op + val
 
@@ -394,8 +402,8 @@ class MySQLWrapper(object):
             val = "'" + val + "'"
 
         if op == 'REGEX':
-            val = "'%" + val[1:-1] + "%'"
-            objectfilter = tablealias + '.' + column + " LIKE " + val
+            val = "LOWER('%" + val[1:-1] + "%')"
+            objectfilter = 'LOWER(' + tablealias + '.' + column + ") LIKE " + val
         else:
             objectfilter = tablealias + '.' + column + op + val
 
