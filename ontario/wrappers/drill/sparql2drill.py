@@ -375,12 +375,12 @@ class DrillWrapper(object):
                 if op == '||' or op == '|':
                     if leftexp is None or rightexp is None:
                         return None
-                    return leftexp + ' OR ' + rightexp
+                    return '(' + leftexp + ' OR ' + rightexp + ')'
                 else:
                     if leftexp is None or rightexp is None:
                         return None
-                    return leftexp + ' AND ' + rightexp
-            print(op, type(left), left, type(right), right)
+                    return '(' + leftexp + ' AND ' + rightexp + ')'
+            # print(op, type(left), left, type(right), right)
             return "(" + str(exp.left) + " " + exp.op + " " + str(exp.right)
 
     def get_obj_filter(self, f, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
