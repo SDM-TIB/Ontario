@@ -237,6 +237,7 @@ class MySQLWrapper(object):
             offset = 0
             # print(sql)
             # rs = time()
+            counter = 0
             while True:
                 query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                 cursor.execute(query_copy)
@@ -248,7 +249,7 @@ class MySQLWrapper(object):
                     break
                 offset = offset + limit
             # print("DONE UNION:", card, sql)
-            logger.info("Running:" + sql + " is DONE!")
+            logger.info("Union Running:" + sql + " is DONE! Total results: " + str(card))
         except Exception as e:
             logger.error("Exception while running " + sql + " " + str(e))
             pass
@@ -313,7 +314,7 @@ class MySQLWrapper(object):
             if not t.subject.constant:
                 tvars.append(t.subject.name)
             # exclude variables that are not projected
-            if not t.theobject.constant:
+            if not t.theobject.constant:#  and t.theobject.name in proj:
                 tvars.append(t.theobject.name)
 
         return tvars
@@ -329,7 +330,7 @@ class MySQLWrapper(object):
         if '(' in var and ')' in var:
             var = var[var.find('(') + 1:var.find(')')]
 
-        if len(var_pred_map) == 0: #   var not in var_pred_map:
+        if len(var_pred_map) == 0 or var == self.star['triples'][0].subject.name:
             subjcol = subjmap.value
             splits = subjcol.split('{')
             coltotemplates[var[1:]] = subjcol

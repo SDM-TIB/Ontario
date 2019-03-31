@@ -252,7 +252,7 @@ class DrillWrapper(object):
         if '(' in var and ')' in var:
             var = var[var.find('(') + 1:var.find(')')]
 
-        if len(var_pred_map) == 0: #   var not in var_pred_map:
+        if len(var_pred_map) == 0 or var == self.star['triples'][0].subject.name:
             subjcol = subjmap.value
             splits = subjcol.split('{')
             coltotemplates[var[1:]] = subjcol
