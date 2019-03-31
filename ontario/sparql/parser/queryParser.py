@@ -96,12 +96,12 @@ def t_ID(t):
     t.type = reserved.get(t.value.upper(),'ID')    # Check for reserved words
     return t
 
-
 #t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?" #[<]http[://]+www[.]w3[.]org[/]2001[/]XMLSchema[#]\w+
 t_DOUBLECONST = r"[0-9]+'.'[0-9]*[eE][+-]?[0-9]+|'.'([0-9])+[eE][+-]?[0-9]+|([0-9])+[eE][+-]?[0-9]+"
 t_DECIMALCONST = r"[0-9]*'.'[0-9]+"
-t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?"
-
+# t_CONSTANT = r"(\"|\')[^\"\'\n\r]*(\"|\')((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?"
+t_CONSTANT = r"((\')[^\"\n\r]*(\')|(\")[^\"\n\r]*(\"))((@[a-z][a-z]) | (\^\^[<](https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|][>]))?"
+# ([^'\n]|(\'))*
 t_NUMBER = r"([0-9])+"
 t_VARIABLE = r"([\?]|[\$])([A-Z]|[a-z])\w*"
 t_LKEY = r"\{"
