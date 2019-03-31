@@ -236,7 +236,7 @@ class DrillWrapper(object):
             if not t.subject.constant:
                 tvars.append(t.subject.name)
             # exclude variables that are not projected
-            if not t.theobject.constant and t.theobject.name in proj:
+            if not t.theobject.constant:# and t.theobject.name in proj:
                 tvars.append(t.theobject.name)
 
         return tvars
