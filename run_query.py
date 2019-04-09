@@ -1,4 +1,5 @@
 
+__author__ = 'Kemele M. Endris'
 
 if __name__ == '__main__':
     from pprint import pprint
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     plan = mwp.make_plan()
     print(plan)
     plantime = time() - planstart
-    #exit()
+    # exit()
     out = Queue()
     processqueue = Queue()
     plan.execute(out, processqueue)

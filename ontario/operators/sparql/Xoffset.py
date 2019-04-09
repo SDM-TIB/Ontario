@@ -12,10 +12,10 @@ from multiprocessing import Queue
 class Xoffset(object):
     
     def __init__(self, vars, offset):
-        self.input       = Queue()
-        self.qresults   = Queue()
-        self.vars  = vars
-        self.offset  = int(offset)
+        self.input = Queue()
+        self.qresults = Queue()
+        self.vars = vars
+        self.offset = int(offset)
         
     def execute(self, left, dummy, out, processqueue=Queue()):
         # Executes the Xoffset.
@@ -25,12 +25,12 @@ class Xoffset(object):
         count = 0
         
         # OFFSET
-        while (count < self.offset) and (tuple!= "EOF"):
+        while (count < self.offset) and (tuple != "EOF"):
             count = count + 1
             tuple = self.left.get(True)
             
         # Producing the remaining results. 
-        while (tuple != "EOF"):
+        while tuple != "EOF":
             self.qresults.put(tuple)
             tuple = self.left.get(True)
             

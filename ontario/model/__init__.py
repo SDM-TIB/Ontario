@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from enum import Enum
 
 
@@ -44,5 +47,4 @@ class DataSourceType(Enum):
     LOCAL_CSV = "LOCAL_CSV"
     LOCAL_TSV = "LOCAL_TSV"
     LOCAL_JSON = "LOCAL_JSON"
-
     LOCAL_XML = "LOCAL_XML"

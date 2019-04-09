@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 import hashlib
 from pyspark.sql import SparkSession
 from ontario.sparql.parser import queryParser as qp
@@ -24,7 +27,7 @@ class SPARKXMLWrapper(object):
         self.query = None
         self.prefixes = {}
 
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings
                          for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
@@ -153,7 +156,7 @@ class SPARKXMLWrapper(object):
                 self._get_str_field(f, v) for v in strvalue
                 ])))
         if isinstance(strvalue, dict):
-            return StructField(f, StructType([self._get_str_field(v, strvalue[v]) for v in strvalue]) )
+            return StructField(f, StructType([self._get_str_field(v, strvalue[v]) for v in strvalue]))
 
     def make_schema(self, schemadict):
 
@@ -231,7 +234,7 @@ class SPARKXMLWrapper(object):
             subjtablemap[tablealias] = varmaps['subjcol']
             # fprojections, projvartocol = getProjectionClause(variablemap, sparqlprojected, tablealias)
             fprojections, wherenotnull, projvartocol, flateralviews, schema = getLVProjectionClause(variablemap, sparqlprojected,
-                                                                                          tablealias)
+                                                                                                    tablealias)
             if wherenotnull is not None:
                 objectfilters.extend(wherenotnull)
             if fprojections is not None:
@@ -253,8 +256,8 @@ class SPARKXMLWrapper(object):
             '''
             # objectfilter = getObjectFilters(self.mappings, self.prefixes, triples, varmaps, tablealias, sparqlprojected, self.query)
             objectfilter, projvartocolobj, lateralviewsobj, schema = getLVObjectFilters(self.prefixes, triples,
-                                                                                              varmaps, tablealias,
-                                                                                              sparqlprojected)
+                                                                                        varmaps, tablealias,
+                                                                                        sparqlprojected)
             if projvartocolobj is not None:
                 projvartocols.update(projvartocolobj)
             if objectfilter is not None:
@@ -338,9 +341,9 @@ class SPARKXMLWrapper(object):
         '''
         objectfilters, firstfilter, projvartocolobj, lateralviewsobj = getLVObjectFilters(self.prefixes, triples, varmaps, tablename, sparqlprojected)
         print("LVObjFilters:", objectfilters, firstfilter, projvartocolobj, lateralviewsobj)
-        objectfilters =" AND ".join( list(set(objectfilters + wherenotnull)))
+        objectfilters = " AND ".join(list(set(objectfilters + wherenotnull)))
         projvartocol.update(projvartocolobj)
-        lateralviews =  list(set(lateralviews + lateralviewsobj))
+        lateralviews = list(set(lateralviews + lateralviewsobj))
         print('final: notnulls --', objectfilters)
         print('projs -- ', projvartocol)
         print("laterals - ", lateralviews)
@@ -406,7 +409,7 @@ class SPARKCSVTSVWrapper(object):
         self.star = star
         self.query = None
         self.prefixes = {}
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings
                          for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
@@ -463,8 +466,8 @@ class SPARKCSVTSVWrapper(object):
             #filename = self.datasource.url + "/" + filename
             filename = self.datasource.url + "/" + filenameiteratormap[filename]['source']
             print(filename)
-            df = self.spark.read.csv(filename, inferSchema=True, sep='\t' if ds.dstype == DataSourceType.LOCAL_TSV or \
-                                                           ds.dstype == DataSourceType.HADOOP_TSV or \
+            df = self.spark.read.csv(filename, inferSchema=True, sep='\t' if ds.dstype == DataSourceType.LOCAL_TSV or
+                                                           ds.dstype == DataSourceType.HADOOP_TSV or
                                                            ds.dstype == DataSourceType.SPARK_TSV else ',',
                                      header=True)
             df.createOrReplaceTempView(tablename)
@@ -519,7 +522,7 @@ class SPARKCSVTSVWrapper(object):
                 self._get_str_field(f, v) for v in strvalue
                 ])))
         if isinstance(strvalue, dict):
-            return StructField(f, StructType([self._get_str_field(v, strvalue[v]) for v in strvalue]) )
+            return StructField(f, StructType([self._get_str_field(v, strvalue[v]) for v in strvalue]))
 
     def make_schema(self, schemadict):
 
@@ -737,7 +740,7 @@ def var2mapx(mapping, rdfmt, starpredicates, triples, prefixes):
                         if topiter in iter:
                             iter = iter[iter.find(topiter[topiter.rfind('/')+1:])+len(topiter):]
                             iter = iter[iter.find('/')+1:]
-                        pp.append(iter +'/' + rsubj)
+                        pp.append(iter + '/' + rsubj)
                         coltotemplate[t.theobject.name[1:]] = rsubject
                     if len(pp) > 0:
                         varmap[t.theobject.name] = pp[0]

@@ -1,11 +1,8 @@
-__author__ = 'kemele'
 
-import logging
+__author__ = 'Kemele M. Endris'
 
 import ontario.sparql.utilities as utils
 from ontario.sparql.parser import queryParser
-from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
-from ontario.model import DataSourceType
 from .utility import *
 
 
@@ -177,8 +174,8 @@ class MediatorCatalyst(object):
             mols = selectedmolecules[s]
             for m in mols:
                 mcons[m] = []
-                [mcons[m].extend(relevant_mts[m].predicates[n].ranges) for n in relevant_mts[m].predicates \
-                 for r in relevant_mts[m].predicates[n].ranges \
+                [mcons[m].extend(relevant_mts[m].predicates[n].ranges) for n in relevant_mts[m].predicates
+                 for r in relevant_mts[m].predicates[n].ranges
                  if r in smolecules and relevant_mts[m].predicates[n].predicate in preds]
         return mcons
 
@@ -428,7 +425,7 @@ class MediatorCatalyst(object):
         for s in sl:
             bgpvars.update(set(utils.getVars(s)))
             vars_s = set()
-            if (isinstance(s, Triple)):
+            if isinstance(s, Triple):
                 vars_s.update(set(utils.getVars(s)))
             else:
                 for t in s.triples:

@@ -1,4 +1,6 @@
 
+__author__ = 'Kemele M. Endris'
+
 def getVars(sg):
 
     s = []
@@ -12,10 +14,10 @@ def getVars(sg):
 def getPrefs(ps):
     prefDict = dict()
     for p in ps:
-         pos = p.find(":")
-         c = p[0:pos].strip()
-         v = p[(pos+1):len(p)].strip()
-         prefDict[c] = v
+        pos = p.find(":")
+        c = p[0:pos].strip()
+        v = p[(pos+1):len(p)].strip()
+        prefDict[c] = v
     return prefDict
 
 

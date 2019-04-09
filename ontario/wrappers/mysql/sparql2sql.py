@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.sparql.parser import queryParser as qp
 from mysql import connector
 from mysql.connector import errorcode
@@ -105,7 +108,7 @@ class MySQLWrapper(object):
                         processquery = Queue()
                         # self.run_union(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict)
                         processqueues.append(processquery)
-                        p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict,))
+                        p = Process(target=self.run_union, args=(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery, res_dict,))
                         p.daemon = True
                         p.start()
                         processes.append(p)
@@ -209,8 +212,8 @@ class MySQLWrapper(object):
                     mysql = connector.connect(user='root', host=self.url)
                 else:
                     mysql = connector.connect(user=self.username, password=self.password, host=self.host,
-                                                   port=self.port)
-                logger.info("MySQL connection took:" + str(time()- start))
+                                              port=self.port)
+                logger.info("MySQL connection took:" + str(time() - start))
             except connector.Error as err:
                 if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                     print("Something is wrong with your user name or password")
@@ -319,7 +322,7 @@ class MySQLWrapper(object):
 
         return tvars
 
-    def getsqlfil(self, l, r, op, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias):
+    def getsqlfil(self, l, r, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
         if r is not None and '?' in r.name:
             var = r.name
             val = l.name
@@ -448,8 +451,8 @@ class MySQLWrapper(object):
                 fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 return fil
             if isinstance(left, Expression) and isinstance(right, Expression):
-                leftexp = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
-                rightexp = self.get_Expression_value(right, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                leftexp = self.get_Expression_value(left, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                rightexp = self.get_Expression_value(right, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 if op == '||' or op == '|':
                     if leftexp is None or rightexp is None:
                         return None
@@ -539,7 +542,7 @@ class MySQLWrapper(object):
                         j = 0
                         for col in column:
                             vcolumn = "`" + col + '`'
-                            projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j)  + '`'
+                            projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
                             projvartocol.setdefault(var[1:], []).append(col)
                             objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                             objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
@@ -622,7 +625,7 @@ class MySQLWrapper(object):
                     j = 0
                     for col in column:
                         vcolumn = "`" + col + '`'
-                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[ 1:] + '_Ontario_' + str(j) + '`'
+                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[1:] + '_Ontario_' + str(j) + '`'
                         projvartocol.setdefault(subj[1:], []).append(col)
                         objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                         objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
@@ -724,7 +727,7 @@ class MySQLWrapper(object):
             mappingpreds = tounions[rdfmt]
             if subjectunions:
                 for tm, submaps in mappingpreds.items():
-                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm:submaps}, query_filters)
+                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm: submaps}, query_filters)
                     if un is not None and len(un) > 0:
                         unions.append(un)
             else:

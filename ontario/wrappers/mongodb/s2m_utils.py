@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 from ontario.sparql.parser.services import *
@@ -222,7 +225,7 @@ def getSparqlFilters(filters, mapping, maxnumofobj, firstfilter, varmap):
                 simplefilters += " table" + str(maxnumofobj) + "." + varmap[right.name] + ' ' + str(op) + (' ' if str(op) in numoperators else ' "') + val + ('' if str(op) in numoperators else '" ')
 
             else:
-                simplefilters += varmap[right.name] + ' ' + str(op) + ( ' ' if str(op) in numoperators else ' "') + val + ('' if str(op) in numoperators else '" ')
+                simplefilters += varmap[right.name] + ' ' + str(op) + (' ' if str(op) in numoperators else ' "') + val + ('' if str(op) in numoperators else '" ')
     else:
         return None
 
@@ -304,10 +307,10 @@ def getVars(sg):
 def getPrefs(ps):
     prefDict = dict()
     for p in ps:
-         pos = p.find(":")
-         c = p[0:pos].strip()
-         v = p[(pos+1):len(p)].strip()
-         prefDict[c] = v
+        pos = p.find(":")
+        c = p[0:pos].strip()
+        v = p[(pos+1):len(p)].strip()
+        prefDict[c] = v
     return prefDict
 
 
@@ -361,9 +364,9 @@ def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
                             varmap[t.subject.name] = str(subj)
                         if t.predicate.constant and not t.theobject.constant:
                             pred = getUri(t.predicate, prefixes)[1:-1]
-                            pp = [predmap[p]['object'] for p in predmap if p == pred and  predmap[p]['objType'] == TermType.REFERENCE ]
-                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')]  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TEMPLATE ])
-                            tpm = [predmap[p]['object']  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TRIPLEMAP ]
+                            pp = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.REFERENCE]
+                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TEMPLATE])
+                            tpm = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TRIPLEMAP]
                             for tp in tpm:
                                 rmol = list(mapping[tp].keys())[0]
                                 rsubject = mapping[tp][rmol]['subject']

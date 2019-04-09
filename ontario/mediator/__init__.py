@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.mediator.Decomposer import MediatorCatalyst
 from ontario.mediator.Planner import MetaWrapperPlanner
 

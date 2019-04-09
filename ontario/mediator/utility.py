@@ -1,4 +1,7 @@
-from ontario.sparql.parser.services import Service, Triple, Filter, Optional, UnionBlock, JoinBlock
+
+__author__ = 'Kemele M. Endris'
+
+from ontario.sparql.parser.services import UnionBlock, JoinBlock
 from ontario.model import DataSourceType
 from ontario.mediator.Tree import *
 

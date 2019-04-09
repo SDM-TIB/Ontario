@@ -1,4 +1,6 @@
-from ontario.mediator.Tree import *
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.mediator.PlanOperators import *
 from ontario.operators.sparql.Xgjoin import Xgjoin
 from ontario.operators.sparql.NestedHashJoinFilter import NestedHashJoinFilter
@@ -66,15 +68,15 @@ class MetaWrapperPlanner(object):
         operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
 
         # Adds the distinct operator to the plan.
-        if (self.query.distinct):
+        if self.query.distinct:
             operatorTree = NodeOperator(Xdistinct(None), operatorTree.vars, self.config, operatorTree)
 
         # Adds the offset operator to the plan.
-        if (self.query.offset != -1):
+        if self.query.offset != -1:
             operatorTree = NodeOperator(Xoffset(None, self.query.offset), operatorTree.vars, self.config, operatorTree)
 
         # Adds the limit operator to the plan.
-        if (self.query.limit != -1):
+        if self.query.limit != -1:
             # print "query.limit", query.limit
             operatorTree = NodeOperator(Xlimit(None, self.query.limit), operatorTree.vars, self.config, operatorTree)
 
@@ -259,9 +261,9 @@ class MetaWrapperPlanner(object):
         # lowSelectivityRight = right.allTriplesLowSelectivity()
         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
-            if (n.right.constantPercentage() <= 0.5):
+            if n.right.constantPercentage() <= 0.5:
                 n.right.tree.service.limit = 1000
-            if (n.left.constantPercentage() <= 0.5):
+            if n.left.constantPercentage() <= 0.5:
                 n.left.tree.service.limit = 1000
 
         return n
@@ -292,7 +294,7 @@ class MetaWrapperPlanner(object):
                                          self.query)
                     else:
                         n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts,
-                                     self.query)
+                                         self.query)
                     # if not lowSelectivityLeft and lowSelectivityRight:
                     #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
                     # elif lowSelectivityLeft and not lowSelectivityRight:
@@ -388,7 +390,7 @@ class MetaWrapperPlanner(object):
                 for v in join_variables:
                     new_constants = new_constants + n.right.query.show().count(v)
                 if ((n.right.constantNumber() + new_constants) / n.right.places() <= 0.5) and not (
-                n.right.tree.service.allTriplesGeneral()):
+                        n.right.tree.service.allTriplesGeneral()):
                     n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
         return n
 
@@ -514,6 +516,6 @@ class MetaWrapperPlanner(object):
                 for v in join_variables:
                     new_constants = new_constants + n.right.query.show().count(v)
                 if ((n.right.constantNumber() + new_constants) / n.right.places() <= 0.5) and not (
-                n.right.tree.service.allTriplesGeneral()):
+                        n.right.tree.service.allTriplesGeneral()):
                     n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
         return n

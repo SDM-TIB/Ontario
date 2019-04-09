@@ -1,5 +1,8 @@
+
+__author__ = 'Kemele M. Endris'
+
 import csv
-import os, sys
+import os
 import xml.etree.ElementTree as ET
 from pprint import pprint
 
@@ -95,7 +98,7 @@ class XMLFileClient(object):
             pprint(doc_dict)
             for child in list(doc):
                 print(child)
-            print('---------', doc.tag,'-------------')
+            print('---------', doc.tag, '-------------')
             l += 1
             if l >= limit:
                 break

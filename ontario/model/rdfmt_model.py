@@ -1,3 +1,4 @@
+
 __author__ = "Kemele M. Endris"
 
 from enum import Enum
@@ -122,7 +123,7 @@ class RMLMapping(object):
                         # if subject type is reference there will be only one value in the list
                         splits.append(sp)
 
-                self.subjectCols = splits if len(self.subject.split('{')) <=2 else splits[1:]
+                self.subjectCols = splits if len(self.subject.split('{')) <= 2 else splits[1:]
 
 
 class RDFMPredicateObjMap(object):

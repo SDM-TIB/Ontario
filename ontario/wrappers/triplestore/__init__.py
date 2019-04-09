@@ -1,14 +1,10 @@
-from __future__ import division
-__author__ = 'kemele'
+__author__ = 'Kemele M. Endris'
 
 import urllib
 import urllib.parse as urlparse
 import urllib.parse
 import urllib.request
-import http.client as htclient
-from http import HTTPStatus
-import requests
-from multiprocessing import Process, Queue, active_children
+from multiprocessing import Queue
 
 
 class RDFStore(object):
@@ -110,7 +106,7 @@ def contactSourceAux(referer, server, path, port, query, queue):
                         #queue.put(elem)
 
             else:
-                print ("the source " + str(server) + " answered in " + res.getheader("content-type") + " format, instead of"
+                print("the source " + str(server) + " answered in " + res.getheader("content-type") + " format, instead of"
                        + " the JSON format required, then that answer will be ignored")
     except Exception as e:
         print("Exception while sending request to ", referer, "msg:", e)

@@ -1,6 +1,7 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.sparql.parser import queryParser as qp
-from mysql import connector
-from mysql.connector import errorcode
 from multiprocessing import Process, Queue
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
@@ -177,8 +178,8 @@ class DrillWrapper(object):
             try:
                 results = self.drill.query(sql, timeout=1000)
             except Exception as ex:
-                    print("Exception while running query to Drill for query processing", ex)
-                    return 0
+                print("Exception while running query to Drill for query processing", ex)
+                return 0
 
             for row in results:
                 c += 1
@@ -241,7 +242,7 @@ class DrillWrapper(object):
 
         return tvars
 
-    def getsqlfil(self, l, r, op, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias):
+    def getsqlfil(self, l, r, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
         if r is not None and '?' in r.name:
             var = r.name
             val = l.name
@@ -370,8 +371,8 @@ class DrillWrapper(object):
                 fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 return fil
             if isinstance(left, Expression) and isinstance(right, Expression):
-                leftexp = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
-                rightexp = self.get_Expression_value(right, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                leftexp = self.get_Expression_value(left, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                rightexp = self.get_Expression_value(right, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 if op == '||' or op == '|':
                     if leftexp is None or rightexp is None:
                         return None
@@ -441,7 +442,7 @@ class DrillWrapper(object):
                     if '[*]' in col:
                         col = col.replace('[*]', '')
                         column = "`" + col + '`'
-                        projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:]  + '`'
+                        projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:] + '`'
                     else:
                         column = "`" + column + '`'
                         projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
@@ -478,7 +479,7 @@ class DrillWrapper(object):
                                 projections[var[1:] + '_Ontario_' + str(j)] = "FLATTEN(" + tablealias + "." + vcolumn + ") AS " + var[1:] + '_Ontario_' + str(j)
                             else:
                                 vcolumn = "`" + col + '`'
-                                projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j)  + '`'
+                                projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
 
                             projvartocol.setdefault(var[1:], []).append(col)
                             objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
@@ -489,7 +490,7 @@ class DrillWrapper(object):
                         if '[*]' in col:
                             col = col.replace('[*]', '')
                             column = "`" + col + '`'
-                            projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:]  + '`'
+                            projections[var[1:]] = "FLATTEN(" + tablealias + "." + column + ") AS `" + var[1:] + '`'
                         else:
                             column = "`" + column + '`'
                             projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
@@ -554,7 +555,7 @@ class DrillWrapper(object):
                         var = var.replace(splits[0], '').replace('}', '')
                         if '<' in var and '>' in var:
                             var = var[1:-1]
-                        var = "'" + var +  "'"
+                        var = "'" + var + "'"
                     elif omap.objectt.resource_type == TripleMapType.REFERENCE:
                         column = omap.objectt.value
                         if "'" not in var and '"' not in var:
@@ -590,7 +591,7 @@ class DrillWrapper(object):
                     j = 0
                     for col in column:
                         vcolumn = "`" + col + '`'
-                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[ 1:] + '_Ontario_' + str(j) + '`'
+                        projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[1:] + '_Ontario_' + str(j) + '`'
                         projvartocol.setdefault(subj[1:], []).append(col)
                         objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                         objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
@@ -691,7 +692,7 @@ class DrillWrapper(object):
             mappingpreds = tounions[rdfmt]
             if subjectunions:
                 for tm, submaps in mappingpreds.items():
-                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm:submaps}, query_filters)
+                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm: submaps}, query_filters)
                     if un is not None and len(un) > 0:
                         unions.append(un)
             else:

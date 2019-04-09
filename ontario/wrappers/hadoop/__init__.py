@@ -1,6 +1,7 @@
 
+__author__ = 'Kemele M. Endris'
+
 from hdfs import Config
-from ontario.model import DataSourceType
 from ontario.wrappers.spark.utils import *
 from json import load
 import os
@@ -88,12 +89,12 @@ class SparkHDFSClient(object):
             with self.client.read(filename, encoding='utf-8') as reader:
                 model = load(reader)
                 if isinstance(model, list):
-                    model = [{p: str(list(md[p][0].keys())) if isinstance(md[p], list) and isinstance(md[p][0], dict) \
-                        else str(model[p]) \
+                    model = [{p: str(list(md[p][0].keys())) if isinstance(md[p], list) and isinstance(md[p][0], dict)
+                        else str(model[p])
                         if isinstance(md[p], list) else str(list(md[p].keys())) if isinstance(md[p], dict) else md[p] for p in md} for md in model]
                     results.extend(model)
                 else:
-                    model = {p: str(list(model[p][0].keys())) if isinstance(model[p], list) and isinstance(model[p][0], dict) \
+                    model = {p: str(list(model[p][0].keys())) if isinstance(model[p], list) and isinstance(model[p][0], dict)
                         else model[p] if isinstance(model[p], list) else str(list(model[p].keys())) if isinstance(model[p], dict) else model[p] for p in model}
                     results.append(model)
 

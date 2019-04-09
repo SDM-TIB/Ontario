@@ -1,5 +1,4 @@
-import os, sys
-from pprint import pprint
+import os
 import rdflib
 from rdflib.term import BNode
 from tests.rml.rml_model import *
@@ -103,7 +102,7 @@ def query_rml(filenames, rdfmts=[]):
 
             datasource.ds_type = sourceType
 
-        elif '.json' in source or refForm is not None and 'JSON' in refForm :
+        elif '.json' in source or refForm is not None and 'JSON' in refForm:
             sourceType = DataSourceType.LOCAL_JSON
         elif '.xml' in source or refForm is not None and 'XPath' in refForm:
             sourceType = DataSourceType.LOCAL_XML
@@ -168,7 +167,7 @@ def query_rml_subj(g, tm, rdfmts=[]):
 
     subj_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + subj_query + " }"
     res = g.query(subj_query)
-    qresults= {}
+    qresults = {}
     subjTerm = None
     sm = None
     for row in res:
@@ -187,10 +186,10 @@ def query_rml_subj(g, tm, rdfmts=[]):
         if row['subject'] is not None:
             subject = row['subject'].n3()[1:-1]
             subjTerm = TermMap(subject, TripleMapType.CONSTANT, smtype)
-        elif row['constsubject'] is not None :
+        elif row['constsubject'] is not None:
             subject = row['constsubject'].n3()[1:-1]
             subjTerm = TermMap(subject, TripleMapType.CONSTANT, smtype)
-        elif row['smtemplate'] is not None :
+        elif row['smtemplate'] is not None:
             smtemplate = row['smtemplate'].n3()[1:-1]
             subjTerm = TermMap(smtemplate, TripleMapType.TEMPLATE, smtype)
         elif row['smreference'] is not None:

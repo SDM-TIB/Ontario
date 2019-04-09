@@ -8,13 +8,12 @@ Autor: Gabriela Montoya
 Date: July 18th, 2012
 
 '''
-from multiprocessing import Queue, Process
+from multiprocessing import Queue
 from time import time
-import string, sys
 from multiprocessing.queues import Empty
 from ontario.operators.Join import Join
 
-from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
+from ontario.operators.sparql.NHJFOperatorStructures import Record
 
 
 class NestedHashJoin(Join):
@@ -22,9 +21,8 @@ class NestedHashJoin(Join):
     def __init__(self, vars):
         self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.vars        = vars
-        
+        self.qresults = Queue()
+        self.vars = vars
 
     def instantiate(self, d):
         newvars = self.vars - set(d.keys())
@@ -70,7 +68,7 @@ class NestedHashJoin(Join):
                     pass
                 except Exception as e:
                     #print "Unexpected error:", sys.exc_info()[0]
-                    print (e)
+                    print(e)
                     pass
 
             toRemove = [] # stores the queues that have already received all its tuples
@@ -80,7 +78,7 @@ class NestedHashJoin(Join):
                     q = right_queues[r]
                     tuple2 = q.get(False)
                     #print "tuple2", tuple2
-                    if (tuple2 == "EOF"):
+                    if tuple2 == "EOF":
                         toRemove.append(r)
                     else:
                         self.probeAndInsert2(r, tuple2, self.left_table,
@@ -121,7 +119,7 @@ class NestedHashJoin(Join):
         record = Record(tuple, time, 0)
         r = self.getResource(tuple)
         if r in table1:
-            records =  table1[r]
+            records = table1[r]
             for t in records:
                 if t.ats > record.ats:
                     continue
@@ -138,7 +136,7 @@ class NestedHashJoin(Join):
 
         record = Record(tuple, time, 0)
         if resource in table1:
-            records =  table1[resource]
+            records = table1[resource]
             for t in records:
                 if t.ats > record.ats:
                     continue

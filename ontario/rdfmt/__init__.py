@@ -1,4 +1,6 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
+
+__author__ = 'Kemele M. Endris'
 
 import hashlib
 import pprint as pp
@@ -106,7 +108,7 @@ class RDFMTMgr(object):
 
         pp.pprint(results)
         logger.info("*****" + endpoint + " ***********")
-        logger.info("*************finished *********************" )
+        logger.info("*************finished *********************")
 
         return rdfmolecules
 
@@ -494,7 +496,7 @@ class RDFMTMgr(object):
         referer = endpoint
         reslist = []
         query = "SELECT DISTINCT ?t ?p ?range ?plabel ?tlabel " \
-                " WHERE{ graph <"+graph +">{ ?p  <"+rdfs+"domain> ?t." \
+                " WHERE{ graph <" + graph + ">{ ?p  <" + rdfs + "domain> ?t." \
                         "Optional {?p <"+rdfs+"range> ?range}" \
                         "Optional {?p <" + rdfs + "label> ?plabel. filter langMatches(?plabel, 'EN')}" \
                         "Optional {?t <" + rdfs + "label> ?tlabel. filter langMatches(?tlabel, 'EN')}" \
@@ -564,7 +566,7 @@ class RDFMTMgr(object):
                 subclasses = [r['subc'] for r in subc]
                 name = r['tlabel'] if 'tlabel' in r else t
                 desc = r['tdesc'] if "tdesc" in r else None
-                mts[t] = {"name": name, "properties": [], "desc":desc, "sources":[source], "subClassOf":subclasses}
+                mts[t] = {"name": name, "properties": [], "desc": desc, "sources": [source], "subClassOf": subclasses}
 
             else:
                 mcard = alreadyprocessed[t]
@@ -576,7 +578,7 @@ class RDFMTMgr(object):
             propsourceURI = mtresource + str(hashlib.md5(str(endpoint + t + pred).encode()).hexdigest())
             # Get cardinality of this predicate from this RDF-MT
             predcard = -1# self.get_cardinality(endpoint, t, prop=pred)
-            if isinstance(predcard, str)  and "^^" in predcard:
+            if isinstance(predcard, str) and "^^" in predcard:
                 predcard = predcard[:predcard.find("^^")]
             else:
                 predcard = str(predcard)
@@ -661,7 +663,7 @@ class RDFMTMgr(object):
         if i < len(delete) + 49:
             updatequery += " . \n".join(delete[i:]) + "} " \
                                "INSERT {" + " . \n".join(insert[i:]) + "} " \
-                                "WHERE {" + " . \n".join(where[i:]) + "}"
+                               "WHERE {" + " . \n".join(where[i:]) + "}"
             # logger.info(updatequery)
             updateRDFSource(updatequery, self.updateendpoint)
 
@@ -972,7 +974,7 @@ class RDFMTMgr(object):
                 except Exception as e:
                     print("Exception : ", e)
                     logger.error("Exception while collecting data" + str(e))
-                    logger.error(m1 + " --- Vs --- " + m2 + "in [" + endpoint2+ "]")
+                    logger.error(m1 + " --- Vs --- " + m2 + "in [" + endpoint2 + "]")
                     logger.error(results)
                     logger.error(data)
         print('get_inter_ds_links_bn Done!')
@@ -1463,7 +1465,7 @@ class MTManager(object):
         query += "    ?rid a <http://tib.eu/dsdl/ontario/ontology/RDFMT> ."
         i = 0
         for p in preds:
-            query += "?rid <http://tib.eu/dsdl/ontario/ontology/hasProperty> ?mtp"+ str(i) + \
+            query += "?rid <http://tib.eu/dsdl/ontario/ontology/hasProperty> ?mtp" + str(i) + \
                      " . ?mtp" + str(i) + " <http://tib.eu/dsdl/ontario/ontology/predicate> <" + p + "> ."
             i += 1
 
@@ -1538,12 +1540,12 @@ if __name__ == "__main__":
     print("******* ****************************")
 
     mgmgr = RDFMTMgr("http://node2.research.tib.eu:1300/sparql",
-                      "http://node2.research.tib.eu:1300/sparql",
-                      "dba",
-                      "dba", mgraph)
+                     "http://node2.research.tib.eu:1300/sparql",
+                     "dba",
+                     "dba", mgraph)
     mgr = MTManager("http://node2.research.tib.eu:1300/sparql",
-                      "dba",
-                      "dba", mgraph)
+                    "dba",
+                    "dba", mgraph)
     ds = mgr.get_data_source("http://ontario.tib.eu/ChEBI-csv-mapping-test/datasource/DrugBank-xml")
     # ds = DataSource("http://tib.eu/dsdl/ontario/resource/ReactomeNeo4j",
     #                 'bolt://node3.research.tib.eu:7687',

@@ -19,22 +19,22 @@ from ontario.operators.sparql.GJOperatorStructures import Record, RJTTail, FileD
 class Xgjoin(Join):
 
     def __init__(self, vars):
-        self.left_table  = dict()
+        self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.vars        = vars
+        self.qresults = Queue()
+        self.vars = vars
 
         # Second stage settings
-        self.secondStagesTS     = []
-        self.lastSecondStageTS  = float("-inf")
+        self.secondStagesTS = []
+        self.lastSecondStageTS = float("-inf")
         self.timeoutSecondStage = 100000000
-        self.sourcesBlocked     = False
+        self.sourcesBlocked = False
 
         # Main memory settings
-        self.memorySize   = 1000000000        # Represents the main memory size (# tuples).OLD:Represents the main memory size (in KB).
+        self.memorySize = 1000000000        # Represents the main memory size (# tuples).OLD:Represents the main memory size (in KB).
         self.fileDescriptor_left = {}
         self.fileDescriptor_right = {}
-        self.memory_left  = 0
+        self.memory_left = 0
         self.memory_right = 0
 
         self.leftcount = 0
@@ -51,8 +51,8 @@ class Xgjoin(Join):
     def execute(self, left, right, out, processqueue=Queue()):
         # Executes the Xgjoin.
 
-        self.left     = left
-        self.right    = right
+        self.left = left
+        self.right = right
         self.qresults = out
 
         # Initialize tuples.
@@ -77,7 +77,7 @@ class Xgjoin(Join):
                     # Empty: in tuple1 = self.left.get(False), when the queue is empty.
                     pass
                 except TypeError as te:
-                    print ("TypeError: in resource = resource + tuple[var]", tuple, te)
+                    print("TypeError: in resource = resource + tuple[var]", tuple, te)
                     # TypeError: in resource = resource + tuple[var], when the tuple is "EOF".
                     pass
                 except IOError:
@@ -91,7 +91,7 @@ class Xgjoin(Join):
                 try:
                     tuple2 = self.right.get(False)
                     # print "tuple2", tuple2
-                    self.rightcount +=1
+                    self.rightcount += 1
                     signal.alarm(self.timeoutSecondStage)
                     self.stage1(tuple2, self.right_table, self.left_table)
                     self.memory_left += 1
@@ -99,7 +99,7 @@ class Xgjoin(Join):
                     # Empty: in tuple2 = self.right.get(False), when the queue is empty.
                     pass
                 except TypeError as te:
-                    print ("TypeError: in resource = resource + tuple[var]", tuple, te)
+                    print("TypeError: in resource = resource + tuple[var]", tuple, te)
                     # TypeError: in resource = resource + tuple[var], when the tuple is "EOF".
                     pass
                 except IOError:
@@ -121,7 +121,7 @@ class Xgjoin(Join):
 
     def stage1(self, tuple, tuple_rjttable, other_rjttable):
         #print " Stage 1: While one of the sources is sending data."
-        if (tuple != "EOF"):
+        if tuple != "EOF":
             # Get the resource associated to the tuples.
             resource = ''
             #print(tuple)
@@ -159,20 +159,20 @@ class Xgjoin(Join):
         # Iterate while there are common resources and both sources are blocked.
         while((resources1 or resources2) and self.sourcesBlocked):
 
-            if (resources1):
+            if resources1:
                 resource = resources1.pop()
                 rjts1 = self.left_table[resource].records
                 for rjt1 in rjts1:
                     probed = self.probeFile(rjt1, self.fileDescriptor_right, resource, 2)
-                    if (probed):
+                    if probed:
                         rjt1.probeTS = time()
 
-            elif (resources2):
+            elif resources2:
                 resource = resources2.pop()
                 rjts1 = self.right_table[resource].records
                 for rjt1 in rjts1:
                     probed = self.probeFile(rjt1, self.fileDescriptor_left, resource, 2)
-                    if (probed):
+                    if probed:
                         rjt1.probeTS = time()
 
         # End of second stage.
@@ -264,7 +264,6 @@ class Xgjoin(Join):
 
         return probeTS
 
-
     def probeFile(self, rjt1, filedescriptor2, resource, stage):
         # Probe an RJT against its corresponding partition in secondary memory.
 
@@ -280,12 +279,12 @@ class Xgjoin(Join):
 
             #Checking Property 2: Probed in stage 2.
             for ss in self.secondStagesTS:
-                if (float(flushTS2) < rjt1.insertTS and rjt1.insertTS < ss and  ss < rjt1.flushTS):
+                if (float(flushTS2) < rjt1.insertTS and rjt1.insertTS < ss and ss < rjt1.flushTS):
                     probedStage2 = True
                     break
 
             # Checking Property 1: Probed in stage 1.
-            if (rjt1.probeTS < float(flushTS2)):
+            if rjt1.probeTS < float(flushTS2):
                 probedStage1 = True
 
             # Produce result if it has not been produced.
@@ -296,7 +295,7 @@ class Xgjoin(Join):
                 probed = True
 
             # Update probeTS of tuple2.
-            stprobeTS  = "%.40r" % (time())
+            stprobeTS = "%.40r" % (time())
             st = st + tuple2 + '|' + stprobeTS + '|' + insertTS2 + '|' + flushTS2
 
         file2.close()
@@ -309,7 +308,6 @@ class Xgjoin(Join):
 
         return probed
 
-
     def flushRJT(self):
         # Flush an RJT to secondary memory.
 
@@ -318,25 +316,24 @@ class Xgjoin(Join):
         (resource_to_flush2, tail_to_flush2, least_ts2) = self.getVictim(self.right_table)
 
         # Flush resource from left table.
-        if (least_ts1 <= least_ts2):
+        if least_ts1 <= least_ts2:
             file_descriptor = self.fileDescriptor_left
             table = self.left_table
             resource_to_flush = resource_to_flush1
             tail_to_flush = tail_to_flush1
 
         # Flush resource from right table.
-        if (least_ts2 < least_ts1):
+        if least_ts2 < least_ts1:
             file_descriptor = self.fileDescriptor_right
             table = self.right_table
             resource_to_flush = resource_to_flush2
             tail_to_flush = tail_to_flush2
 
-
         # Create flush timestamp.
         flushTS = time()
 
         # Update file descriptor
-        if (resource_to_flush in file_descriptor):
+        if resource_to_flush in file_descriptor:
             lentail = file_descriptor[resource_to_flush].size
             file = open(file_descriptor[resource_to_flush].file.name, 'a')
             file_descriptor.update({resource_to_flush: FileDescriptor(file, len(tail_to_flush.records) + lentail, flushTS)})
@@ -346,10 +343,10 @@ class Xgjoin(Join):
 
         # Flush tail in file.
         for record in tail_to_flush.records:
-            sttuple    = str(record.tuple)
-            stprobeTS  = "%.40r" % (record.probeTS)
+            sttuple = str(record.tuple)
+            stprobeTS = "%.40r" % (record.probeTS)
             stinsertTS = "%.40r" % (record.insertTS)
-            stflushTS  = "%.40r" % (flushTS)
+            stflushTS = "%.40r" % (flushTS)
 
             file.write(sttuple + '|')
             file.write(stprobeTS + '|')
@@ -370,14 +367,13 @@ class Xgjoin(Join):
         for resource, tail in table.items():
             resource_ts = tail.rjtProbeTS
             if ((resource_ts < least_ts) or
-                (resource_ts == least_ts and len(tail.records) > len(tail_to_flush.records))):
+                    (resource_ts == least_ts and len(tail.records) > len(tail_to_flush.records))):
                 resource_to_flush = resource
                 tail_to_flush = tail
                 least_ts = resource_ts
 
         #print "Victim chosen:", resource_to_flush, "TS:", least_ts, "LEN:", len(tail_to_flush.records)
         return (resource_to_flush, tail_to_flush, least_ts)
-
 
     def getLargestRJTs(self, i):
         # Selects the i-th largest RJT stored in secondary memory.
@@ -400,20 +396,19 @@ class Xgjoin(Join):
                 file_descriptor = self.fileDescriptor_right
                 max_len = sizes2[len(sizes2)-(i+1)]
                 table = self.left_table
-        elif (sizes1):
+        elif sizes1:
             file_descriptor = self.fileDescriptor_left
             max_len = sizes1[len(sizes1)-(i+1)]
             table = self.right_table
         else:
-            file_descriptor =self.fileDescriptor_right
+            file_descriptor = self.fileDescriptor_right
             max_len = sizes2[len(sizes2)-(i+1)]
             table = self.left_table
-
 
         largestRJTs = {}
 
         for resource, fd in file_descriptor.items():
-            if (fd.size == max_len):
+            if fd.size == max_len:
                 largestRJTs[resource] = fd
 
         return (largestRJTs, table)

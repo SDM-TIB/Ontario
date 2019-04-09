@@ -13,8 +13,8 @@ class Xdistinct(object):
     
     def __init__(self, vars):
         #self.input       = Queue()
-        self.qresults   = Queue()
-        self.vars  = vars
+        self.qresults = Queue()
+        self.vars = vars
         self.bag = {} 
         
     def execute(self, left, dummy, out, processqueue=Queue()):
@@ -29,10 +29,9 @@ class Xdistinct(object):
             
             if not(get):
                 self.qresults.put(tuple)
-                self.bag.update({str_tuple : True})
+                self.bag.update({str_tuple: True})
             tuple = self.left.get(True)
             
         # Put EOF in queue and exit.
         self.qresults.put("EOF")
         return
-    

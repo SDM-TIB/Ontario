@@ -1,15 +1,11 @@
-import hashlib
-import json
-from pyspark.sql import SparkSession
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.sparql.parser import queryParser as qp
 from mysql import connector
 from mysql.connector import errorcode
-from multiprocessing import Process, Queue
-from ontario.config.model import DataSourceType
+from multiprocessing import Queue
 from ontario.wrappers.mysql.utils import *
-from json import load
-from ontario.wrappers.hadoop import SparkHDFSClient
-from pprint import pprint
 
 
 class MySQLWrapper(object):
@@ -47,7 +43,7 @@ class MySQLWrapper(object):
             self.host = self.url
             self.port = '3306'
 
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings
                          for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):

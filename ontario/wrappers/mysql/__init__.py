@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from mysql import connector
 from mysql.connector import errorcode
 
@@ -62,7 +65,7 @@ class MySQLClient(object):
         cursor.execute("use " + dbname)
         cursor.execute("select * from " + tablename + " LIMIT " + str(limit))
         header = [h[0] for h in cursor._description]
-        results =[{header[i]: str(line[i]) for i in range(len(line))} for line in cursor]
+        results = [{header[i]: str(line[i]) for i in range(len(line))} for line in cursor]
         return results, len(results)
 
 

@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 from ontario.sparql.parser.services import Expression, Argument
@@ -221,7 +224,7 @@ def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
                     subj = subject[subject.find('{') + 1: subject.find('}')]
                     predicates = mapping[s][m]['predConsts']
                     predObjMap = mapping[s][m]['predObjMap']
-                    predmap = {p:predObjMap[p] for p in predicates}
+                    predmap = {p: predObjMap[p] for p in predicates}
                     coltotemplate[subj] = subject
                     subjcols[subj] = subject
                     for t in triplepatterns:
@@ -229,9 +232,9 @@ def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
                             varmap[t.subject.name] = str(subj)
                         if t.predicate.constant and not t.theobject.constant:
                             pred = getUri(t.predicate, prefixes)[1:-1]
-                            pp = [predmap[p]['object'] for p in predmap if p == pred and  predmap[p]['objType'] == TermType.REFERENCE ]
-                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')]  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TEMPLATE ])
-                            tpm = [predmap[p]['object']  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TRIPLEMAP ]
+                            pp = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.REFERENCE]
+                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TEMPLATE])
+                            tpm = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TRIPLEMAP]
                             for tp in tpm:
                                 rmol = list(mapping[tp].keys())[0]
                                 rsubject = mapping[tp][rmol]['subject']
@@ -246,12 +249,12 @@ def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
                     if len(varmap) > 0:
                         res[m] = varmap
 
-    return res,coltotemplate, subjcols
+    return res, coltotemplate, subjcols
 
 
 def get_filters(triples, prefixes):
     filters = [(getUri(t.predicate, prefixes)[1:-1], " = ", getUri(t.theobject, prefixes)[1:-1])
-               for t in triples if t.predicate.constant and t.theobject.constant and \
+               for t in triples if t.predicate.constant and t.theobject.constant and
                getUri(t.predicate, prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
     return filters
@@ -261,6 +264,7 @@ def get_pred_vars(triples, prefixes):
     predvars = [(getUri(t.predicate, prefixes)[1:-1], " = ", t.theobject.name)
                 for t in triples if t.predicate.constant and not t.theobject.constant]
     return predvars
+
 
 def get_matching_filters(triples, filters):
     result = []
@@ -274,6 +278,7 @@ def get_matching_filters(triples, filters):
             result.append(f)
 
     return result
+
 
 def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlprojected, starfilters):
     objectfilters = []
@@ -315,7 +320,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
                 column = column[:column.find('[')]
             if '[' in column:
                 objectfilters.append(tablealias + '.`' + column + "`._VALUE" + " = " + ' "' + val + '" ')
-                objectfilters.append(tablealias +  '.`' + column + '`._' + (subj[subj.find('@') + 1: subj.find('=')]).strip() + " = " + ' "' + (
+                objectfilters.append(tablealias + '.`' + column + '`._' + (subj[subj.find('@') + 1: subj.find('=')]).strip() + " = " + ' "' + (
                     subj[subj.find('=') + 1: subj.find(']')]).strip() + '" ')
             elif '/' in subj and '[*]' not in subj:
                 column = subj.replace('/', '.')
@@ -336,7 +341,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
                 if right is not None:
                     if f.expr.left.constant and not f.expr.right.constant:
                         column = varmaps['varmap'][v].strip()
-                        objectfilters.append(tablealias + '.`' + column+ f.expr.op + ' ' + left.replace(prefix, "") + ' ')
+                        objectfilters.append(tablealias + '.`' + column + f.expr.op + ' ' + left.replace(prefix, "") + ' ')
                     elif not f.expr.left.constant and f.expr.right.constant:
                         column = varmaps['varmap'][v].strip()
                         objectfilters.append(tablealias + '.`' + column + '` ' + f.expr.op + ' ' + right.replace(prefix, "") + ' ')
@@ -479,7 +484,7 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
         if l == 1:
             pp = "_" + column.replace("`", '').replace('.', '_').replace(" ", '')
         if var[1:] in projections:
-            projections[var[1:]] += ", " + column + " AS `" + var[1:] + pp+ '`'
+            projections[var[1:]] += ", " + column + " AS `" + var[1:] + pp + '`'
         else:
             projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
 
@@ -535,7 +540,7 @@ def addprojection(colnames, variablemap, projvartocol, projections, wherenotnull
         if var[1:] in projections:
             projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
         else:
-            projections[var[1:]] = column + " AS `" + var[1:] + pp+ '`'
+            projections[var[1:]] = column + " AS `" + var[1:] + pp + '`'
 
         wherenotnull.append(column + " is not null ")
         if l == 1:
@@ -604,7 +609,7 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
 
     predvars = get_pred_vars(triples, prefixes)
     filters = get_filters(triples, prefixes)
-    predvarmap = {v[0]:v[2] for v in predvars}
+    predvarmap = {v[0]: v[2] for v in predvars}
     if len(filters) == 0 and len(predvars) == 0:
         return None
 
@@ -709,7 +714,7 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
                             arrayc.setdefault(cc, {}).setdefault(cc, {}).setdefault(columns[-1], []).append(c)
                             cols.append(c)
 
-                    if predmap[v] in subjcols and len(cols) == 0 :
+                    if predmap[v] in subjcols and len(cols) == 0:
                         arrayc.setdefault(cc, {}).setdefault(columns[-1], []).append("_VALUE")
                         cols.append('_VALUE')
 
@@ -738,7 +743,7 @@ def getLVObjectFilters(prefixes, triples, varmaps, tablealias, sparqlprojected):
     return objectfilters, projvartocol, lateralviews, schema
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     columns = ["synonyms", "synonym"]
     post = ['name']
     schema = {}
