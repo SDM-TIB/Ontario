@@ -249,8 +249,14 @@ class MetaWrapperPlanner(object):
 
             if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value:
                 return self.make_mulder_joins(left, right)
-            # if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
-            #     return self.make_sparql_endpoint_plan(left, right)
+            if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
+                return self.make_sparql_endpoint_plan(left, right)
+        elif isinstance(left, LeafOperator):
+            if 'SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value :
+                return self.make_sparql_endpoint_plan(left, right)
+        elif isinstance(right, LeafOperator):
+            if 'SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value :
+                return self.make_sparql_endpoint_plan(left, right)
 
         join_variables = left.vars & right.vars
         all_variables = left.vars | right.vars
@@ -288,18 +294,10 @@ class MetaWrapperPlanner(object):
                 print(lowSelectivityLeft, lowSelectivityRight)
                 if "SQL" in l.datasource.dstype.value and 'SPARQL' in r.datasource.dstype.value:
                     if lowSelectivityLeft and lowSelectivityRight:
-                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts,
-                                         self.query)
+                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
                     else:
-                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts,
-                                     self.query)
-                    # if not lowSelectivityLeft and lowSelectivityRight:
-                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
-                    # elif lowSelectivityLeft and not lowSelectivityRight:
-                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
-                    # elif not lowSelectivityLeft and not lowSelectivityRight:
-                    #     n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
-                    dependent_join = True
+                        n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
+                        dependent_join = True
                 elif "SQL" in r.datasource.dstype.value and 'SPARQL' in l.datasource.dstype.value:
                     if lowSelectivityLeft and lowSelectivityRight:
                         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
@@ -313,9 +311,7 @@ class MetaWrapperPlanner(object):
                     elif not lowSelectivityLeft and not lowSelectivityRight:
                         n = NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, l, r, consts, self.query)
                     elif lowSelectivityLeft and lowSelectivityRight:
-                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts,
-                                         self.query)
-
+                        n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
                     dependent_join = True
         elif isinstance(r, NodeOperator) and r.operator.__class__.__name__ == "Xunion" and \
                 isinstance(l, NodeOperator) and l.operator.__class__.__name__ == "Xunion":
