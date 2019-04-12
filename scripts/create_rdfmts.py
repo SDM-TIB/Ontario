@@ -265,6 +265,19 @@ def read_config(filename):
     return conf
 
 
+class TermType(Enum):
+    IRI = "http://www.w3.org/ns/r2rml#IRI"
+    BNode = "http://www.w3.org/ns/r2rml#BlankNode"
+    Literal = "http://www.w3.org/ns/r2rml#Literal"
+
+
+class TripleMapType(Enum):
+    TEMPLATE = "Template"
+    CONSTANT = "Constant"
+    REFERENCE = "Reference"
+    TRIPLEMAP = "TripleMap"
+
+
 def ext_mappings(mappingslist, ds):
     mappings = {}
     rdfmts = []
@@ -292,19 +305,27 @@ def _query_mappings(filename, ds):
     results = {}
     rdfmts = {}
     for row in res:
+        tm = row['tm'].n3()[1:-1]
 
-        rdfmt = row['rdfmt'].n3()[1:-1]
+        rdfmt = row['rdfmt'].n3()[1:-1] if row['rdfmt'] is not None else tm
+        if row['predicate'] is not None:
+            predicate = row['predicate'].n3()[1:-1]
+        elif row['constpredicate'] is not None:
+            predicate = row['constpredicate'].n3()[1:-1]
+        else:
+            predicate = None
 
-        predicate = row['predicate'].n3()[1:-1]
+        if predicate is None:
+            continue
+
         if rdfmt not in rdfmts:
             rdfmts[rdfmt] = {}
         if predicate not in rdfmts[rdfmt]:
             rdfmts[rdfmt][predicate] = []
 
-        objrdfclass = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
-
-        if objrdfclass is not None:
-            rdfmts[rdfmt][predicate].append(objrdfclass)
+        pomobjtmtype = row['pomobjmaprdfmt'].n3()[1:-1] if row['pomobjmaprdfmt'] is not None else None
+        if pomobjtmtype is not None:
+            rdfmts[rdfmt][predicate].append(pomobjtmtype)
 
     molecules = []
     for m in rdfmts:
@@ -335,56 +356,88 @@ def _query_mappings(filename, ds):
     return results, molecules
 
 
-dsquery = " ?tm rml:logicalSource ?ls . " \
-            " ?ls rml:source ?sourceFile .  "
+subj_query = "       ?tm rml:logicalSource ?ls . " \
+             "       OPTIONAL { ?tm rr:subject ?subject . }" \
+             "       OPTIONAL { ?tm rr:subjectMap ?sm . " \
+             "          OPTIONAL { ?sm rr:class ?rdfmt .} " \
+             "          OPTIONAL { ?sm rr:constant ?constsubject .}" \
+             "          }"
 
-lsquery = dsquery + """                        
-        OPTIONAL { ?ls rml:referenceFormulation ?refForm . }  
-        OPTIONAL { ?ls rml:iterator ?iterator } 
-"""
-smquery = """
-    OPTIONAL {
-              ?tm rr:subject ?subject .
-              }
-    OPTIONAL {                      
-              ?tm rr:subjectMap ?sm . 
-              ?sm rr:class ?rdfmt . 
-              OPTIONAL { ?sm rr:template ?smtemplate .} 
-              OPTIONAL { ?sm rr:constant ?constsubject .}
-              OPTIONAL { ?sm rml:reference ?smreference .}
-            }
-    OPTIONAL {
-              ?tm rr:predicateObjectMap ?pom . 
-              ?pom  rr:predicate ?predicate . 
-              OPTIONAL { ?pom  rr:object ?objconst .}                             
-              OPTIONAL {
-                       ?pom rr:objectMap ?pomobjmap .            
-                       OPTIONAL { ?pomobjmap rml:reference ?pomomapreference .}                                        
-                       OPTIONAL { ?pomobjmap rr:constant ?constobject . }
-                       OPTIONAL { ?pomobjmap rr:template ?predobjmaptemplate .}
-                       OPTIONAL { ?pomobjmap rr:datatype ?pomobjmapdatatype.}
-                       OPTIONAL { ?pomobjmap rr:class ?pomobjmaprdfmt . }      
-                       OPTIONAL { ?pomobjmap rr:parentTriplesMap ?parentTPM . 	
-                                  OPTIONAL{		
-                                         ?pomobjmap rr:joinCondition ?jc .		
-                                         ?jc rr:child ?jcchild .		
-                                         ?jc rr:parent ?jcparent .		
-                                         }		
-                                 }	                              
-                       }
-           }
-"""
-proj = "?tm ?ls ?sourceFile ?sm ?pom ?pompm ?pomobjmap ?refForm ?iterator " \
-       " ?rdfmt ?subject ?constsubject ?smtemplate ?smreference " \
-       " ?predicate  ?pomomapreference ?pomobjmapdatatype ?constobject ?objconst " \
-       " ?predobjmaptemplate ?parentTPM ?jcchild ?jcparent ?pomobjmaprdfmt "
-
-mapping_query = prefixes + \
-        " SELECT DISTINCT " + proj +" \n " + \
-        " WHERE {\n\t\t" + \
-        lsquery + \
-        smquery + \
-        " }"
+pred_query = "   ?tm rr:predicateObjectMap ?pom . " \
+                 "OPTIONAL { ?pom  rr:predicate ?predicate .}" \
+                 "OPTIONAL { ?pom rr:predicateMap ?pm . " \
+                 "          OPTIONAL { ?pm rr:template ?pmtemplate .}" \
+                 "          OPTIONAL { ?pm rr:constant ?constpredicate .}" \
+                 "          OPTIONAL { ?pm rml:reference ?pmreference .}" \
+                 "} "
+obj_query = " OPTIONAL {?pom  rr:object ?object }" \
+                     "OPTIONAL {?pom   rr:objectMap ?pomobjmap . " \
+                      "     OPTIONAL { ?pomobjmap rml:reference ?pomomapreference .}" \
+                      "     OPTIONAL { ?pomobjmap rr:constant ?constobject . }" \
+                      "     OPTIONAL { ?pomobjmap rr:template ?predobjmaptemplate .}" \
+                      "     OPTIONAL { ?pomobjmap rr:datatype ?pomobjmapdatatype.}" \
+                      "     OPTIONAL { ?pomobjmap rr:language  ?pomobjmaplangtag.}" \
+                      "     OPTIONAL { ?pomobjmap rr:class ?pomobjmaprdfmt . } " \
+                      "     OPTIONAL { ?pomobjmap rr:termType ?pomobjtmtype . } " \
+                      "     OPTIONAL { ?pomobjmap rr:parentTriplesMap ?parentTPM . " \
+                      "                OPTIONAL{?pomobjmap rr:joinCondition ?jc ." \
+                      "                         ?jc rr:child ?jcchild ." \
+                      "                         ?jc rr:parent ?jcparent ." \
+                      "                        }" \
+                      "             }" \
+                      " } "
+mapping_query = prefixes + '\n' + " SELECT DISTINCT * \n WHERE {\n\t\t" + subj_query + '\n ' + pred_query + obj_query + " }"
+#
+# dsquery = " ?tm rml:logicalSource ?ls . " \
+#             " ?ls rml:source ?sourceFile .  "
+#
+# lsquery = dsquery + """
+#         OPTIONAL { ?ls rml:referenceFormulation ?refForm . }
+#         OPTIONAL { ?ls rml:iterator ?iterator }
+# """
+# smquery = """
+#     OPTIONAL {
+#               ?tm rr:subject ?subject .
+#               }
+#     OPTIONAL {
+#               ?tm rr:subjectMap ?sm .
+#               OPTIONAL {?sm rr:class ?rdfmt .}
+#               OPTIONAL { ?sm rr:template ?smtemplate .}
+#               OPTIONAL { ?sm rr:constant ?constsubject .}
+#               OPTIONAL { ?sm rml:reference ?smreference .}
+#             }
+#     OPTIONAL {
+#               ?tm rr:predicateObjectMap ?pom .
+#               ?pom  rr:predicate ?predicate .
+#               OPTIONAL { ?pom  rr:object ?objconst .}
+#               OPTIONAL {
+#                        ?pom rr:objectMap ?pomobjmap .
+#                        OPTIONAL { ?pomobjmap rml:reference ?pomomapreference .}
+#                        OPTIONAL { ?pomobjmap rr:constant ?constobject . }
+#                        OPTIONAL { ?pomobjmap rr:template ?predobjmaptemplate .}
+#                        OPTIONAL { ?pomobjmap rr:datatype ?pomobjmapdatatype.}
+#                        OPTIONAL { ?pomobjmap rr:class ?pomobjmaprdfmt . }
+#                        OPTIONAL { ?pomobjmap rr:parentTriplesMap ?parentTPM .
+#                                   OPTIONAL{
+#                                          ?pomobjmap rr:joinCondition ?jc .
+#                                          ?jc rr:child ?jcchild .
+#                                          ?jc rr:parent ?jcparent .
+#                                          }
+#                                  }
+#                        }
+#            }
+# """
+# proj = "?tm ?ls ?sourceFile ?sm ?pom ?pompm ?pomobjmap ?refForm ?iterator " \
+#        " ?rdfmt ?subject ?constsubject ?smtemplate ?smreference " \
+#        " ?predicate  ?pomomapreference ?pomobjmapdatatype ?constobject ?objconst " \
+#        " ?predobjmaptemplate ?parentTPM ?jcchild ?jcparent ?pomobjmaprdfmt "
+#
+# mapping_query = prefixes + \
+#         " SELECT DISTINCT " + proj +" \n " + \
+#         " WHERE {\n\t\t" + \
+#         lsquery + \
+#         smquery + \
+#         " }"
 
 
 def contactRDFSource(query, endpoint, format="application/sparql-results+json"):
@@ -469,9 +522,10 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
     referer = endpoint
     reslist = []
     if len(types) == 0:
-        query = "SELECT DISTINCT ?t  WHERE{  ?s a ?t.   }"
+        query = "SELECT DISTINCT ?t  WHERE{  ?s a ?t. " \
+                "FILTER(!regex(?t, 'http://dbpedia.org/class/yago/') && !regex(?t, 'http://www.openlinksw.com'))  }"
         if limit == -1:
-            limit = 100
+            limit = 1000
             offset = 0
             numrequ = 0
             while True:
@@ -486,10 +540,11 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
                     continue
                 if card > 0:
                     reslist.extend(res)
+                    print(res)
                 if card < limit:
                     break
                 offset += limit
-                time.sleep(5)
+                # time.sleep(5)
         else:
             reslist, card = contactRDFSource(query, referer)
 
@@ -839,9 +894,11 @@ def usage():
 
 
 if __name__ == "__main__":
-    source, output = get_options(sys.argv[1:])
+    # source, output = get_options(sys.argv[1:])
     # source = "ds_config.json"
     # output = 'polyweb_config.json'
+    source = 'dbpedia-config.json'
+    output = 'dbpedia_2016_rdfmts.json'
     conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))
