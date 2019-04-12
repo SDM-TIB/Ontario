@@ -38,7 +38,7 @@ class SPARKWrapper(object):
             self.port = '7077'
 
         if len(self.datasource.mappings) == 0:
-            self.mappings = self.config.load_mappings(self.datasource.mappingfiles, self.rdfmts)
+            self.mappings = self.config.load_mappings(self.datasource.mappingfiles, []) # self.rdfmts
         else:
             # self.mappings = self.config.mappings
             self.mappings = self.datasource.mappings
