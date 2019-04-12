@@ -40,8 +40,6 @@ class OntarioConfiguration(object):
 
     def ext_datasources_json(self, ds):
         datasources = {}
-        from time import time
-        start = time()
         for d in ds:
 
             mappings = self.load_mappings(d['mappings'])
@@ -209,6 +207,8 @@ def query_rml(filenames, rdfmts=[]):
             sourceType = DataSourceType.LOCAL_XML
         elif '.tsv' in source or refForm is not None and 'TSV' in refForm:
             sourceType = DataSourceType.LOCAL_TSV
+        elif '.csv' in source or refForm is not None and 'CSV' in refForm:
+            sourceType = DataSourceType.LOCAL_CSV
         elif refForm is not None and 'Mongo' in refForm:
             sourceType = DataSourceType.MONGODB
 
