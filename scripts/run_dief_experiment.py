@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-__author__ = 'kemele'
+__author__ = 'Kemele M. Endris'
+
 from ontario.config import OntarioConfiguration
 from ontario.mediator.Planner import MetaWrapperPlanner
 from ontario.mediator.Decomposer import *
-from multiprocessing import Queue
-from time import time
-from pprint import pprint
 
-import getopt, sys
-from ontario.mediator import Catalyst
+import getopt
+import sys
+import os
+import signal
 
-import sys, os, signal
-
-from multiprocessing import Process, Queue, active_children, Manager
+from multiprocessing import Process, Queue, active_children
 
 from time import time
 import logging
@@ -256,8 +254,8 @@ def get_options(argv):
         usage()
         sys.exit(1)
 
-    return (
-    configfile, queryfile, tempType, isEndpoint, plan, adaptive, withoutCounts, printResults, result_folder, joinlocally)
+    return (configfile, queryfile, tempType, isEndpoint, plan,
+            adaptive, withoutCounts, printResults, result_folder, joinlocally)
 
 
 def usage():

@@ -21,4 +21,4 @@ setup(name='ontario',
                         'networkx'],
       include_package_data=True,
       license='GNU/GPL v2'
-     )
+      )

@@ -1,7 +1,10 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.sparql.parser import queryParser as qp
 from ontario.wrappers.mongodb.s2m_utils import *
 from ontario.sparql.parser.services import Argument
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 from ontario.wrappers.mongodb import MongoDBClient
 
 
@@ -35,7 +38,7 @@ class SPARQL2Mongo:
                             password = params[1]
         self.mongo_client = MongoDBClient(self.datasource.url, username, password)
 
-        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings \
+        self.mappings = {tm: self.datasource.mappings[tm] for tm in self.datasource.mappings
                          for rdfmt in self.rdfmts if rdfmt in self.datasource.mappings[tm]}
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
@@ -178,7 +181,7 @@ class SPARQL2Mongo:
 
     def get_filters(self, triples):
         filters = [(getUri(t.predicate, self.prefixes)[1:-1], " = ", getUri(t.theobject, self.prefixes)[1:-1])
-                   for t in triples if t.predicate.constant and t.theobject.constant and \
+                   for t in triples if t.predicate.constant and t.theobject.constant and
                    getUri(t.predicate, self.prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
         return filters

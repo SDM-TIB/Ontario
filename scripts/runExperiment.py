@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
-__author__ = 'kemele'
+__author__ = 'Kemele M. Endris'
+
 from ontario.config import OntarioConfiguration
 from ontario.mediator.Decomposer import LakeCatalyst
 from ontario.mediator.Planner import LakePlanner
 
-import getopt, sys
+import getopt
 from ontario.mediator import Catalyst
 
-import sys, os, signal
+import sys
+import os
+import signal
 
-from multiprocessing import Process, Queue, active_children, Manager
+from multiprocessing import Process, Queue, active_children
 
 from time import time
 import logging
@@ -108,6 +111,7 @@ def runQuery(queryfile, configfile, res, printResults, planonly):
                     continue
             else:
                 break
+
 
 def check_pid(pid):
     """ Check For the existence of a unix pid. """
@@ -247,8 +251,8 @@ def get_options(argv):
         usage()
         sys.exit(1)
 
-    return (
-    configfile, queryfile, tempType, isEndpoint, plan, adaptive, withoutCounts, printResults, planonly, joinlocally)
+    return (configfile, queryfile, tempType, isEndpoint, plan,
+            adaptive, withoutCounts, printResults, planonly, joinlocally)
 
 
 def usage():

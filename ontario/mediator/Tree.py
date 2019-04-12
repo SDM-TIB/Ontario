@@ -1,6 +1,9 @@
-from __future__ import division
+
+__author__ = 'Kemele M. Endris'
+
 import abc
 from ontario.sparql.parser.services import Service, Triple
+
 
 class Tree(object):
 
@@ -17,11 +20,11 @@ class Tree(object):
     def degree(self):
         return get_degree(self.vars, self.dict)
 
-    def __leq__ (self, other):
+    def __leq__(self, other):
         return (self.size < other.size or (self.size == other.size
                                            and self.degree() <= other.degree()))
 
-    def __lt__ (self, other):
+    def __lt__(self, other):
         return (self.size < other.size or (self.size == other.size
                                            and self.degree() < other.degree()))
 
@@ -261,7 +264,7 @@ class Leaf(Tree):
             vars2 = []
             for v1 in vars:
                 for v2 in service_vars:
-                    if (v1 == v2[1:]):
+                    if v1 == v2[1:]:
                         vars2.append(v2)
                         break
             if len(vars2) > 0:
@@ -439,7 +442,7 @@ def createLeafs(lss, filters=None):
         for v in l:
             if v in d:
                 e.add(v)
-        ls.append(Leaf(s, e, d,filters))
+        ls.append(Leaf(s, e, d, filters))
 
     return d, ls
 
@@ -485,7 +488,7 @@ def makeBushyTree(ss, filters=None):
             l = others.pop(0)
             r = others.pop(0)
 
-            n = Node(l, r,filters)
+            n = Node(l, r, filters)
             others.append(n)
         if others:
             return others[0]

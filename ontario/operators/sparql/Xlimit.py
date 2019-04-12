@@ -12,10 +12,10 @@ from multiprocessing import Queue
 class Xlimit(object):
     
     def __init__(self, vars, limit):
-        self.input       = Queue()
-        self.qresults   = Queue()
-        self.vars  = vars
-        self.limit  = int(limit)
+        self.input = Queue()
+        self.qresults = Queue()
+        self.vars = vars
+        self.limit = int(limit)
         
     def execute(self, left, dummy, out, processqueue=Queue()):
         # print  "Executes the Xlimit.", self.limit
@@ -44,4 +44,3 @@ class Xlimit(object):
                 pass
             p = processqueue.get()
         return
-    

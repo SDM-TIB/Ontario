@@ -5,7 +5,6 @@ Implements the structures used by the Non-Blocking Operators.
 
 @author: Maribel Acosta Deibe
 '''
-from multiprocessing import Manager
 
 
 class Record(object):

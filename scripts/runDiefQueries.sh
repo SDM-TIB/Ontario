@@ -14,10 +14,10 @@ echo -e  "qname\tdecompositionTime\tplanningTime\tfirstResult\toverallExecTime\t
 #done;
 RES_DIR=$3
 for n in {1..3}; do
-  mkdir -p $RES_DIR/"exec_res_$n"
+  mkdir -p ${RES_DIR}/"exec_res_$n"
   for query in `ls -v $1/*`; do
-      (timeout -s 12 300 run_dief_experiment.py -c $2 -q $query -r $RES_DIR/"exec_res_$n" -t MULDER -s True -j $6 ) 2>> $5 >> $4;
+      (timeout -s 12 300 run_dief_experiment.py -c $2 -q ${query} -r ${RES_DIR}/"exec_res_$n" -t MULDER -s True -j $6 ) 2>> $5 >> $4;
       killall -9 --quiet run_dief_experiment.py
   done
-mv ontario.log $RES_DIR/ontario_$n.log
+mv ontario.log ${RES_DIR}/ontario_${n}.log
 done

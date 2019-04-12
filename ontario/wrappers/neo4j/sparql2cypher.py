@@ -1,7 +1,10 @@
+
+__author__ = 'Kemele M. Endris'
+
 from neo4j.v1 import GraphDatabase, basic_auth
 from ontario.wrappers.neo4j.neo4j_utils import *
 from ontario.sparql.parser import queryParser as qp
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 from pprint import pprint
 
 
@@ -29,7 +32,7 @@ class Neo4jClient(object):
 
             self.driver = GraphDatabase.driver(neo4jurl,
                                                auth=basic_auth(self.username, self.password),
-                                               max_connection_lifetime= 30 * 60)
+                                               max_connection_lifetime=30*60)
 
     def list_labels(self):
         if self.driver is None:
@@ -297,12 +300,12 @@ class SPARQL2Cypher(object):
           Case II: If predicate + object are constants
         '''
         objectfilters, nontnulls = getObjectFilters(self.mappings,
-                                                      self.prefixes,
-                                                      triples,
-                                                      varmaps,
-                                                      maxnumofobj,
-                                                      sparqlprojected,
-                                                      self.query)
+                                                    self.prefixes,
+                                                    triples,
+                                                    varmaps,
+                                                    maxnumofobj,
+                                                    sparqlprojected,
+                                                    self.query)
 
         cypher = " MATCH "
         cwhere = ""
@@ -340,7 +343,7 @@ class SPARQL2Cypher(object):
 
     def get_filters(self, triples):
         filters = [(getUri(t.predicate, self.prefixes)[1:-1], " = ", getUri(t.theobject, self.prefixes)[1:-1])
-                   for t in triples if t.predicate.constant and t.theobject.constant and \
+                   for t in triples if t.predicate.constant and t.theobject.constant and
                    getUri(t.predicate, self.prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
         return filters

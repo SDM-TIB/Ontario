@@ -1,8 +1,10 @@
 
+__author__ = 'Kemele M. Endris'
+
 from pymongo import MongoClient
 from ontario.sparql.parser import queryParser as qp
 from ontario.wrappers.mongodb.s2m_utils import *
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 
 
 class MongoDBClient(object):
@@ -90,7 +92,7 @@ class SPARQL2MongoDB(object):
 
         return group
 
-    def getProjections(self, triplepatterns, vartoColumnMap, maxnumofobj , sparqlprojected):
+    def getProjections(self, triplepatterns, vartoColumnMap, maxnumofobj, sparqlprojected):
         projvartocol = {}
         projections = {}
         for var in sparqlprojected:
@@ -254,42 +256,42 @@ class SPARQL2MongoDB(object):
 
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
 
-            self.query = qp.parse(query)
-            if limit > -1 or offset > -1:
-                self.query.limit = limit
-                self.query.offset = offset
+        self.query = qp.parse(query)
+        if limit > -1 or offset > -1:
+            self.query.limit = limit
+            self.query.offset = offset
 
-            sparql = self.query
+        sparql = self.query
 
-            pipeline, db, col, coltotemplates, projvartocols = self.translate()
-            '''mquery, mproj, cmpquery = self.rewrite(sparql)
-            mproj["_id"] = 0
-    
-            pipeline = []
-            if len(mquery) > 0:
-                pipeline.append({"$match": mquery})
-    
-            pipeline.append({"$project": mproj})
-            '''
-            if sparql.limit > 0:
-                if sparql.offset > 0:
-                    pipeline.append({"$limit": int(sparql.limit) + int(sparql.offset)})
-                    pipeline.append({"$skip": int(sparql.offset)})
-                else:
-                    pipeline.append({"$limit": int(sparql.limit)})
-            print(pipeline)
-            db, collection = self.mongo_client.get_db_coll_obj(db, col)
-            result = collection.aggregate(pipeline, useCursor=True, batchSize=1000, allowDiskUse=True)
-            for doc in result:
-                for r in doc:
-                    if isinstance(doc[r], int):
-                        doc[r] = str(doc[r])
-                    if projvartocols[r] in coltotemplates:
-                        doc[r] = coltotemplates[projvartocols[r]].replace('{' + projvartocols[r] + '}', doc[r].replace(" ", '_'))
-                queue.put(doc)
-            queue.put("EOF")
+        pipeline, db, col, coltotemplates, projvartocols = self.translate()
+        '''mquery, mproj, cmpquery = self.rewrite(sparql)
+        mproj["_id"] = 0
 
-            return result
+        pipeline = []
+        if len(mquery) > 0:
+            pipeline.append({"$match": mquery})
+
+        pipeline.append({"$project": mproj})
+        '''
+        if sparql.limit > 0:
+            if sparql.offset > 0:
+                pipeline.append({"$limit": int(sparql.limit) + int(sparql.offset)})
+                pipeline.append({"$skip": int(sparql.offset)})
+            else:
+                pipeline.append({"$limit": int(sparql.limit)})
+        print(pipeline)
+        db, collection = self.mongo_client.get_db_coll_obj(db, col)
+        result = collection.aggregate(pipeline, useCursor=True, batchSize=1000, allowDiskUse=True)
+        for doc in result:
+            for r in doc:
+                if isinstance(doc[r], int):
+                    doc[r] = str(doc[r])
+                if projvartocols[r] in coltotemplates:
+                    doc[r] = coltotemplates[projvartocols[r]].replace('{' + projvartocols[r] + '}', doc[r].replace(" ", '_'))
+            queue.put(doc)
+        queue.put("EOF")
+
+        return result
 
     def translate(self):
 
@@ -332,7 +334,7 @@ class SPARQL2MongoDB(object):
 
         # IF predicate + object are constants
         filters = [(getUri(t.predicate, self.prefixes)[1:-1], " = ", getUri(t.theobject, self.prefixes)[1:-1])
-                   for t in triplepatterns if t.predicate.constant and t.theobject.constant and \
+                   for t in triplepatterns if t.predicate.constant and t.theobject.constant and
                    getUri(t.predicate, self.prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
         predmap = self.get_pred_map(subjectColumn)
@@ -413,7 +415,6 @@ if __name__ == "__main__":
         }
     """
     ds = "http://tib.eu/dsdl/ontario/resource/COSMIC"
-
 
     # mgraph = "http://tib.eu/dsdl/ontario/g/Ontario-SDL"  # all-bio2rdf-wz-pubmed
     # print("******* ****************************")

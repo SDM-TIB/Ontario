@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.rdfmt.utils import contactRDFSource
 from . import DataSourceType
 import urllib.parse as urlparse
@@ -247,11 +250,11 @@ class DataSource(object):
 
     def __repr__(self):
         return "{" + \
-                '\trid: ' + self.rid +\
-                ",\turl: " + self.url+\
-                ",\tdstype: " + str(self.dstype)+ \
-                ",\tparams: " + str(self.params)+ \
-                 "}"
+                "\trid: " + self.rid +\
+                ",\turl: " + self.url +\
+                ",\tdstype: " + str(self.dstype) + \
+                ",\tparams: " + str(self.params) + \
+                "}"
 
 
 class ACPolicy(object):

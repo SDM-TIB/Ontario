@@ -1,16 +1,10 @@
-import urllib
+
+__author__ = 'Kemele M. Endris'
+
 import urllib.parse as urlparse
-import http.client as htclient
 from http import HTTPStatus
 import requests
-import json
-import pprint as pp
-import pprint
-import os
-import random
-import sys, getopt, os
-from multiprocessing import Queue, Process
-from multiprocessing.queues import Empty
+from multiprocessing import Queue
 import logging
 
 
@@ -112,7 +106,7 @@ def updateRDFSource(update, endpoint):
             return True
         else:
             print("Update Endpoint->", endpoint, resp.reason, resp.status_code, update)
-            logger.error(endpoint+" - " + str(resp.reason) + " - "+ str(resp.status_code))
+            logger.error(endpoint+" - " + str(resp.reason) + " - " + str(resp.status_code))
             logger.error("ERROR On: " + update)
     except Exception as e:
         print("Exception during update query execution to", endpoint, ': ', e, update)

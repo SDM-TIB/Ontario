@@ -14,10 +14,10 @@ from ontario.operators.Union import _Union
 class Xunion(_Union):
 
     def __init__(self, vars_left, vars_right):
-        self.left       = Queue()
-        self.right      = Queue()
-        self.qresults   = Queue()
-        self.vars_left  = vars_left
+        self.left = Queue()
+        self.right = Queue()
+        self.qresults = Queue()
+        self.vars_left = vars_left
         self.vars_right = vars_right
         self.count = 0
 
@@ -40,7 +40,7 @@ class Xunion(_Union):
         #print "left", hex(id(left)), "right", hex(id(right)), "out", hex(id(out))
 
         # Identify the kind of union to perform.
-        if (self.vars_left == self.vars_right):
+        if self.vars_left == self.vars_right:
             self.sameVariables()
         else:
             self.differentVariables()
@@ -93,19 +93,19 @@ class Xunion(_Union):
         
         # Add empty values to variables of the other argument.
         for v in self.vars_right:
-            v1.update({v:''})
+            v1.update({v: ''})
             
         for v in self.vars_left:
-            v2.update({v:''})
+            v2.update({v: ''})
 
         # Get the tuples from the queues.
         while (not(tuple1 == "EOF") or not(tuple2 == "EOF")):
 
             # Get tuple from left queue, and concatenate with empty tuple.
-            if (not(tuple1 == "EOF")):
+            if not(tuple1 == "EOF"):
                 try:
                     tuple1 = self.left.get(False)
-                    if (not (tuple1 == "EOF")):
+                    if not(tuple1 == "EOF"):
                         res = {}
                         res.update(v1)
                         res.update(tuple1)
@@ -117,10 +117,10 @@ class Xunion(_Union):
                     pass
 
             # Get tuple from right queue, and concatenate with empty tuple.
-            if (not(tuple2 == "EOF")):
+            if not(tuple2 == "EOF"):
                 try:
                     tuple2 = self.right.get(False)
-                    if (not (tuple2 == "EOF")):
+                    if not(tuple2 == "EOF"):
                         res = {}
                         res.update(v2)
                         res.update(tuple2)

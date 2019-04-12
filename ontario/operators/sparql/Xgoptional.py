@@ -15,13 +15,13 @@ from ontario.operators.sparql.GJOperatorStructures import Record, RJTTail
 class Xgoptional(Optional):
 
     def __init__(self, vars_left, vars_right):
-        self.left_table  = dict()
+        self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.bag         = []
-        self.vars_left   = set(vars_left)
-        self.vars_right  = set(vars_right)
-        self.vars        = list(self.vars_left & self.vars_right)
+        self.qresults = Queue()
+        self.bag = []
+        self.vars_left = set(vars_left)
+        self.vars_right = set(vars_right)
+        self.vars = list(self.vars_left & self.vars_right)
 
     def instantiate(self, d):
         newvars_left = self.vars_left - set(d.keys())
@@ -36,8 +36,8 @@ class Xgoptional(Optional):
 
     def execute(self, left, right, out, processqueue=Queue()):
         # Executes the Xgoptional.
-        self.left     = left
-        self.right    = right
+        self.left = left
+        self.right = right
         self.qresults = out
 
         # Initialize tuples.
@@ -48,7 +48,7 @@ class Xgoptional(Optional):
         while (not(tuple1 == "EOF") or not(tuple2 == "EOF")):
             # Try to get and process tuple from left queue.
 
-            if (not(tuple1 == "EOF")):
+            if not(tuple1 == "EOF"):
 
                 try:
                     tuple1 = self.left.get(False)
@@ -56,7 +56,7 @@ class Xgoptional(Optional):
                         self.bag.append(tuple1)
                     self.stage1(tuple1, self.left_table, self.right_table, self.vars_right)
                     #print  "bag after stage 1: ", self.bag
-                except Exception  as e:
+                except Exception as e:
                     # This catch:
                  #   print "Exception ", e.message
                     # Empty: in tuple2 = self.right.get(False), when the queue is empty.
@@ -64,7 +64,7 @@ class Xgoptional(Optional):
                     pass
 
             # Try to get and process tuple from right queue.
-            if (not(tuple2 == "EOF")):
+            if not(tuple2 == "EOF"):
 
                 try:
                     tuple2 = self.right.get(False)
@@ -119,20 +119,20 @@ class Xgoptional(Optional):
         # Iterate while there are common resources and both sources are blocked.
         while ((resources1 or resources2) and self.sourcesBlocked):
 
-            if (resources1):
+            if resources1:
                 resource = resources1.pop()
                 rjts1 = self.left_table[resource].records
                 for rjt1 in rjts1:
                     probed = self.probeFile(rjt1, self.fileDescriptor_right, resource, 2)
-                    if (probed):
+                    if probed:
                         rjt1.probeTS = time()
 
-            elif (resources2):
+            elif resources2:
                 resource = resources2.pop()
                 rjts1 = self.right_table[resource].records
                 for rjt1 in rjts1:
                     probed = self.probeFile(rjt1, self.fileDescriptor_left, resource, 2)
-                    if (probed):
+                    if probed:
                         rjt1.probeTS = time()
 
         # End of second stage.
@@ -148,7 +148,7 @@ class Xgoptional(Optional):
             #print 'stage 3 loop in bag'
             res_right = {}
             for var in self.vars_right:
-                res_right.update({var:''})
+                res_right.update({var: ''})
             res = res_right
             res.update(tuple)
             self.qresults.put(res)

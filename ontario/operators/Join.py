@@ -20,11 +20,11 @@ class Join(object):
         c2 = r.getCardinality()
         jc1 = l.getJoinCardinality(self.vars)
         jc2 = r.getJoinCardinality(self.vars)
-        if (max(jc1,jc2)==0):
-          return 0
+        if max(jc1, jc2) == 0:
+            return 0
         else:
-          return c1 * c2 * (1/max(jc1,jc2))
+            return c1 * c2 * (1/max(jc1, jc2))
 
     def getJoinCardinality(self, l, r, vars):
-        return max(l.getJoinCardinality(vars),r.getJoinCardinality(vars))
+        return max(l.getJoinCardinality(vars), r.getJoinCardinality(vars))
 

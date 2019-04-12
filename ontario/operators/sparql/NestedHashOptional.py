@@ -8,10 +8,10 @@ Autor: Gabriela Montoya
 Date: November 18th, 2013
 
 '''
-from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
-from multiprocessing import Queue, Process
+from ontario.operators.sparql.NHJFOperatorStructures import Record
+from multiprocessing import Queue
 from time import time
-import string, sys
+import string
 from multiprocessing.queues import Empty
 from ontario.operators.Optional import Optional
 
@@ -21,12 +21,11 @@ class NestedHashOptional(Optional):
     def __init__(self, vars_left, vars_right):
         self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.bag         = []
-        self.vars_left   = set(vars_left)
-        self.vars_right  = set(vars_right)
-        self.vars        = list(self.vars_left & self.vars_right)
-
+        self.qresults = Queue()
+        self.bag = []
+        self.vars_left = set(vars_left)
+        self.vars_right = set(vars_right)
+        self.vars = list(self.vars_left & self.vars_right)
 
     def instantiate(self, d):
         newvars_left = self.vars_left - set(d.keys())
@@ -86,7 +85,7 @@ class NestedHashOptional(Optional):
                 try:
                     q = right_queues[r]
                     tuple2 = q.get(False)
-                    if (tuple2 == "EOF"):
+                    if tuple2 == "EOF":
                         toRemove.append(r)
                     else:
                         self.probeAndInsert2(r, tuple2, self.left_table, 
@@ -101,12 +100,11 @@ class NestedHashOptional(Optional):
             for r in toRemove:
                 del right_queues[r]
 
-
         # This is the optional: Produce tuples that haven't matched already.    
         for tuple in self.bag:
             res_right = {}
             for var in self.vars_right:
-                res_right.update({var:''})
+                res_right.update({var: ''})
             res = res_right
             res.update(tuple)
             self.qresults.put(res)
@@ -141,7 +139,7 @@ class NestedHashOptional(Optional):
         record = Record(tuple, time, 0)
         r = self.getResource(tuple)
         if r in table1:
-            records =  table1[r]
+            records = table1[r]
             for t in records:
                 if t.ats > record.ats:
                     continue
@@ -163,7 +161,7 @@ class NestedHashOptional(Optional):
         #print "probeAndInsert2", tuple
         record = Record(tuple, time, 0)
         if resource in table1:
-            records =  table1[resource]
+            records = table1[resource]
             for t in records:
                 if t.ats > record.ats:
                     continue

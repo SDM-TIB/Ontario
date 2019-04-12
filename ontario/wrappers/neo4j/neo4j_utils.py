@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 
@@ -31,9 +34,9 @@ def vartocolumnmapping(mapping, triplepatterns, rdfmts, prefixes):
                             varmap[t.subject.name] = str(subj)
                         if t.predicate.constant and not t.theobject.constant:
                             pred = getUri(t.predicate, prefixes)[1:-1]
-                            pp = [predmap[p]['object'] for p in predmap if p == pred and  predmap[p]['objType'] == TermType.REFERENCE ]
-                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')]  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TEMPLATE ])
-                            tpm = [predmap[p]['object']  for p in predmap if p == pred and  predmap[p]['objType'] == TermType.TRIPLEMAP ]
+                            pp = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.REFERENCE]
+                            pp.extend([predmap[p]['object'][predmap[p]['object'].find('{') + 1: predmap[p]['object'].find('}')] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TEMPLATE])
+                            tpm = [predmap[p]['object'] for p in predmap if p == pred and predmap[p]['objType'] == TermType.TRIPLEMAP]
                             for tp in tpm:
                                 rmol = list(mapping[tp].keys())[0]
                                 rsubject = mapping[tp][rmol]['subject']
@@ -208,7 +211,7 @@ def getSubjectFilters(ifilters, maxnumofobj):
 
 def get_filters(triples, prefixes):
     filters = [(getUri(t.predicate, prefixes)[1:-1], " = ", getUri(t.theobject, prefixes)[1:-1])
-               for t in triples if t.predicate.constant and t.theobject.constant and \
+               for t in triples if t.predicate.constant and t.theobject.constant and
                getUri(t.predicate, prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
     return filters
@@ -285,7 +288,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, maxnumofobj, sparqlpr
                             objectfilters.append(' ' + rel + "_" + column + '.' + mapping.subjectCols[
                                 0].strip() + " = " + ' "' + val + '" ')
                         else:
-                            objectfilters.append(' ' + rel + "_" + predmap[v].strip() + '.' + mapping.subjectCols[ 0].strip() + " = " + ' "' + val + '" ')
+                            objectfilters.append(' ' + rel + "_" + predmap[v].strip() + '.' + mapping.subjectCols[0].strip() + " = " + ' "' + val + '" ')
 
     for v in set(nans):
         if isinstance(predmap[v], list):
@@ -374,10 +377,10 @@ def getVars(sg):
 def getPrefs(ps):
     prefDict = dict()
     for p in ps:
-         pos = p.find(":")
-         c = p[0:pos].strip()
-         v = p[(pos+1):len(p)].strip()
-         prefDict[c] = v
+        pos = p.find(":")
+        c = p[0:pos].strip()
+        v = p[(pos+1):len(p)].strip()
+        prefDict[c] = v
     return prefDict
 
 

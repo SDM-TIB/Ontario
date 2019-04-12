@@ -1,5 +1,8 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.sparql.parser import queryParser as qp
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
 from ontario.model.rml_model import TripleMapType
@@ -112,7 +115,7 @@ class SPARKWrapper(object):
                                          header=True)
             else:
                 df = self.spark.read.csv(filename, inferSchema=True,
-                                         sep='\t' if self.datasource.dstype == DataSourceType.LOCAL_TSV or \
+                                         sep='\t' if self.datasource.dstype == DataSourceType.LOCAL_TSV or
                                                      self.datasource.dstype == DataSourceType.SPARK_TSV else ',',
                                          header=True)
 
@@ -206,7 +209,7 @@ class SPARKWrapper(object):
 
         return tvars
 
-    def getsqlfil(self, l, r, op, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias):
+    def getsqlfil(self, l, r, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
         if r is not None and '?' in r.name:
             var = r.name
             val = l.name
@@ -335,8 +338,8 @@ class SPARKWrapper(object):
                 fil = self.getsqlfil(left, right, op, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 return fil
             if isinstance(left, Expression) and isinstance(right, Expression):
-                leftexp = self.get_Expression_value(left, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
-                rightexp = self.get_Expression_value(right, var_pred_map, subjmap,predicate_object_map, coltotemplates, tablealias)
+                leftexp = self.get_Expression_value(left, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
+                rightexp = self.get_Expression_value(right, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
                 if op == '||' or op == '|':
                     if leftexp is None or rightexp is None:
                         return None
@@ -349,7 +352,7 @@ class SPARKWrapper(object):
             return "(" + str(exp.left) + " " + exp.op + " " + str(exp.right)
 
     def get_obj_filter(self, f, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
-        return self.get_Expression_value(f.expr, var_pred_map, subjmap, predicate_object_map, coltotemplates,tablealias)
+        return self.get_Expression_value(f.expr, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias)
 
     def makeJoin(self, mapping_preds, query_filters):
 
@@ -597,7 +600,7 @@ class SPARKWrapper(object):
             mappingpreds = tounions[rdfmt]
             if subjectunions:
                 for tm, submaps in mappingpreds.items():
-                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm:submaps}, query_filters)
+                    un, projvartocols, coltotemplates, database_name = self.makeJoin({tm: submaps}, query_filters)
                     if un is not None and len(un) > 0:
                         unions.append(un)
             else:

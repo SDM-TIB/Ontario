@@ -1,6 +1,9 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 
-import getopt, sys
+__author__ = 'Kemele M. Endris'
+
+import getopt
+import sys
 from pprint import pprint
 import rdflib
 from enum import Enum
@@ -239,7 +242,7 @@ proj = "?tm ?ls ?sourceFile ?sm ?pom ?pompm ?pomobjmap ?refForm ?iterator " \
        " ?predobjmaptemplate ?parentTPM ?jcchild ?jcparent ?pomobjmaprdfmt "
 
 mapping_query = prefixes + \
-        " SELECT DISTINCT " + proj +" \n " + \
+        " SELECT DISTINCT " + proj + " \n " + \
         " WHERE {\n\t\t" + \
         lsquery + \
         smquery + \

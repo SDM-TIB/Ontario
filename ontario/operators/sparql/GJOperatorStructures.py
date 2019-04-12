@@ -14,10 +14,10 @@ class Record(object):
     and insertTS (timestamp when the tuple was inserted in the table).
     '''
     def __init__(self, tuple, probeTS, insertTS=None, flushTS=None):
-        self.tuple    = tuple
-        self.probeTS  = probeTS
+        self.tuple = tuple
+        self.probeTS = probeTS
         self.insertTS = insertTS
-        self.flushTS  = flushTS
+        self.flushTS = flushTS
 
 
 class RJTTail(object):
@@ -50,7 +50,7 @@ class FileDescriptor(object):
         self.file = file
         self.size = size
         self.lastFlushTS = lastFlushTS
-        #self.table = table
+        # self.table = table
         
     def getSize(self):
         return self.size
@@ -60,4 +60,3 @@ class FileDescriptor(object):
 #        
 #    def setLastFlushTS(self, lastFlushTS):
 #        self.lastFlushTS = lastFlushTS
-        

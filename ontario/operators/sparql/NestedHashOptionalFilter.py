@@ -10,11 +10,11 @@ Autor: Gabriela Montoya
 Date: January 29th, 2014
 
 '''
-from multiprocessing import Queue, Process
+from multiprocessing import Queue
 from time import time
 from multiprocessing.queues import Empty
 from ontario.operators.Optional import Optional
-from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
+from ontario.operators.sparql.NHJFOperatorStructures import Record
 
 
 WINDOW_SIZE = 10
@@ -25,12 +25,11 @@ class NestedHashOptionalFilter(Optional):
     def __init__(self, vars_left, vars_right):
         self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.bag         = []
-        self.vars_left   = set(vars_left)
-        self.vars_right  = set(vars_right)
-        self.vars        = list(self.vars_left & self.vars_right)
-
+        self.qresults = Queue()
+        self.bag = []
+        self.vars_left = set(vars_left)
+        self.vars_right = set(vars_right)
+        self.vars = list(self.vars_left & self.vars_right)
 
     def instantiate(self, d):
         newvars_left = self.vars_left - set(d.keys())
@@ -81,7 +80,7 @@ class NestedHashOptionalFilter(Optional):
                         count = count + 1
             
                 else:
-                    if (len(filter_bag) > 0):
+                    if len(filter_bag) > 0:
                         #print "here", len(filter_bag), filter_bag
                         new_right_operator = self.makeInstantiation(filter_bag, self.right_operator)
                         #resource = self.getResource(tuple1)
@@ -92,11 +91,11 @@ class NestedHashOptionalFilter(Optional):
                         count = count + 1
 
             except Empty:
-                    pass
+                pass
             except Exception as e:
-                    #print "Unexpected error:", sys.exc_info()[0]
-                    #print e
-                    pass
+                #print "Unexpected error:", sys.exc_info()[0]
+                #print e
+                pass
 
             toRemove = [] # stores the queues that have already received all its tuples
             #print "right_queues", right_queues
@@ -104,10 +103,10 @@ class NestedHashOptionalFilter(Optional):
                 try:
                     q = right_queues[r]
                     tuple2 = None
-                    while(tuple2 != "EOF"):
+                    while tuple2 != "EOF":
                         tuple2 = q.get(False)
                         
-                        if (tuple2 == "EOF"):
+                        if tuple2 == "EOF":
                             toRemove.append(r)
                         else:
                             resource = self.getResource(tuple2)
@@ -129,7 +128,7 @@ class NestedHashOptionalFilter(Optional):
         for tuple in self.bag:
             res_right = {}
             for var in self.vars_right:
-                res_right.update({var:''})
+                res_right.update({var: ''})
             res = res_right
             res.update(tuple)
             self.qresults.put(res)
@@ -196,7 +195,7 @@ class NestedHashOptionalFilter(Optional):
         r = self.getResource(tuple)
         #print "resource", r, tuple
         if r in table1:
-            records =  table1[r]
+            records = table1[r]
             for t in records:
                 if t.ats > record.ats:
                     continue
@@ -219,7 +218,7 @@ class NestedHashOptionalFilter(Optional):
         #print "probeAndInsert2", resource, tuple
         record = Record(tuple, time, 0)
         if resource in table1:
-            records =  table1[resource]
+            records = table1[resource]
             for t in records:
                 if t.ats > record.ats:
                     continue

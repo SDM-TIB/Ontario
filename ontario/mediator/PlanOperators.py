@@ -1,9 +1,12 @@
+
+__author__ = 'Kemele M. Endris'
+
 from multiprocessing import Process, Queue
 from ontario.model import DataSourceType
 from ontario.wrappers.mongodb.sparql2mongo import SPARQL2Mongo
 from ontario.wrappers.triplestore import RDFStore
 from ontario.wrappers.neo4j.sparql2cypher import SPARQL2Cypher
-from ontario.wrappers.spark.sparql2spark  import SPARKWrapper
+from ontario.wrappers.spark.sparql2spark import SPARKWrapper
 from ontario.wrappers.spark.sparql2sparksql import SPARKXMLWrapper
 from ontario.wrappers.mysql.sparql2sql import MySQLWrapper
 from ontario.wrappers.drill.sparql2drill import DrillWrapper
@@ -101,7 +104,7 @@ class NodeOperator(object):
 
     def getCardinality(self):
 
-        if self.cardinality == None:
+        if self.cardinality is None:
             self.cardinality = self.operator.getCardinality(self.left, self.right)
         return self.cardinality
 
@@ -111,7 +114,7 @@ class NodeOperator(object):
             if v == vars:
                 c = c2
                 break
-        if c == None:
+        if c is None:
             c = self.operator.getJoinCardinality(self.left, self.right, vars)
             self.joinCardinality.append((vars, c))
         return c
@@ -136,7 +139,7 @@ class NodeOperator(object):
             # print "self.right: ", self.right
             #print "self.left: ", self.left
 
-            p1 = Process(target=self.left.execute, args=(qleft, processqueue,  ))
+            p1 = Process(target=self.left.execute, args=(qleft, processqueue,))
             p1.start()
             processqueue.put(p1.pid)
             if "Nested" in self.operator.__class__.__name__:
@@ -259,7 +262,7 @@ class LeafOperator(object):
         # Evaluate the independent operator.
         self.q = Queue()
 
-        p = Process(target=self.get_wrapper_fun(self.datasource).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit,-1,))
+        p = Process(target=self.get_wrapper_fun(self.datasource).executeQuery, args=(self.query_str, outputqueue, self.tree.service.limit, -1,))
         p.start()
         processqueue.put(p.pid)
 
@@ -278,7 +281,7 @@ class LeafOperator(object):
         elif datasource.dstype == DataSourceType.SPARK_XML or datasource.dstype == DataSourceType.LOCAL_XML:
             return SPARKXMLWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARK_TSV or datasource.dstype == DataSourceType.SPARK_CSV\
-            or datasource.dstype == DataSourceType.SPARK_JSON:
+                or datasource.dstype == DataSourceType.SPARK_JSON:
             return SPARKWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.MYSQL:
             return MySQLWrapper(datasource, self.config, self.rdfmts, self.star)

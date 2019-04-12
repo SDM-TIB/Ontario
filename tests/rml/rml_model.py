@@ -26,7 +26,7 @@ class RMLDataSource(object):
         self.name = name
 
     def __repr__(self):
-        desc = [k + ':' + v for k,v in self.ds_desc.items()]
+        desc = [k + ':' + v for k, v in self.ds_desc.items()]
         return (self.ID if self.ID is not None else "") + \
                ("\t(" + self.ds_type.value + ') ' if self.ds_type is not None else "") + \
                (("\n\t\t" + "\n".join(desc)) if self.ds_desc is not None else '')
@@ -96,7 +96,7 @@ class SubjectMap(object):
 
     def __repr__(self):
         return (str(self.subject) if self.subject is not None else "") \
-              + "\t" +("RDFTypes:" + str(self.rdf_types) if self.rdf_types is not None else "")
+              + "\t" + ("RDFTypes:" + str(self.rdf_types) if self.rdf_types is not None else "")
 
 
 class PredicateMap(object):

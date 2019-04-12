@@ -10,12 +10,11 @@ Autor: Gabriela Montoya
 Date: January 29th, 2014
 
 '''
-from multiprocessing import Queue, Process
+from multiprocessing import Queue
 from time import time
-import string, sys
 from multiprocessing.queues import Empty
 from ontario.operators.Join import Join
-from ontario.operators.sparql.NHJFOperatorStructures import Table, Partition, Record
+from ontario.operators.sparql.NHJFOperatorStructures import Record
 from ontario.operators.sparql.NestedHashJoin import NestedHashJoin
 
 WINDOW_SIZE = 20
@@ -26,8 +25,8 @@ class NestedHashJoinFilter(Join):
     def __init__(self, vars):
         self.left_table = dict()
         self.right_table = dict()
-        self.qresults    = Queue()
-        self.vars        = vars
+        self.qresults = Queue()
+        self.vars = vars
         self.left_queue = Queue()
         self.right_operator = None
         self.qresults = Queue()
@@ -78,7 +77,7 @@ class NestedHashJoinFilter(Join):
                         count = count + 1
 
                 else:
-                    if (len(filter_bag) > 0):
+                    if len(filter_bag) > 0:
                         # print "here", len(filter_bag), filter_bag
                         new_right_operator = self.makeInstantiation(filter_bag,
                                                                     self.right_operator)
@@ -390,7 +389,7 @@ class NestedHashJoinFilter(Join):
         r = self.getResource(tuple)
         #print "resource", r, tuple
         if r in table1:
-            records =  table1[r]
+            records = table1[r]
             for t in records:
                 if t.ats > record.ats:
                     continue
@@ -407,7 +406,7 @@ class NestedHashJoinFilter(Join):
         #print "probeAndInsert2", resource, tuple
         record = Record(tuple, time, 0)
         if resource in table1:
-            records =  table1[resource]
+            records = table1[resource]
             for t in records:
                 if t.ats > record.ats:
                     continue

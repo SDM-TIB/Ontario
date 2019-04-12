@@ -20,8 +20,8 @@ class Optional(object):
         c2 = r.getCardinality()
         jc1 = l.getJoinCardinality(self.vars)
         jc2 = r.getJoinCardinality(self.vars)
-        return c1 * c2 * (1/max(jc1,jc2))
+        return c1 * c2 * (1/max(jc1, jc2))
 
     def getJoinCardinality(self, l, r, vars):
-        return max(l.getJoinCardinality(vars),r.getJoinCardinality(vars))
+        return max(l.getJoinCardinality(vars), r.getJoinCardinality(vars))
 

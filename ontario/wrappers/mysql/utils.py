@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris'
+
 from ontario.model.rdfmt_model import *
 from ontario.sparql.utilities import *
 
@@ -130,7 +133,7 @@ def getSubjectFilters(ifilters, tablealias):
 
 def get_filters(triples, prefixes):
     filters = [(getUri(t.predicate, prefixes)[1:-1], " = ", getUri(t.theobject, prefixes)[1:-1])
-               for t in triples if t.predicate.constant and t.theobject.constant and \
+               for t in triples if t.predicate.constant and t.theobject.constant and
                getUri(t.predicate, prefixes)[1:-1] != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type']
 
     return filters
@@ -192,7 +195,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
                 column = column[:column.find('[')]
             if '[' in column:
                 objectfilters.append(tablealias + '.`' + column + " = " + ' "' + val + '" ')
-                objectfilters.append(tablealias +  '.' + (subj[subj.find('[') + 1: subj.find('=')]).strip() + " = " + ' "' + (
+                objectfilters.append(tablealias + '.' + (subj[subj.find('[') + 1: subj.find('=')]).strip() + " = " + ' "' + (
                     subj[subj.find('=') + 1: subj.find(']')]).strip() + '" ')
             elif '/' in subj and '[*]' not in subj:
                 column = subj.replace('/', '.')
@@ -212,7 +215,7 @@ def getObjectFilters(mappings, prefixes, triples, varmaps, tablealias, sparqlpro
             if right is not None:
                 if f.expr.left.constant and not f.expr.right.constant:
                     column = varmaps['varmap'][v].strip()
-                    objectfilters.append(tablealias + '.`' + column+ f.expr.op + ' ' + left.replace(prefix, "") + ' ')
+                    objectfilters.append(tablealias + '.`' + column + f.expr.op + ' ' + left.replace(prefix, "") + ' ')
                 elif not f.expr.left.constant and f.expr.right.constant:
                     column = varmaps['varmap'][v].strip()
                     objectfilters.append(tablealias + '.`' + column + '` ' + f.expr.op + ' ' + right.replace(prefix, "") + ' ')
