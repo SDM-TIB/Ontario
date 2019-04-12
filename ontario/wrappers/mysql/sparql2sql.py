@@ -101,6 +101,7 @@ class MySQLWrapper(object):
                     processqueues = []
                     processes = []
                     res_dict = []
+                    # logger.info("UNION started" + str(len(sqlquery)))
                     for sql in sqlquery:
                         processquery = Queue()
                         # self.run_union(sql, filenametablename, queue, projvartocols, coltotemplates, limit, processquery,res_dict)
@@ -127,7 +128,8 @@ class MySQLWrapper(object):
                             pass
                         for q in toremove:
                             processqueues.remove(q)
-                    logger.info("MySQL Done running:")
+                    # logger.info("UNION Finished")
+                    logger.info("MySQL Done running UNION:")
                     sw = " UNION ".join(sqlquery)
                     logger.info(sw)
                 except Exception as e:
@@ -185,6 +187,7 @@ class MySQLWrapper(object):
                             break
 
                         offset = offset + limit
+                    logger.info("Running query: " + str(sqlquery) + " Non UNION DONE" + str(card))
                 except Exception as e:
                     print("EXception: ", e)
                     logger.error("Exception while running query" + str(e))
@@ -238,6 +241,7 @@ class MySQLWrapper(object):
             # print(sql)
             # rs = time()
             counter = 0
+
             while True:
                 query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
                 cursor.execute(query_copy)
@@ -249,7 +253,7 @@ class MySQLWrapper(object):
                     break
                 offset = offset + limit
             # print("DONE UNION:", card, sql)
-            logger.info("Union Running:" + sql + " is DONE! Total results: " + str(card))
+            logger.info("Running:" + sql + " UNION is DONE! Total results: " + str(card))
         except Exception as e:
             logger.error("Exception while running " + sql + " " + str(e))
             pass
@@ -693,8 +697,8 @@ class MySQLWrapper(object):
                     column2 = '`' + column2 + '`'
                     if column1 == column2:
                         constfilters.append(a1 + '.' + column1 + "=" + a2 + "." + column2)
-
-        objectfilters.extend(constfilters)
+        constfilters = list(set(constfilters))
+        constfilters.extend(objectfilters)
         if len(mapping_preds) > 0:
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
             distinct = ""
@@ -702,7 +706,7 @@ class MySQLWrapper(object):
                 distinct = "DISTINCT "
             projections = " SELECT  " + distinct + ", ".join(list(set(projections.values())))
             if len(objectfilters) > 0:
-                whereclause = "\n WHERE " + "\n\t AND ".join(list(set(objectfilters)))
+                whereclause = "\n WHERE " + "\n\t AND ".join(constfilters)
             else:
                 whereclause = ""
 
