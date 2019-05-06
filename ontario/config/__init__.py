@@ -7,6 +7,7 @@ from rdflib.term import BNode
 
 from ontario.model.rml_model import *
 from ontario.model.rdfmt_model import RDFMT, MTPredicate, DataSource
+from ontario.model import DataSourceType
 
 
 class OntarioConfiguration(object):

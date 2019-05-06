@@ -171,25 +171,13 @@ class MySQLWrapper(object):
                 db = filenametablename
                 cursor.execute("use " + db + ';')
                 card = 0
-                # if limit == -1:
-                limit = 100
-                if offset == -1:
-                    offset = 0
                 logger.info(sqlquery)
                 # print(sqlquery)
                 try:
                     # rs = time()
-                    while True:
-                        query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                        cursor.execute(query_copy)
-                        cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
-                        card += cardinality
-                        # if (time()-rs) > 20:
-                        #     print(card, 'results found -..')
-                        if cardinality < limit:
-                            break
-
-                        offset = offset + limit
+                    cursor.execute(sqlquery)
+                    cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
+                    card += cardinality
                     logger.info("Running query: " + str(sqlquery) + " Non UNION DONE" + str(card))
                 except Exception as e:
                     print("EXception: ", e)
@@ -238,24 +226,13 @@ class MySQLWrapper(object):
             db = filenametablename
             cursor.execute("use " + db + ';')
             card = 0
-            # if limit == -1:
-            limit = 100
-            offset = 0
             # print(sql)
             # rs = time()
-            counter = 0
 
-            while True:
-                query_copy = sql + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                cursor.execute(query_copy)
-                cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
-                card += cardinality
-                # if (time()-rs) > 20:
-                #     print(card, ' results found ...')
-                if cardinality < limit:
-                    break
-                offset = offset + limit
-            # print("DONE UNION:", card, sql)
+            cursor.execute(sql)
+            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
+            card += cardinality
+
             logger.info("Running:" + sql + " UNION is DONE! Total results: " + str(card))
         except Exception as e:
             logger.error("Exception while running " + sql + " " + str(e))
@@ -264,53 +241,57 @@ class MySQLWrapper(object):
         return
 
     def process_result(self, cursor, queue, projvartocols, coltotemplates, res_dict=None):
+        block_size = 10000
         header = [h[0] for h in cursor._description]
+        lines = cursor.fetchmany(block_size)
         c = 0
-        for line in cursor:
-            c += 1
-            # if res_dict is not None:
-            #     linetxt = ",".join(line)
-            #     if linetxt in res_dict:
-            #         continue
-            #     else:
-            #         res_dict.append(linetxt)
-            row = {}
-            res = {}
-            skip = False
-            for i in range(len(line)):
-                row[header[i]] = str(line[i])
-                r = header[i]
-                if row[r] == 'null':
-                    skip = True
-                    break
-                if '_' in r and r[:r.find("_")] in projvartocols:
-                    s = r[:r.find("_")]
-                    if s in res:
-                        val = res[s]
+        while lines:
+            for line in lines:
+                c += 1
+                # if res_dict is not None:
+                #     linetxt = ",".join(line)
+                #     if linetxt in res_dict:
+                #         continue
+                #     else:
+                #         res_dict.append(linetxt)
+                row = {}
+                res = {}
+                skip = False
+                for i in range(len(line)):
+                    row[header[i]] = str(line[i])
+                    r = header[i]
+                    if row[r] == 'null':
+                        skip = True
+                        break
+                    if '_' in r and r[:r.find("_")] in projvartocols:
+                        s = r[:r.find("_")]
+                        if s in res:
+                            val = res[s]
+                            if 'http://' in row[r]:
+                                res[s] = row[r]
+                            else:
+                                res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                        else:
+                            if 'http://' in r:
+                                res[s] = r
+                            else:
+                                res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                                   row[r].replace(" ", '_'))
+                    elif r in projvartocols and r in coltotemplates:
                         if 'http://' in row[r]:
-                            res[s] = row[r]
+                            res[r] = row[r]
                         else:
-                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
                     else:
-                        if 'http://' in r:
-                            res[s] = r
-                        else:
-                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                               row[r].replace(" ", '_'))
-                elif r in projvartocols and r in coltotemplates:
-                    if 'http://' in row[r]:
                         res[r] = row[r]
-                    else:
-                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
-                else:
-                    res[r] = row[r]
 
-            if not skip:
-                queue.put(res)
-                # if 'drugbor' in res and res['drugbor'] == 'http://tcga.deri.ie/TCGA-22-5483-D14623':
-                #     print(res)
-                # if 'petient' in res and res['patient'] == 'http://tcga.deri.ie/TCGA-22-5483':
-                #     print(res)
+                if not skip:
+                    queue.put(res)
+                    # if 'drugbor' in res and res['drugbor'] == 'http://tcga.deri.ie/TCGA-22-5483-D14623':
+                    #     print(res)
+                    # if 'petient' in res and res['patient'] == 'http://tcga.deri.ie/TCGA-22-5483':
+                    #     print(res)
+            lines = cursor.fetchmany(block_size)
         # if res_dict is not None:
         #     print("Total: ", c)
         return c
