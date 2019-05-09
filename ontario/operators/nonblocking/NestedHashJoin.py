@@ -13,7 +13,7 @@ from time import time
 from multiprocessing.queues import Empty
 from ontario.operators.Join import Join
 
-from ontario.operators.sparql.NHJFOperatorStructures import Record
+from ontario.operators.nonblocking.NHJFOperatorStructures import Record
 
 
 class NestedHashJoin(Join):

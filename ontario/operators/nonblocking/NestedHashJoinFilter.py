@@ -14,8 +14,8 @@ from multiprocessing import Queue
 from time import time
 from multiprocessing.queues import Empty
 from ontario.operators.Join import Join
-from ontario.operators.sparql.NHJFOperatorStructures import Record
-from ontario.operators.sparql.NestedHashJoin import NestedHashJoin
+from ontario.operators.nonblocking.NHJFOperatorStructures import Record
+from ontario.operators.nonblocking.NestedHashJoin import NestedHashJoin
 
 WINDOW_SIZE = 20
 

@@ -9,7 +9,7 @@ The intermediate results are represented as queues.
 from multiprocessing import Queue
 from time import time
 from ontario.operators.Optional import Optional
-from ontario.operators.sparql.GJOperatorStructures import Record, RJTTail
+from ontario.operators.nonblocking.GJOperatorStructures import Record, RJTTail
 
 
 class Xgoptional(Optional):
