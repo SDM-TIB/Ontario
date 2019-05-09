@@ -6,7 +6,7 @@ import rdflib
 from rdflib.term import BNode
 
 from ontario.model.rml_model import *
-from ontario.model.rdfmt_model import RDFMT, MTPredicate, DataSource
+from ontario.model.rdfmt_model import RDFMT, MTPredicate, DataSource, DataSourceType
 
 
 class OntarioConfiguration(object):
@@ -52,8 +52,8 @@ class OntarioConfiguration(object):
                                               d['url'],
                                               d['type'],
                                               d['params'],
-                                              d['mappings'],
-                                              mappings
+                                              d['mappings']
+                                              ,mappings
                                               )
         return datasources
 
