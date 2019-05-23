@@ -13,7 +13,7 @@ from time import time
 from tempfile import NamedTemporaryFile
 from os import remove
 from ontario.operators.Join import Join
-from ontario.operators.sparql.GJOperatorStructures import Record, RJTTail, FileDescriptor
+from ontario.operators.nonblocking.GJOperatorStructures import Record, RJTTail, FileDescriptor
 
 
 class Xgjoin(Join):
@@ -31,7 +31,7 @@ class Xgjoin(Join):
         self.sourcesBlocked = False
 
         # Main memory settings
-        self.memorySize = 1000000000        # Represents the main memory size (# tuples).OLD:Represents the main memory size (in KB).
+        self.memorySize = 100000000        # Represents the main memory size (# tuples).OLD:Represents the main memory size (in KB).
         self.fileDescriptor_left = {}
         self.fileDescriptor_right = {}
         self.memory_left = 0

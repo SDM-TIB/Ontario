@@ -8,7 +8,7 @@ Autor: Gabriela Montoya
 Date: November 18th, 2013
 
 '''
-from ontario.operators.sparql.NHJFOperatorStructures import Record
+from ontario.operators.nonblocking.NHJFOperatorStructures import Record
 from multiprocessing import Queue
 from time import time
 import string

@@ -44,7 +44,8 @@ metas = ['http://www.w3.org/ns/sparql-service-description',
          'http://www.w3.org/2002/07/owl#',
          "http://purl.org/goodrelations/",
          'http://www.ontologydesignpatterns.org/ont/d0.owl#',
-         'http://www.wikidata.org/',
+         'http://www.wikidata/',
+         'http://persistence.uni-leipzig.org',
          'http://dbpedia.org/ontology/Wikidata:',
          'http://dbpedia.org/class/yago/',
          "http://rdfs.org/ns/void#",
@@ -522,8 +523,8 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
     referer = endpoint
     reslist = []
     if len(types) == 0:
-        query = "SELECT DISTINCT ?t  WHERE{  ?s a ?t. " \
-                "FILTER(!regex(?t, 'http://dbpedia.org/class/yago/') && !regex(?t, 'http://www.openlinksw.com'))  }"
+        query = "SELECT DISTINCT ?t  WHERE{  ?s a ?t.  }"
+                #"FILTER(regex(?t, 'http://dbpedia.org') && !regex(?t, 'http://dbpedia.org/class/'))  }"
         if limit == -1:
             limit = 1000
             offset = 0
@@ -580,24 +581,25 @@ def get_typed_concepts(ds, endpoint, limit=-1, types=[]):
         for p in preds:
             pred = p['p']
             predicates.append(pred)
-
+            ranges = []
             # Get range of this predicate from this RDF-MT t
-            ranges = get_rdfs_ranges(referer, pred)
-            if len(ranges) == 0:
+            if 'wikiPageWikiLink' not in pred:
+                ranges = get_rdfs_ranges(referer, pred)
+                #if len(ranges) == 0:
                 rr = find_instance_range(referer, t, pred)
                 mtranges = list(set(ranges + rr))
-            else:
-                mtranges = ranges
-            ranges = []
+                #else:
+                # mtranges = ranges
+                ranges = []
 
-            for mr in mtranges:
-                if '^^' in mr:
-                    continue
-                if xsd not in mr:
-                    ranges.append(mr)
+                for mr in mtranges:
+                    if '^^' in mr:
+                        continue
+                    if xsd not in mr:
+                        ranges.append(mr)
 
-            linkedto.extend(ranges)
-            logger.info(pred + str(ranges))
+                linkedto.extend(ranges)
+                logger.info(pred + str(ranges))
             rdfpropteries.append({
                 "predicate": pred,
                 "range": ranges,
@@ -636,7 +638,7 @@ def get_rdfs_ranges(referer, p, limit=-1):
 
     reslist = []
     if limit == -1:
-        limit = 100
+        limit = 1000
         offset = 0
         numrequ = 0
         while True:
@@ -897,8 +899,10 @@ if __name__ == "__main__":
     # source, output = get_options(sys.argv[1:])
     # source = "ds_config.json"
     # output = 'polyweb_config.json'
-    source = 'dbpedia-config.json'
-    output = 'dbpedia_2016_rdfmts.json'
+    # source = 'dbpedia-config.json'
+    source = 'yago-config.json'
+    # output = 'dbpedia_2016_rdfmts.json'
+    output = 'yago_3_1_rdfmts.json'
     conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))

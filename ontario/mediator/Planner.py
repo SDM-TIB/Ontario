@@ -1,15 +1,15 @@
-from ontario.mediator.Tree import *
 from ontario.mediator.PlanOperators import *
-from ontario.operators.sparql.Xgjoin import Xgjoin
-from ontario.operators.sparql.NestedHashJoinFilter import NestedHashJoinFilter
-from ontario.operators.sparql.NestedHashOptionalFilter import NestedHashOptionalFilter as NestedHashOptional
-from ontario.operators.sparql.Xunion import Xunion
-from ontario.operators.sparql.Xdistinct import Xdistinct
-from ontario.operators.sparql.Xfilter import Xfilter
-from ontario.operators.sparql.Xproject import Xproject
-from ontario.operators.sparql.Xoffset import Xoffset
-from ontario.operators.sparql.Xlimit import Xlimit
-from ontario.operators.sparql.Xgoptional import Xgoptional
+from ontario.operators.nonblocking.Xgjoin import Xgjoin
+from ontario.operators.nonblocking.NestedHashJoinFilter import NestedHashJoinFilter
+from ontario.operators.nonblocking.NestedHashOptionalFilter import NestedHashOptionalFilter as NestedHashOptional
+from ontario.operators.nonblocking.Xunion import Xunion
+from ontario.operators.nonblocking.Xdistinct import Xdistinct
+from ontario.operators.nonblocking.Xfilter import Xfilter
+from ontario.operators.nonblocking.Xproject import Xproject
+from ontario.operators.nonblocking.Xoffset import Xoffset
+from ontario.operators.nonblocking.Xlimit import Xlimit
+from ontario.operators.nonblocking.Xgoptional import Xgoptional
+from ontario.sparql.parser.services import Filter, Triple, Optional, UnionBlock, JoinBlock
 from .utility import *
 
 
@@ -240,7 +240,7 @@ class MetaWrapperPlanner(object):
             return n
 
     def make_joins(self, left, right):
-        #return self.make_sparql_endpoint_plan(left, right)
+        # return self.make_sparql_endpoint_plan(left, right)
 
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
             if ('SPARQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value) or \
@@ -249,8 +249,8 @@ class MetaWrapperPlanner(object):
 
             if 'SPARQL' in left.datasource.dstype.value and 'SPARQL' in right.datasource.dstype.value:
                 return self.make_mulder_joins(left, right)
-            if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
-                return self.make_sparql_endpoint_plan(left, right)
+            # if 'SQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value:
+            #     return self.make_sparql_endpoint_plan(left, right)
         elif isinstance(left, LeafOperator):
             if 'SPARQL' in left.datasource.dstype.value or 'SQL' in left.datasource.dstype.value :
                 return self.make_sparql_endpoint_plan(left, right)

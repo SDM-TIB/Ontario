@@ -14,7 +14,7 @@ from multiprocessing import Queue
 from time import time
 from multiprocessing.queues import Empty
 from ontario.operators.Optional import Optional
-from ontario.operators.sparql.NHJFOperatorStructures import Record
+from ontario.operators.nonblocking.NHJFOperatorStructures import Record
 
 
 WINDOW_SIZE = 10

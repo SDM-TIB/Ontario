@@ -1,5 +1,5 @@
-
 __author__ = 'Kemele M. Endris'
+
 
 def getVars(sg):
 
