@@ -52,8 +52,8 @@ class OntarioConfiguration(object):
                                               d['url'],
                                               d['type'],
                                               d['params'],
-                                              d['mappings']
-                                              ,mappings
+                                              d['mappings'],
+                                              mappings
                                               )
         return datasources
 

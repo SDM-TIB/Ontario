@@ -72,7 +72,7 @@ class SPARQL2SQL(object):
         constfilters.extend(objectfilters)
         if len(mapping_preds) > 0:
             fromclauses = []
-            for k,v in tables.items():
+            for k, v in tables.items():
                 fromclauses.append(v + ' ' + k)
             fromcaluse = "\n FROM " + ", ".join(list(set(fromclauses)))
             distinct = ""
@@ -308,7 +308,6 @@ class SPARQL2SQL(object):
             mapping_preds = []
 
     def predicate_object_map(self, predicate_object_map, star_variables, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters):
-
         var_pred_map.update({var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map})
         column = []
         for var in star_variables:
@@ -430,7 +429,6 @@ class SPARQL2SQL(object):
                             objectfilters.remove(a2 + '.' + column2 + " is not null ")
 
     def get_so_variables(self, triples):
-
         tvars = []
         for t in triples:
             if not t.subject.constant:
@@ -532,7 +530,6 @@ class SPARQL2SQL(object):
         return objectfilter
 
     def get_Expression_value(self, exp, var_pred_map, subjmap, predicate_object_map, coltotemplates, tablealias):
-
         left = exp.left
         right = exp.right
         op = exp.op
