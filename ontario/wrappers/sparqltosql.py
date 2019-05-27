@@ -1,10 +1,9 @@
-__author__ = 'Kemele M. Endris'
+__author__ = 'Kemele M. Endris and Philipp D. Rohde'
 
 from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
 from ontario.model.rml_model import TripleMapType, SubjectMap
 from ontario.model.rdfmt_model import DataSourceType
 from ontario.sparql.parser import queryParser as qp
-from pprint import pprint
 from .utilities import *
 import logging
 import hashlib
@@ -29,6 +28,7 @@ class SPARQL2SQL(object):
         self.prefixes = getPrefs(self.sparql.prefs)
 
     def translate(self):
+        # TODO: include templates like http://example.org/{start}_{end}
         query_filters = [f for f in self.sparql.body.triples[0].triples if isinstance(f, Filter)]
 
         rdfmts = self.star['rdfmts']
@@ -229,22 +229,39 @@ class SPARQL2SQL(object):
         if isinstance(column, list):
             j = 0
             for col in column:
-                vcolumn = "`" + col + '`'
-                if var in [c.name for c in self.sparql.args]:
-                    projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
-                    projvartocol.setdefault(var[1:], []).append(col)
-                objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
-                objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                self.projection(projections, tablealias, col, var, projvartocol, coltotemplates, objectfilters, j)
                 j += 1
         else:
-            col = column
-            column = "`" + column + '`'
-            if var in [c.name for c in self.sparql.args]:
-                projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
-                projvartocol[var[1:]] = col
-            objectfilters.append(tablealias + '.' + column + " is not null ")
-            if self.datasource.dstype == DataSourceType.MYSQL:
-                objectfilters.append(tablealias + '.' + column + " <> '' ")
+            self.projection(projections, tablealias, column, var, projvartocol, coltotemplates, objectfilters)
+
+    def projection(self, projections, tablealias, col, var, projvartocol, coltotemplates, objectfilters, j=None):
+        """
+        Projects subjects/objects and semantifies them according to the mappings
+        :param projections: list of projections from the query
+        :param tablealias: alias of the attribute's table
+        :param col: column of the table to be accessed
+        :param var: variable from the SPARQL query that translates to the attribute
+        :param projvartocol: list of projected variables
+        :param coltotemplates: mappings
+        :param objectfilters: filters in the WHERE clause
+        :param j: (optional) number of the table
+        """
+        column = '`' + col + '`'
+        if var in [c.name for c in self.sparql.args]:
+            if var[1:] in coltotemplates.keys():
+                prefix = coltotemplates[var[1:]].replace('{' + col + '}', '')
+                projstr = 'CONCAT("' + prefix + '", ' + tablealias + "." + column + ')'
+            else:
+                projstr = tablealias + "." + column
+
+            if j is None:
+                projections[var[1:]] = projstr + " AS `" + var[1:] + '`'
+            else:
+                projections[var[1:] + '_Ontario_' + str(j)] = projstr + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
+            projvartocol[var[1:]] = col
+        objectfilters.append(tablealias + '.' + column + " is not null ")
+        if self.datasource.dstype == DataSourceType.MYSQL:
+            objectfilters.append(tablealias + '.' + column + " <> '' ")
 
     def subject_cond(self, subjects, tm_tablealias, constfilters, coltotemplates, projections, projvartocol, objectfilters):
         invalidsubj = False
@@ -263,23 +280,11 @@ class SPARQL2SQL(object):
                 if len(column) > 1:
                     j = 0
                     for col in column:
-                        vcolumn = "`" + col + '`'
-                        if subj in [c.name for c in self.sparql.args]:
-                            projections[subj[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + subj[1:] + '_Ontario_' + str(j) + '`'
-                            projvartocol.setdefault(subj[1:], []).append(col)
-                        objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
-                        objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                        self.projection(projections, tablealias, col, subj, projvartocol, coltotemplates, objectfilters, j)
                         j += 1
                 elif len(column) == 1:
                     col = column[0]
-                    column = "`" + col + '`'
-                    if subj in [c.name for c in self.sparql.args]:
-                        projections[subj[1:]] = tablealias + "." + column + " AS `" + subj[1:] + '`'
-                        projvartocol[subj[1:]] = col
-
-                    objectfilters.append(tablealias + '.' + column + " is not null ")
-                    if self.datasource.dstype == DataSourceType.MYSQL:
-                       objectfilters.append(tablealias + '.' + column + " <> '' ")
+                    self.projection(projections, tablealias, col, subj, projvartocol, coltotemplates, objectfilters)
         else:
             subj = self.star['triples'][0].subject.name
             for tm, subject in subjects.items():
@@ -330,25 +335,10 @@ class SPARQL2SQL(object):
             if isinstance(column, list):
                 j = 0
                 for col in column:
-                    vcolumn = "`" + col + '`'
-                    if var in [c.name for c in self.sparql.args]:
-                        projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[
-                                                                                                             1:] + '_Ontario_' + str(
-                            j) + '`'
-                        projvartocol.setdefault(var[1:], []).append(col)
-                    objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
-                    if self.datasource.dstype == DataSourceType.MYSQL:
-                        objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                    self.projection(projections, tablealias, col, var, projvartocol, coltotemplates, objectfilters, j)
                     j += 1
             else:
-                col = column
-                column = "`" + column + '`'
-                if var in [c.name for c in self.sparql.args]:
-                    projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
-                    projvartocol[var[1:]] = col
-                objectfilters.append(tablealias + '.' + column + " is not null ")
-                if self.datasource.dstype == DataSourceType.MYSQL:
-                    objectfilters.append(tablealias + '.' + column + " <> '' ")
+                self.projection(projections, tablealias, column, var, projvartocol, coltotemplates, objectfilters)
 
     def filter_clauses(self, query_filters, constfilters, tm, predicate_object_map, var_pred_map, coltotemplates, tablealias):
         for f in query_filters:

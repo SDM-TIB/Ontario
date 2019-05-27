@@ -1,14 +1,15 @@
 
-__author__ = 'Kemele M. Endris'
+__author__ = 'Kemele M. Endris and Philipp D. Rohde'
 
 from ontario.sparql.parser import queryParser as qp
 from mysql import connector
 from mysql.connector import errorcode
 from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty
-from ontario.wrappers.mysql.utils import *
-from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
 from ontario.model.rml_model import TripleMapType, SubjectMap
+from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
+from ontario.wrappers.sparqltosql import SPARQL2SQL
+from ontario.wrappers.mysql.utils import *
 from time import time
 import logging
 
@@ -19,6 +20,13 @@ handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+
+class RetrievalMethod(Enum):
+    BLOCKS = '10k blocks'
+    FETCHMANY = 'fetchmany(10k)'
+    FETCHROW = 'fetchrow'
+    ITERATOR = 'iterator'
 
 
 class MySQLWrapper(object):
@@ -85,8 +93,14 @@ class MySQLWrapper(object):
         #     self.query.limit = limit
         #     self.query.offset = offset
         start = time()
-        sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
+        # sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
+        start = time()
+        sparql2sql = SPARQL2SQL(query, self.mappings, self.datasource, self.rdfmts, self.star)
+        sqlquery, projvartocols, coltotemplates, filenametablename = sparql2sql.translate()
+        duration = time() - start
+        # print("Translation SPARQL2SQL took:", duration)
         # print(sqlquery)
+        # print('length: ', len(sqlquery))
         if sqlquery is None or len(sqlquery) == 0:
             queue.put("EOF")
             return []
@@ -167,30 +181,19 @@ class MySQLWrapper(object):
                     queue.put('EOF')
                     return
 
-                cursor = self.mysql.cursor()
+                cursor = self.mysql.cursor(dictionary=True)
                 db = filenametablename
                 cursor.execute("use " + db + ';')
                 card = 0
-                # if limit == -1:
-                limit = 100
-                if offset == -1:
-                    offset = 0
                 logger.info(sqlquery)
                 # print(sqlquery)
                 try:
-                    # rs = time()
-                    while True:
-                        query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
-                        cursor.execute(query_copy)
-                        cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates)
-                        card += cardinality
-                        # if (time()-rs) > 20:
-                        #     print(card, 'results found -..')
-                        if cardinality < limit:
-                            break
-
-                        offset = offset + limit
-                    logger.info("Running query: " + str(sqlquery) + " Non UNION DONE" + str(card))
+                    rs = time()
+                    card = self.retrieve_results(cursor, sqlquery, queue, RetrievalMethod.FETCHMANY)
+                    exectime = time() - rs
+                    #card += cardinality
+                    # print("wrapper execution:", exectime)
+                    logger.info("Running query: " + str(sqlquery) + " Non UNION DONE" + str(card) + " in " + str(exectime))
                 except Exception as e:
                     print("EXception: ", e)
                     logger.error("Exception while running query" + str(e))
@@ -206,7 +209,63 @@ class MySQLWrapper(object):
         logger.info("MySQL finished after: " + str(time()-start))
         queue.put("EOF")
 
+    def retrieve_results(self, cursor, sqlquery, resultqueue, method):
+        """
+        Executes the query with the given method and puts the results into the result queue.
+        :param cursor: MySQL cursor
+        :param sqlquery: query to be answered
+        :param resultqueue: queue to put the results in
+        :param method: the method to use for result retrieval
+        :return: cardinality of the result set
+        """
+        card = 0
+        if method == RetrievalMethod.BLOCKS:
+            # use several query executions with a limit of 10k
+            limit = 10000
+            offset = 0
+            while True:
+                query_copy = sqlquery + " LIMIT " + str(limit) + " OFFSET " + str(offset)
+                cursor.execute(query_copy)
+                cardinality = 0
+                for result in cursor:
+                    cardinality += 1
+                    resultqueue.put(result)
+
+                card += cardinality
+                if cardinality < limit:
+                    break
+
+                offset = offset + limit
+        else:
+            # execute query once
+            cursor.execute(sqlquery)
+            if method == RetrievalMethod.FETCHMANY:
+                # fetch the results in blocks of 10k
+                size = 10000
+                results = cursor.fetchmany(size)
+                while results:
+                    for result in results:
+                        card += 1
+                        resultqueue.put(result)
+                    results = cursor.fetchmany(size)
+            elif method == RetrievalMethod.ITERATOR:
+                # iterate over the result set
+                for result in cursor:
+                    card += 1
+                    resultqueue.put(result)
+            elif method == RetrievalMethod.FETCHROW:
+                # fetch the results row by row
+                result = cursor.fetchone()
+                while result:
+                    card += 1
+                    resultqueue.put(result)
+                    result = cursor.fetchone()
+
+        cursor.close()
+        return card
+
     def run_union(self, sql, filenametablename, queue, projvartocols, coltotemplates, limit, processqueue, res_dict):
+        print("RUN_UNION")
         try:
 
             try:
@@ -237,6 +296,16 @@ class MySQLWrapper(object):
             cursor = mysql.cursor()
             db = filenametablename
             cursor.execute("use " + db + ';')
+
+            card = 0
+            rs = time()
+            cursor.execute(sql)
+            cardinality = self.process_result(cursor, queue, projvartocols, coltotemplates, res_dict)
+            exectime = time() - rs
+            card += cardinality
+            logger.info("Union Running:" + sql + " is DONE! Total results: " + str(card) + " in " + exectime)
+
+
             card = 0
             # if limit == -1:
             limit = 100
@@ -264,55 +333,54 @@ class MySQLWrapper(object):
         return
 
     def process_result(self, cursor, queue, projvartocols, coltotemplates, res_dict=None):
+        lines = cursor.fetchmany(10000)
         header = [h[0] for h in cursor._description]
         c = 0
-        for line in cursor:
-            c += 1
-            # if res_dict is not None:
-            #     linetxt = ",".join(line)
-            #     if linetxt in res_dict:
-            #         continue
-            #     else:
-            #         res_dict.append(linetxt)
-            row = {}
-            res = {}
-            skip = False
-            for i in range(len(line)):
-                row[header[i]] = str(line[i])
-                r = header[i]
-                if row[r] == 'null':
-                    skip = True
-                    break
-                if '_' in r and r[:r.find("_")] in projvartocols:
-                    s = r[:r.find("_")]
-                    if s in res:
-                        val = res[s]
+        start = time()
+        while lines:
+            # print(lines)
+            # break
+            for line in lines:
+                c += 1
+                # print(line)
+                # queue.put(line)
+                # continue
+                row = {}
+                res = {}
+                skip = False
+                for i in range(len(line)):
+                    row[header[i]] = str(line[i])
+                    r = header[i]
+                    if row[r] == 'null':
+                        skip = True
+                        break
+                    if '_' in r and r[:r.find("_")] in projvartocols:
+                        s = r[:r.find("_")]
+                        if s in res:
+                            val = res[s]
+                            if 'http://' in row[r]:
+                                res[s] = row[r]
+                            else:
+                                res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                        else:
+                            if 'http://' in r:
+                                res[s] = r
+                            else:
+                                res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                                   row[r].replace(" ", '_'))
+                    elif r in projvartocols and r in coltotemplates:
                         if 'http://' in row[r]:
-                            res[s] = row[r]
+                            res[r] = row[r]
                         else:
-                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
                     else:
-                        if 'http://' in r:
-                            res[s] = r
-                        else:
-                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                               row[r].replace(" ", '_'))
-                elif r in projvartocols and r in coltotemplates:
-                    if 'http://' in row[r]:
                         res[r] = row[r]
-                    else:
-                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
-                else:
-                    res[r] = row[r]
 
-            if not skip:
-                queue.put(res)
-                # if 'drugbor' in res and res['drugbor'] == 'http://tcga.deri.ie/TCGA-22-5483-D14623':
-                #     print(res)
-                # if 'petient' in res and res['patient'] == 'http://tcga.deri.ie/TCGA-22-5483':
-                #     print(res)
-        # if res_dict is not None:
-        #     print("Total: ", c)
+                if not skip:
+                    # print("row:", row, "res:", res)
+                    queue.put(res)
+
+            lines = cursor.fetchmany(10000)
         return c
 
     def get_so_variables(self, triples, proj):
