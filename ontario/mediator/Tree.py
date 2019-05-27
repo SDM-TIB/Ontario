@@ -242,6 +242,7 @@ class Leaf(Tree):
         if query.body.show(" ").count("SERVICE") == 1:
             subvars = list(set(projvars) | set(vars_order_by))
 
+        pjvars = subvars
         subvars = " ".join(subvars)
         # MEV distinct pushed down to the sources
         if query.distinct:
@@ -250,7 +251,7 @@ class Leaf(Tree):
             d = ""
 
         subquery = "SELECT " + d + subvars + " WHERE {" + subquery + "\n" + query.filter_nested + "\n}"
-        return self.service.endpoint, query.getPrefixes() + subquery, set(variables), set(constants)
+        return self.service.endpoint, query.getPrefixes() + subquery, set(variables), set(constants), pjvars
 
     def getCount(self, query, vars, endpointType):
         subquery = self.service.getTriples()

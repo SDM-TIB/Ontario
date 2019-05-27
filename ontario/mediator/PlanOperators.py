@@ -47,6 +47,10 @@ class NodeOperator(object):
         self.query = query
         self.config = config
         self.dstype = None
+        if self.right is None:
+            self.projvars = self.left.projvars
+        else:
+            self.projvars = list(set(self.left.projvars) | set(self.right.projvars))
         if self.left_ds_type is not None and self.right_ds_type is not None:
             if self.left_ds_type == self.right_ds_type:
                 self.dstype = self.left_ds_type
@@ -177,7 +181,7 @@ class LeafOperator(object):
     place them in the output queue.
     """
     def __init__(self, query, tree, ds, config):
-        (e, sq, vs, cvs) = tree.getInfoIO(query)
+        (e, sq, vs, cvs, prj) = tree.getInfoIO(query)
         self.datasource = tree.service.datasource
         self.triples = tree.service.triples
         self.rdfmts = tree.service.rdfmts
@@ -187,6 +191,7 @@ class LeafOperator(object):
         self.tree = tree
         self.query_str = sq
         self.vars = vs
+        self.projvars = prj
         self.consts = cvs
         self.buffersize = 1638400
         self.config = config

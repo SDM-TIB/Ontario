@@ -62,8 +62,11 @@ class MetaWrapperPlanner(object):
         # print(operatorTree)
         if operatorTree is None:
             return []
-        # Adds the project operator to the plan.
-        operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
+        # Adds the project operator to the plan if necessary
+        query_projections = [str(pv) for pv in self.query.args]
+        diff = set(operatorTree.projvars) - set(query_projections)
+        if self.query.args != [] and diff != set():
+            operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
 
         # Adds the distinct operator to the plan.
         if (self.query.distinct):
