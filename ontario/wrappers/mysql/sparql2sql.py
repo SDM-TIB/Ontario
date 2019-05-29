@@ -189,7 +189,7 @@ class MySQLWrapper(object):
                 # print(sqlquery)
                 try:
                     rs = time()
-                    card = self.retrieve_results(cursor, sqlquery, queue, RetrievalMethod.FETCHMANY)
+                    card = self.retrieve_results(cursor, sqlquery, queue, RetrievalMethod.FETCHROW)
                     exectime = time() - rs
                     #card += cardinality
                     # print("wrapper execution:", exectime)
