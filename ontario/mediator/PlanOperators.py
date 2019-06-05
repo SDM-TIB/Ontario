@@ -13,18 +13,18 @@ from ontario.wrappers.drill.sparql2drill import DrillWrapper
 
 
 class NodeOperator(object):
-    '''
-        Represents a plan to be executed by the engine.
+    """
+    Represents a plan to be executed by the engine.
 
-        It is composed by a left node, a right node, and an operator node.
-        The left and right nodes can be leaves to contact sources, or subtrees.
-        The operator node is a physical operator, provided by the engine.
+    It is composed by a left node, a right node, and an operator node.
+    The left and right nodes can be leaves to contact sources, or subtrees.
+    The operator node is a physical operator, provided by the engine.
 
-        The execute() method evaluates the plan.
-        It creates a process for every node of the plan.
-        The left node is always evaluated.
-        If the right node is an independent operator or a subtree, it is evaluated.
-        '''
+    The execute() method evaluates the plan.
+    It creates a process for every node of the plan.
+    The left node is always evaluated.
+    If the right node is an independent operator or a subtree, it is evaluated.
+    """
     def __init__(self, operator, vars, config, left=None, right=None, consts=set(), query=None):
         self.operator = operator
         self.vars = vars
