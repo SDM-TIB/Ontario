@@ -12,7 +12,6 @@ from ontario.operators.nonblocking.Xproject import Xproject
 from ontario.operators.nonblocking.Xoffset import Xoffset
 from ontario.operators.nonblocking.Xlimit import Xlimit
 from ontario.operators.nonblocking.Xgoptional import Xgoptional
-from ontario.sparql.parser.services import Filter, Triple, Optional, UnionBlock, JoinBlock
 from .utility import *
 from ontario.config import cfg
 

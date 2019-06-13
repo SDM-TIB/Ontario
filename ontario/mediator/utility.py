@@ -1,8 +1,6 @@
 
 __author__ = 'Kemele M. Endris and Philipp D. Rohde'
 
-from ontario.sparql.parser.services import UnionBlock, JoinBlock
-from ontario.model import DataSourceType
 from ontario.mediator.Tree import *
 
 

@@ -3,7 +3,6 @@ __author__ = 'Kemele M. Endris'
 
 import ontario.sparql.utilities as utils
 from ontario.sparql.parser import queryParser
-from ontario.sparql.parser.services import Filter, Triple, Optional, UnionBlock, JoinBlock
 from .utility import *
 
 
