@@ -1,5 +1,5 @@
 
-__author__ = 'Kemele M. Endris'
+__author__ = 'Kemele M. Endris and Philipp D. Rohde'
 
 from ontario.sparql.parser.services import UnionBlock, JoinBlock
 from ontario.model import DataSourceType
@@ -109,7 +109,8 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
             filter_pushed = True
         else:
             non_match_filters = list(set(filters).difference(star_filters))
-    services = push_down_join(services)
+    if cfg.planType == PlanType.ONTARIO or cfg.planType == PlanType.SOURCE_SPECIFIC_HEURISTICS:
+        services = push_down_join(services)
     if services and joinplans:
         joinplans = services + joinplans
     elif services:
@@ -132,3 +133,40 @@ def get_filters(triples, filters):
             result.append(f)
 
     return result
+
+
+def merge_stars(left, right):
+    """
+    Merges the data structures of two stars.
+    :param left: the left star
+    :param right: the right star
+    :return: the merged star
+    """
+    rdfmts = left['rdfmts'] + right['rdfmts']
+    triples = sorted(left['triples'] + right['triples'])
+
+    # since only one variable per predicate will be stored in the dictionaries
+    # we can simply merge both dictionaries; right values will overwrite left values
+    predicates = {**left['predicates'], **right['predicates']}
+
+    datasources = {}
+    for ds in left['datasources']:
+        if right['datasources'][ds] is not None:
+            # since each data source entry will contain one rdfmt and they will be different
+            # the data source dictionaries can be simply merged
+            datasources[ds] = {**left['datasources'][ds], **right['datasources'][ds]}
+        else:
+            datasources[ds] = left['datasources'][ds]
+    for ds in right['datasources']:
+        if ds in left['datasources']:
+            continue
+        else:
+            datasources[ds] = right['datasources'][ds]
+
+    star = {
+        'triples': triples,
+        'rdfmts': rdfmts,
+        'predicates': predicates,
+        'datasources': datasources
+    }
+    return star

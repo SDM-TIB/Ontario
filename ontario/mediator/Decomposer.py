@@ -464,4 +464,3 @@ def get_filters(triples, filters):
             result.append(f)
 
     return result
-

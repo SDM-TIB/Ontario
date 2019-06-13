@@ -2,7 +2,7 @@
 
 __author__ = 'Kemele M. Endris'
 
-from ontario.config import OntarioConfiguration
+from ontario.config import OntarioConfiguration, cfg
 from ontario.mediator.Planner import MetaWrapperPlanner
 from ontario.mediator.Decomposer import *
 
@@ -59,6 +59,7 @@ def runQuery(queryfile, configfile, res, printResults, result_folder):
     logger.info("Query: " + qname)
 
     configuration = OntarioConfiguration(configfile)
+    cfg.config = configuration
     time1 = time()
 
     mc = MediatorCatalyst(query, configuration)
@@ -246,7 +247,8 @@ def get_options(argv):
         elif opt == '-r':
             result_folder = arg
         elif opt == '-p':
-            planonly = eval(arg)
+            # planonly = eval(arg)
+            cfg.planType = cfg.PlanType[arg]
         elif opt == '-j':
             joinlocally = eval(arg)
 
@@ -260,10 +262,11 @@ def get_options(argv):
 
 def usage():
     usage_str = ("Usage: {program} -c <config.json_file>  -q <query_file> -t "
-                 + "<templateType> -s <isEndpoint>  -r <result/folder>"
+                 + "<templateType> -s <isEndpoint>  -r <result/folder> -p <heuristics>"
                  + "\n where \n<isEndpoint> - a boolean value "
                  + "\n<result/folder> - path where the results will be saved"
-                   "\n")
+                 + "\n<heuristics> - one of 'ONTARIO', 'GENERAL_HEURISTICS', and 'SOURCE_SPECIFIC_HEURISTICS'"
+                 + "\n")
     print(usage_str.format(program=sys.argv[0]), )
 
 
@@ -280,4 +283,3 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv)
-

@@ -97,7 +97,7 @@ class MySQLWrapper(object):
         start = time()
         sparql2sql = SPARQL2SQL(query, self.mappings, self.datasource, self.rdfmts, self.star)
         sqlquery, projvartocols, coltotemplates, filenametablename = sparql2sql.translate()
-        duration = time() - start
+        # duration = time() - start
         # print("Translation SPARQL2SQL took:", duration)
         # print(sqlquery)
         # print('length: ', len(sqlquery))
@@ -638,8 +638,6 @@ class MySQLWrapper(object):
 
             logicalsource = triplemap.logical_source
             data_source = logicalsource.data_source
-            # tablename = data_source.name
-            # database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
             database_name = data_source.name
             if '/' in database_name:
                 database_name = database_name.split('/')[-1]

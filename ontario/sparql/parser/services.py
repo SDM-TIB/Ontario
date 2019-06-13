@@ -1,6 +1,9 @@
 
 __author__ = 'Kemele M. Endris'
 
+from ontario.config import cfg
+from ontario.config.PlanType import PlanType
+
 xsd = "http://www.w3.org/2001/XMLSchema#"
 
 
@@ -140,17 +143,28 @@ class Service(object):
         self.endpoint = endpoint
         self.triples = triples
         self.filters = filters
-        self.filter_nested = filter_nested# TODO: this is used to store the filters from NestedLoop operators
+        self.filter_nested = filter_nested  # TODO: this is used to store the filters from NestedLoop operators
         self.limit = limit  # TODO: This arg was added in order to integrate contactSource with incremental calls (16/12/2013)
 
         self.datasource = datasource
         if rdfmts is None:
             rdfmts = []
+        else:
+            # annotate the triples with the rdfmt once
+            for triple in self.triples:
+                if triple.rdfmts is None:
+                    triple.rdfmts = rdfmts
         self.rdfmts = rdfmts
         self.star = star
+        self.cat = None
+        self.degree = 0
+        self.filters_ontario = []
 
     def include_filter(self, f):
         self.filters.append(f)
+
+    def include_filter_ontario(self, f):
+        self.filters_ontario.append(f)
 
     def __add__(self, other):
         self.triples.extend(other.triples)
@@ -170,9 +184,9 @@ class Service(object):
 
     def __lt__(self, other):
         """
-        compares two triples patterns based on the position of contants
-        :param other:
-        :return:
+        Compares two triple patterns based on the position of constants.
+        :param other: the triple pattern to compare against
+        :return: True if self is considered to be more selective than other, False otherwise
         """
         if other.const_subjects() + other.const_predicates() > self.const_subjects() + self.const_predicates():
             return False
@@ -199,6 +213,18 @@ class Service(object):
                 return False
             elif other.const_objects() < self.const_objects():
                 return True
+
+        if cfg.planType == PlanType.GENERAL_HEURISTICS or cfg.planType == PlanType.SOURCE_SPECIFIC_HEURISTICS:
+            # number of projected variables in sub-queries
+            if other.const_objects() + other.const_predicates() + other.const_subjects() == \
+                    self.const_objects() + self.const_predicates() + self.const_subjects() and \
+                    len(other.getVars()) == len(self.getVars()):
+                # same number of constants and variables
+                if other.projVarNumber() > self.projVarNumber():
+                    return True
+                else:
+                    return False
+
         if other.constantPercentage() == self.constantPercentage():
             if other.constantNumber() > self.constantNumber():
                 return False
@@ -206,6 +232,13 @@ class Service(object):
                 return True
 
         return self.constantPercentage() > other.constantPercentage()
+
+    def projVarNumber(self):
+        i = 0
+        for var in self.getVars():
+            if var in [arg.name for arg in cfg.query.args]:
+                i += 1
+        return i
 
     def allTriplesGeneral(self):
         a = True
@@ -308,6 +341,33 @@ class Service(object):
             l = self.triples.getPredVars()
         return l
 
+    def getObjVars(self):
+        if isinstance(self.triples, list):
+            l = []
+            for t in self.triples:
+                l = l + t.getObjVars()
+        else:
+            l = self.triples.getObjVars()
+        return l
+
+    def getFilterVars(self):
+        if isinstance(self.filters, list):
+            l = []
+            for f in self.filters:
+                l = l + f.getVars()
+        else:
+            l = self.filters.getVars()
+        return l
+
+    def getOntarioFilterVars(self):
+        if isinstance(self.filters_ontario, list):
+            l = []
+            for f in self.filters_ontario:
+                l = l + f.getVars()
+        else:
+            l = self.filters_ontario.getVars()
+        return l
+
     def places(self):
         p = 0
         if isinstance(self.triples, list):
@@ -367,7 +427,8 @@ class Service(object):
 
 
 class UnionBlock(object):
-    def __init__(self, triples,filters=[]):
+
+    def __init__(self, triples, filters=[]):
         self.triples = triples
         self.filters = filters
 
@@ -445,6 +506,24 @@ class UnionBlock(object):
         l = []
         for t in self.triples:
             l = l + t.getPredVars()
+        return l
+
+    def getObjVars(self):
+        if isinstance(self.triples, list):
+            l = []
+            for t in self.triples:
+                l = l + t.getObjVars()
+        else:
+            l = self.triples.getObjVars()
+        return l
+
+    def getFilterVars(self):
+        if isinstance(self.filters, list):
+            l = []
+            for f in self.filters:
+                l = l + f.getVars()
+        else:
+            l = self.filters.getVars()
         return l
 
     def includeFilter(self, f):
@@ -624,6 +703,15 @@ class JoinBlock(object):
             l = self.triples.getPredVars()
         return l
 
+    def getObjVars(self):
+        if isinstance(self.triples, list):
+            l = []
+            for t in self.triples:
+                l = l + t.getObjVars()
+        else:
+            l = self.triples.getObjVars()
+        return l
+
     def includeFilter(self, f):
         for t in self.triples:
             if isinstance(t, list):
@@ -654,6 +742,7 @@ class JoinBlock(object):
         c = 0
         if isinstance(self.triples, list):
             for e in self.triples:
+                print("class:", e.__class__, "count:", e.const_objects())
                 c = c + e.const_objects()
         else:
             c = self.triples.const_objects()
@@ -736,11 +825,13 @@ class Optional(object):
 
 
 class Triple(object):
+
     def __init__(self, subject, predicate, theobject):
         self.subject = subject
         self.predicate = predicate
         self.theobject = theobject
         self.isGeneral = False
+        self.rdfmts = None
 
     def __repr__(self):
         return "\n        " + self.subject.name + " " + self.predicate.name + " " + str(self.theobject)
@@ -812,7 +903,6 @@ class Triple(object):
         return x+self.subject.name+" " + self.predicate.name + " " + str(self.theobject)
 
     def getVars(self):
-
         l = []
         if not self.subject.constant:
             l.append(self.subject.name)
@@ -829,10 +919,15 @@ class Triple(object):
         return c
 
     def getPredVars(self):
-
         l = []
         if not self.predicate.constant:
             l.append(self.predicate.name)
+        return l
+
+    def getObjVars(self):
+        l = []
+        if not self.theobject.constant:
+            l.append(self.theobject.name)
         return l
 
     def places(self):
@@ -874,6 +969,7 @@ class Triple(object):
 
 
 class Filter(object):
+
     def __init__(self, expr):
         self.expr = expr
 
@@ -1188,7 +1284,7 @@ def getJoinVarsJoinBlock(jb):
     return join_vars
 
 
-def aux(e ,x, op):
+def aux(e, x, op):
 
     def pp(t):
         return t.show(x + "  ")
@@ -1200,7 +1296,7 @@ def aux(e ,x, op):
         if f and s:
             r = r + x + op + "\n"
         if s:
-            r = r + x + "{\n" + aux(s,x + "  ", op) + "\n" + x +"}"
+            r = r + x + "{\n" + aux(s, x + "  ", op) + "\n" + x + "}"
         return r
     elif type(e) == list:
         return (x + " . \n").join(map(pp, e))
@@ -1210,8 +1306,8 @@ def aux(e ,x, op):
     return ""
 
 
-def aux2(e,x, op):
-    def pp (t):
+def aux2(e, x, op):
+    def pp(t):
         return t.show2(x + "  ")
     if type(e) == tuple:
         (f, s) = e
@@ -1231,14 +1327,13 @@ def aux2(e,x, op):
 
 
 def nest(l):
-
     l0 = list(l)
     while len(l0) > 1:
         l1 = []
         while len(l0) > 1:
             x = l0.pop()
             y = l0.pop()
-            l1.append((x,y))
+            l1.append((x, y))
         if len(l0) == 1:
             l1.append(l0.pop())
         l0 = l1

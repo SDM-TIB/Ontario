@@ -28,20 +28,128 @@ class SPARQL2SQL(object):
         self.prefixes = getPrefs(self.sparql.prefs)
 
     def translate(self):
-        # TODO: include templates like http://example.org/{start}_{end}
+        # TODO: include templates like http://example.org/{start}_{end} (2019-05-27)
         query_filters = [f for f in self.sparql.body.triples[0].triples if isinstance(f, Filter)]
 
-        rdfmts = self.star['rdfmts']
         starpreds = list(self.star['predicates'].keys())
         star_preds = [p for p in starpreds if '?' not in p]
 
         if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 
-        touninon = {}
-        completematch = {}
         mapping_preds = {tm: triplemap for tm, triplemap in self.mapping.items() for p in star_preds if p in triplemap.predicate_object_map}
 
+        # TODO: maybe this is only necessary because of the drugbank:Offer class
+        #  which is in the RDF-MT file but not in the mappings (2019-06-12)
+        # find the rdfmts that really can be answered by the source
+        rdfmts = []
+        capabilities = {}
+        for rdfmt in self.star['rdfmts']:
+            found = False
+            for tm, triplemap in mapping_preds.items():
+                if rdfmt in triplemap.subject_map.rdf_types:
+                    found = True
+            if found:
+                rdfmts.append(rdfmt)
+                capabilities.setdefault(rdfmt, self.star['datasources'][self.datasource.ID][rdfmt])
+
+        query = None
+        projvartocols = None
+        coltotemplates = None
+        database_name = None
+        if len(rdfmts) == 1:
+            query, projvartocols, coltotemplates, database_name = self.translate_single_query(mapping_preds, star_preds, rdfmts, self.star['triples'], query_filters)
+        elif len(rdfmts) > 1:
+            # TODO: deal with more than two RDF-MTs (2019-06-12)
+            if len(rdfmts) > 2:
+                logger.warn("More than two RDF-MTs - you will miss some results with the current implementation")
+
+            preds1 = set(capabilities[rdfmts[0]])
+            preds2 = set(capabilities[rdfmts[1]])
+            intersection = preds1.intersection(preds2)
+
+            if intersection == set():
+                # empty intersection
+                # translate both queries and join them
+                # print("JOIN")
+                query, projvartocols, coltotemplates, database_name = self.join_queries(preds1, preds2, rdfmts, query_filters)
+
+                # print(query)
+            elif intersection == preds1 and len(preds1) == len(preds2):
+                # full union
+                # translate both queries and union them
+                # print("UNION")
+                query, projvartocols, coltotemplates, database_name = self.union_queries(preds1, preds2, rdfmts, query_filters)
+            else:
+                # union of the intersection
+                # translate the rest without intersection
+                # join everything in the end
+                # TODO: this needs to be implemented (2019-06-12)
+                # print("JOINS AND UNIONS")
+                a = 1
+
+        return query, projvartocols, coltotemplates, database_name
+
+    def join_queries(self, preds1, preds2, rdfmts, query_filters):
+        mapping_preds1 = {tm: triplemap for tm, triplemap in self.mapping.items() for p in preds1 if
+                          p in triplemap.predicate_object_map}
+        mapping_preds2 = {tm: triplemap for tm, triplemap in self.mapping.items() for p in preds2 if
+                          p in triplemap.predicate_object_map}
+
+        triples1 = []
+        triples2 = []
+        for triple in self.star['triples']:
+            if rdfmts[0] in triple.rdfmts:
+                triples1.append(triple)
+            if rdfmts[1] in triple.rdfmts:
+                triples2.append(triple)
+
+        vars1 = set(self.get_so_variables(triples1))
+        vars2 = set(self.get_so_variables(triples2))
+        join_vars = vars1.intersection(vars2)
+        proj_vars = self.sparql.args.copy()
+        for j in join_vars:
+            self.sparql.args.append(Argument(j, False))  # project join variables
+
+        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, rdfmts[0], triples1, query_filters)
+        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, rdfmts[1], triples2, query_filters)
+
+        # TODO: joins on multiple variables? (2019-06-12)
+        j = join_vars.pop()
+        join_cond = 'A.`' + j[1:] + '` = B.`' + j[1:] + '`'
+
+        if self.sparql.distinct:
+            query = "SELECT DISTINCT"
+        else:
+            query = "SELECT"
+
+        projections = []
+        for pv in proj_vars:
+            projections.append('`' + pv.name[1:] + '`')
+        projections = ", ".join(projections)
+
+        query = query + " " + projections + " FROM\n(" + q1 + ") AS A \nJOIN (" + q2 + ") AS B \nON " + join_cond
+        database_name = d1
+
+        return query, None, None, database_name
+
+    def union_queries(self, preds1, preds2, rdfmts, query_filters):
+        mapping_preds1 = {tm: triplemap for tm, triplemap in self.mapping.items() for p in preds1 if
+                          p in triplemap.predicate_object_map}
+        mapping_preds2 = {tm: triplemap for tm, triplemap in self.mapping.items() for p in preds2 if
+                          p in triplemap.predicate_object_map}
+
+        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, rdfmts[0], self.star['triples'], query_filters)
+        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, rdfmts[1], self.star['triples'], query_filters)
+
+        query = "(" + q1 + ") UNION (" + q2 + ")"
+        database_name = d1
+
+        return query, None, None, database_name
+
+    def translate_single_query(self, mapping_preds, star_preds, rdfmts, star_triples, query_filters):
+        touninon = {}
+        completematch = {}
         for tm, triplemap in mapping_preds.items():
             for rdfmt in triplemap.subject_map.rdf_types:
                 if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) == len(set(star_preds)):
@@ -53,20 +161,20 @@ class SPARQL2SQL(object):
 
         if len(completematch) > 0:
             if len(completematch) == 1:
-                query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], query_filters)
+                query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], star_triples, query_filters)
                 return query, projvartocols, coltotemplates, database_name
             else:
                 return self.make_union(completematch, query_filters)
         elif len(touninon) > 1:
             return self.make_union(touninon, query_filters)
         elif len(touninon) == 1:
-            query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], query_filters)
+            query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], star_triples, query_filters)
             return query, projvartocols, coltotemplates, database_name
 
-    def make_join(self, mapping_preds, query_filters):
+    def make_join(self, mapping_preds, star_triples, query_filters):
         tables, subjects, tm_tablealias, database_name = self.get_table_names(mapping_preds)
         # print(tables)
-        coltotemplates, projections, projvartocol, objectfilters, constfilters = self.get_predicate_column_map(mapping_preds, subjects, tm_tablealias, query_filters)
+        coltotemplates, projections, projvartocol, objectfilters, constfilters = self.get_predicate_column_map(mapping_preds, subjects, tm_tablealias, star_triples, query_filters)
 
         constfilters = list(set(constfilters))
         constfilters.extend(objectfilters)
@@ -184,7 +292,7 @@ class SPARQL2SQL(object):
 
         return tables, subjects, tm_tablealias, database_name
 
-    def get_predicate_column_map(self, mapping_preds, subjects, tm_tablealias, query_filters):
+    def get_predicate_column_map(self, mapping_preds, subjects, tm_tablealias, star_triples, query_filters):
         coltotemplates = {}
         projections = {}
         projvartocol = {}
@@ -196,7 +304,7 @@ class SPARQL2SQL(object):
             var_pred_map = {}
             tablealias = 'Ontario_' + str(i)
             if isinstance(predicate_object_map, SubjectMap):
-                self.subjectMap(predicate_object_map, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters)
+                self.subjectMap(star_triples, predicate_object_map, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters)
             else:
                 self.predicate_object_map(predicate_object_map, star_variables, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters)
 
@@ -205,13 +313,13 @@ class SPARQL2SQL(object):
             self.get_cond_sql(predicate_object_map, var_pred_map, constfilters, tablealias)
             i += 1
 
-        self.subject_cond(subjects, tm_tablealias, constfilters, coltotemplates, projections, projvartocol, objectfilters)
+        self.subject_cond(star_triples, subjects, tm_tablealias, constfilters, coltotemplates, projections, projvartocol, objectfilters)
         self.join_condition(subjects, tm_tablealias, constfilters, objectfilters)
 
         return coltotemplates, projections, projvartocol, objectfilters, constfilters
 
-    def subjectMap(self, predicate_object_map, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters):
-        subjvar = self.star['triples'][0].subject.name
+    def subjectMap(self, star_triples, predicate_object_map, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters):
+        subjvar = star_triples[0].subject.name
         var = subjvar
         var_pred_map[subjvar] = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
         if predicate_object_map.subject.resource_type == TripleMapType.TEMPLATE:
@@ -263,9 +371,9 @@ class SPARQL2SQL(object):
         if self.datasource.dstype == DataSourceType.MYSQL:
             objectfilters.append(tablealias + '.' + column + " <> '' ")
 
-    def subject_cond(self, subjects, tm_tablealias, constfilters, coltotemplates, projections, projvartocol, objectfilters):
+    def subject_cond(self, star_triples, subjects, tm_tablealias, constfilters, coltotemplates, projections, projvartocol, objectfilters):
         invalidsubj = False
-        subj = self.star['triples'][0].subject.name if not self.star['triples'][0].subject.constant else None
+        subj = star_triples[0].subject.name if not star_triples[0].subject.constant else None
         if subj is not None:
             filtersadded = []
             for tm, subject in subjects.items():
@@ -286,7 +394,7 @@ class SPARQL2SQL(object):
                     col = column[0]
                     self.projection(projections, tablealias, col, subj, projvartocol, coltotemplates, objectfilters)
         else:
-            subj = self.star['triples'][0].subject.name
+            subj = star_triples[0].subject.name
             for tm, subject in subjects.items():
                 subjcol = subject.value
                 tablealias = [v for v in tm_tablealias if tm_tablealias[v] == tm][0]

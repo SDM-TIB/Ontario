@@ -1,3 +1,6 @@
+
+__author__ = 'Kemele M. Endris and Philipp D. Rohde'
+
 from ontario.mediator.PlanOperators import *
 from ontario.operators.nonblocking.Xgjoin import Xgjoin
 from ontario.operators.nonblocking.NestedHashJoinFilter import NestedHashJoinFilter
@@ -11,6 +14,7 @@ from ontario.operators.nonblocking.Xlimit import Xlimit
 from ontario.operators.nonblocking.Xgoptional import Xgoptional
 from ontario.sparql.parser.services import Filter, Triple, Optional, UnionBlock, JoinBlock
 from .utility import *
+from ontario.config import cfg
 
 
 class MetaWrapperPlanner(object):
@@ -18,6 +22,7 @@ class MetaWrapperPlanner(object):
         self.query = query
         self.decompositions = decompositions
         self.config = config
+        cfg.query = query
 
     def _make_tree(self):
         return self.create_plan_tree(self.decompositions)
@@ -69,15 +74,15 @@ class MetaWrapperPlanner(object):
             operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
 
         # Adds the distinct operator to the plan.
-        if (self.query.distinct):
+        if self.query.distinct:
             operatorTree = NodeOperator(Xdistinct(None), operatorTree.vars, self.config, operatorTree)
 
         # Adds the offset operator to the plan.
-        if (self.query.offset != -1):
+        if self.query.offset != -1:
             operatorTree = NodeOperator(Xoffset(None, self.query.offset), operatorTree.vars, self.config, operatorTree)
 
         # Adds the limit operator to the plan.
-        if (self.query.limit != -1):
+        if self.query.limit != -1:
             # print "query.limit", query.limit
             operatorTree = NodeOperator(Xlimit(None, self.query.limit), operatorTree.vars, self.config, operatorTree)
 
@@ -87,7 +92,6 @@ class MetaWrapperPlanner(object):
         return self.includePhysicalOperatorsUnionBlock(self.query.body)
 
     def includePhysicalOperatorsUnionBlock(self, ub):
-
         r = []
         for jb in ub.triples:
             pp = self.includePhysicalOperatorsJoinBlock(jb)
@@ -109,7 +113,6 @@ class MetaWrapperPlanner(object):
             return None
 
     def includePhysicalOperatorsJoinBlock(self, jb):
-
         tl = []
         ol = []
         if isinstance(jb.triples, list):
@@ -147,7 +150,6 @@ class MetaWrapperPlanner(object):
             return None
 
     def includePhysicalOperatorsOptional(self, left, rightList):
-
         l = left
         for right in rightList:
             all_variables = left.vars | right.vars
@@ -201,9 +203,14 @@ class MetaWrapperPlanner(object):
         return l
 
     def includePhysicalOperators(self, tree):
-
         if isinstance(tree, Leaf):
             if isinstance(tree.service, Service):
+                if len(tree.service.filters_ontario) > 0:
+                    n = LeafOperator(self.query, tree, None, self.config)
+                    for f in tree.service.filters_ontario:
+                        vars_f = f.getVarsName()
+                        n = NodeOperator(Xfilter(f), set(n.vars) | set(vars_f), self.config, n)
+                    return n
                 if len(tree.filters) == 0:
                     return LeafOperator(self.query, tree, None, self.config)
                 else:
@@ -243,7 +250,29 @@ class MetaWrapperPlanner(object):
             return n
 
     def make_joins(self, left, right):
-        # return self.make_sparql_endpoint_plan(left, right)
+        if cfg.planType == PlanType.SOURCE_SPECIFIC_HEURISTICS:
+            # using Xgjoin for 'pushing up instantiations into a star-shaped group'
+            # operators will be NodeOperator with Xfilter as operator
+            if isinstance(left, NodeOperator) and isinstance(left.operator, Xfilter):
+                service = left.left.tree.service
+                if 'SQL' in service.datasource.dstype.value and (service.cat == QueryCategory.C3 or service.cat == QueryCategory.C4) and service.filters_ontario:
+                    return self.make_default_join(left, right)
+            if isinstance(right, NodeOperator) and isinstance(right.operator, Xfilter):
+                service = right.left.tree.service
+                if 'SQL' in service.datasource.dstype.value and (service.cat == QueryCategory.C3 or service.cat == QueryCategory.C4) and service.filters_ontario:
+                    return self.make_default_join(left, right)
+
+            join_variables = left.vars & right.vars
+            all_variables = left.vars | right.vars
+            consts = left.consts & right.consts
+
+            # pushing down instantiations into a star-shaped group
+            if isinstance(left, LeafOperator):
+                if 'SPARQL' in left.datasource.dstype.value and left.tree.service.cat == QueryCategory.C1:
+                    return NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, right, left, consts, self.query)
+            elif isinstance(right, LeafOperator):
+                if 'SPARQL' in right.datasource.dstype.value and right.tree.service.cat == QueryCategory.C1:
+                    return NodeOperator(NestedHashJoinFilter(join_variables), all_variables, self.config, left, right, consts, self.query)
 
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
             if ('SPARQL' in left.datasource.dstype.value and 'SQL' in right.datasource.dstype.value) or \
@@ -261,16 +290,18 @@ class MetaWrapperPlanner(object):
             if 'SPARQL' in right.datasource.dstype.value or 'SQL' in right.datasource.dstype.value :
                 return self.make_sparql_endpoint_plan(left, right)
 
+        return self.make_default_join(left, right)
+
+    def make_default_join(self, left, right):
         join_variables = left.vars & right.vars
         all_variables = left.vars | right.vars
         consts = left.consts & right.consts
-        # lowSelectivityLeft = left.allTriplesLowSelectivity()
-        # lowSelectivityRight = right.allTriplesLowSelectivity()
         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, left, right, consts, self.query)
+
         if isinstance(left, LeafOperator) and isinstance(right, LeafOperator):
-            if (n.right.constantPercentage() <= 0.5):
+            if n.right.constantPercentage() <= 0.5:
                 n.right.tree.service.limit = 1000
-            if (n.left.constantPercentage() <= 0.5):
+            if n.left.constantPercentage() <= 0.5:
                 n.left.tree.service.limit = 1000
 
         return n
