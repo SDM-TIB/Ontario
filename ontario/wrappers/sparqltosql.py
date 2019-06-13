@@ -186,7 +186,7 @@ class SPARQL2SQL(object):
             distinct = ""
             if self.sparql.distinct:
                 distinct = "DISTINCT "
-            projections = " SELECT  " + distinct + ", ".join(list(set(projections.values())))
+            projections = " SELECT  " + distinct + ", ".join(sorted(list(set(projections.values()))))
             if len(objectfilters) > 0:
                 whereclause = "\n WHERE " + "\n\t AND ".join(constfilters)
             else:
