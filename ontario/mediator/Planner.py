@@ -309,7 +309,7 @@ class MetaWrapperPlanner(object):
     def make_sparql_endpoint_plan(self, l, r):
         join_variables = l.vars & r.vars
         all_variables = l.vars | r.vars
-        consts = l.consts & l.consts
+        consts = l.consts & r.consts
         lowSelectivityLeft = l.allTriplesLowSelectivity()
         lowSelectivityRight = r.allTriplesLowSelectivity()
         n = None
@@ -425,7 +425,7 @@ class MetaWrapperPlanner(object):
     def make_mulder_joins(self, l, r):
         join_variables = l.vars & r.vars
         all_variables = l.vars | r.vars
-        consts = l.consts & l.consts
+        consts = l.consts & r.consts
         # noInstantiatedLeftStar = False
         # noInstantiatedRightStar = False
         lowSelectivityLeft = l.allTriplesLowSelectivity()
