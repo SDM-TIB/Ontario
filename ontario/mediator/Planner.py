@@ -324,7 +324,7 @@ class MetaWrapperPlanner(object):
                 dependent_join = True
         elif isinstance(r, LeafOperator) and isinstance(l, LeafOperator):
             if len(join_variables) > 0:
-                print(lowSelectivityLeft, lowSelectivityRight)
+                # print(lowSelectivityLeft, lowSelectivityRight)
                 if "SQL" in l.datasource.dstype.value and 'SPARQL' in r.datasource.dstype.value:
                     if lowSelectivityLeft and lowSelectivityRight:
                         n = NodeOperator(Xgjoin(join_variables), all_variables, self.config, l, r, consts, self.query)
