@@ -590,7 +590,9 @@ def push_up_instantiations(ssq):
     for t in ssq.triples:
         if t.const_objects() == 1 and not(t.predicate.name in excluded_preds) and not(is_pred_indexed(3, t.predicate, ssq)):
             newname = t.theobject.name.replace(':', '').replace('"', '')
-            newname = '?' + newname[:newname.find('^^')] + 'filter'
+            if '^^' in newname:
+                newname = newname[:newname.find('^^')]
+            newname = '?' + newname + 'filter'
 
             left_argument = Argument(newname, False)
             compare_term = getUri(t.theobject, getPrefs(cfg.query.prefs))[1:-1]
@@ -601,6 +603,40 @@ def push_up_instantiations(ssq):
             ssq.include_filter_ontario(f)
             pred_uri = getUri(t.predicate, getPrefs(cfg.query.prefs))[1:-1]
             ssq.star['predicates'][pred_uri] = left_argument.name
+
+    filter_vars = ssq.getFilterVars()
+    obj_vars = ssq.getObjVars()
+    obj_filtered = set(obj_vars) & set(filter_vars)
+    if len(obj_filtered) > 0:
+        for f in ssq.filters:
+            for v in obj_filtered:
+                if v in f.getVars():
+                    # check if indexed
+                    indexed = False
+                    for t in ssq.triples:
+                        if v in t.getObjVars():
+                            indexed = is_pred_indexed(3, t.predicate, ssq)
+
+                    if not indexed:
+                        var_argument = Argument(v, False)
+                        if v in f.expr.left.getVars():
+                            term = f.expr.right.name
+                            if '"' in term or "<" in term:
+                                term = term[1:-1]
+                            elif f.expr.right.isUri:
+                                term = getUri(Argument(term, True, isuri=True), getPrefs(cfg.query.prefs))[1:-1]
+                            right = Argument(term, True, isuri=f.expr.right.isUri)
+                            f_new = Filter(Expression(f.expr.op, var_argument, right))
+                        else:
+                            term = f.expr.left.name
+                            if '"' in term or "<" in term:
+                                term = term[1:-1]
+                            elif f.expr.left.isUri:
+                                term = getUri(Argument(term, True, isuri=True), getPrefs(cfg.query.prefs))[1:-1]
+                            left = Argument(term, True, isuri=f.expr.left.isUri)
+                            f_new = Filter(Expression(f.expr.op, var_argument, left))
+                        ssq.filters.remove(f)
+                        ssq.filters_ontario.append(f_new)
 
 
 def indexed_join(left, right):

@@ -111,8 +111,8 @@ class SPARQL2SQL(object):
         for j in join_vars:
             self.sparql.args.append(Argument(j, False))  # project join variables
 
-        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, rdfmts[0], triples1, query_filters)
-        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, rdfmts[1], triples2, query_filters)
+        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, [rdfmts[0]], triples1, query_filters)
+        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, [rdfmts[1]], triples2, query_filters)
 
         # TODO: joins on multiple variables? (2019-06-12)
         j = join_vars.pop()
@@ -139,8 +139,8 @@ class SPARQL2SQL(object):
         mapping_preds2 = {tm: triplemap for tm, triplemap in self.mapping.items() for p in preds2 if
                           p in triplemap.predicate_object_map}
 
-        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, rdfmts[0], self.star['triples'], query_filters)
-        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, rdfmts[1], self.star['triples'], query_filters)
+        q1, p1, c1, d1 = self.translate_single_query(mapping_preds1, preds1, [rdfmts[0]], self.star['triples'], query_filters)
+        q2, p2, c2, d2 = self.translate_single_query(mapping_preds2, preds2, [rdfmts[1]], self.star['triples'], query_filters)
 
         query = "(" + q1 + ") UNION (" + q2 + ")"
         database_name = d1
@@ -300,7 +300,7 @@ class SPARQL2SQL(object):
         constfilters = []
         i = 0
         for tm, predicate_object_map in mapping_preds.items():
-            star_variables = set(self.get_so_variables(self.star['triples']))
+            star_variables = set(self.get_so_variables(star_triples))
             var_pred_map = {}
             tablealias = 'Ontario_' + str(i)
             if isinstance(predicate_object_map, SubjectMap):
