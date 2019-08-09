@@ -3,12 +3,10 @@
 __author__ = 'Kemele M. Endris'
 
 from ontario.config import OntarioConfiguration
-from ontario.mediator.Decomposer import LakeCatalyst
-from ontario.mediator.Planner import LakePlanner
+from ontario.mediator.Planner import MetaWrapperPlanner
+from ontario.mediator.Decomposer import *
 
 import getopt
-from ontario.mediator import Catalyst
-
 import sys
 import os
 import signal
@@ -27,7 +25,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def runQuery(queryfile, configfile, res, printResults, planonly):
+def runQuery(queryfile, configfile, res, printResults):
 
     query = open(queryfile).read()
     pos = queryfile.rfind("/")
@@ -44,6 +42,8 @@ def runQuery(queryfile, configfile, res, printResults, planonly):
     global dt
     global pt
 
+
+
     c1 = 0
     cn = 0
     t1 = -1
@@ -51,26 +51,18 @@ def runQuery(queryfile, configfile, res, printResults, planonly):
     dt = -1
     global time1
     qname = qu
-    endpointType = 'V'
     logger.info("Query: " + qname)
 
-    #config = ConfigFile(configfile)
-    config = OntarioConfiguration(configfile)
+    configuration = OntarioConfiguration(configfile)
     time1 = time()
 
-    dc = Catalyst(query, config)
-    decomp = LakeCatalyst(dc.query, dc.config)
-    dc.query = decomp.query
-    decomposed_query = decomp.decompose()
-
-    new_query = dc.catalyze(decomposed_query)
-
-    # mdq = MediatorDecomposer(query, config, tempType, joinlocally)
-    # new_query = mdq.decompose()
+    mc = MediatorCatalyst(query, configuration)
+    r = mc.decompose()
+    new_query = mc.query
 
     dt = time() - time1
 
-    if new_query is None or len(new_query) == 0:  # if the query could not be answered by the endpoints
+    if new_query is None:  # if the query could not be answered by the endpoints
         time2 = time() - time1
         t1 = time2
         tn = time2
@@ -78,57 +70,36 @@ def runQuery(queryfile, configfile, res, printResults, planonly):
         printInfo()
         return
 
-    # planner = MediatorPlanner(new_query, adaptive, contactSource, endpointType, config)
-    # plan = planner.createPlan()
-
-    pl = LakePlanner(dc.query, new_query, config)
-    tree = pl.make_tree()
-    plan = pl.make_plan()
+    mwp = MetaWrapperPlanner(new_query, r, configuration)
+    plan = mwp.make_plan()
 
     logger.info("Plan:")
     logger.info(plan)
     pt = time() - time1
-    if planonly:
-        print(plan)
-        print("Decomposition and Planning Time: ", pt)
-        exit(0)
-
-    processqueue = Queue()
-
-    p2 = Process(target=plan.execute, args=(res, processqueue,))
+    p2 = Process(target=plan.execute, args=(res,))
     p2.start()
-    p3 = Process(target=conclude, args=(res, p2, printResults))
+    p3 = Process(target=conclude, args=(res, p2, printResults,))
     p3.start()
     signal.signal(12, onSignal1)
 
     while True:
-        if not p3.is_alive():
-            if p2.is_alive():
-                try:
-                    os.kill(p2.pid, 9)
-                except OSError as ex:
-                    # print("Exception while terminating execution process", ex)
-                    continue
-            else:
-                break
+        if p2.is_alive() and not p3.is_alive():
+            try:
+                os.kill(p2.pid, 9)
+            except Exception as ex:
+                continue
+            break
+        elif not p2.is_alive() and not p3.is_alive():
+            break
 
 
-def check_pid(pid):
-    """ Check For the existence of a unix pid. """
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    else:
-        return True
-
-
-def conclude(res, p2, printResults):
+def conclude(res, p2, printResults, traces=False):
     signal.signal(12, onSignal2)
     global t1
     global tn
     global c1
     global cn
+    global time1
 
     ri = res.get()
 
@@ -147,6 +118,9 @@ def conclude(res, p2, printResults):
                 c1 = 1
 
             print(ri)
+            if traces:
+                nexttime(time1)
+                printTraces()
             ri = res.get(True)
 
         nexttime(time1)
@@ -155,6 +129,7 @@ def conclude(res, p2, printResults):
     else:
         if ri == "EOF":
             nexttime(time1)
+            printTraces()
             printInfo()
             return
 
@@ -165,6 +140,9 @@ def conclude(res, p2, printResults):
                 t1 = time2
                 c1 = 1
 
+            if traces:
+                nexttime(time1)
+                printTraces()
             ri = res.get(True)
 
         nexttime(time1)
@@ -182,17 +160,28 @@ def nexttime(time1):
 
 def printInfo():
     global tn
+
     global cn
-    global c1
-    global t1
-    global pt
-    global dt
+
     if tn == -1:
         tn = time() - time1
     lr = (qname + "\t" + str(dt) + "\t" + str(pt) + "\t" + str(t1) + "\t" + str(tn) + "\t" + str(c1) + "\t" + str(cn))
 
     print(lr)
+
     logger.info(lr)
+
+
+def printTraces():
+    global tn
+    global resulttrace
+    global cn
+
+    if tn == -1:
+        tn = time() - time1
+    l = (qname + "," + str(cn) + "," + str(tn))
+
+    resulttrace.write('\n' + l)
 
 
 def onSignal1(s, stackframe):
@@ -240,8 +229,6 @@ def get_options(argv):
             tempType = arg
         elif opt == "-s":
             isEndpoint = arg == "True"
-        elif opt == '-r':
-            printResults = eval(arg)
         elif opt == '-p':
             planonly = eval(arg)
         elif opt == '-j':
@@ -252,28 +239,25 @@ def get_options(argv):
         sys.exit(1)
 
     return (configfile, queryfile, tempType, isEndpoint, plan,
-            adaptive, withoutCounts, printResults, planonly, joinlocally)
+            adaptive, withoutCounts, printResults, joinlocally)
 
 
 def usage():
-    usage_str = ("Usage: {program} -c <config.json_file>  -q <query_file> -t "
-                 + "<templateType> -s <isEndpoint>  -r <result_file.tsv>"
-                 + "\n where \n<isEndpoint> - a boolean value "
-                 + "\n<result_file.tsv> - an results.tsv"
-                   "\n")
+    usage_str = "Usage: {program} -c <config.json_file>  -q <query_file> -t \n"
     print(usage_str.format(program=sys.argv[0]), )
 
 
 def main(argv):
     res = Queue()
     time1 = time()
-    (configfile, queryfile, buffersize, isEndpoint, plan, adaptive, withoutCounts, printResults, planonly,
+    (configfile, queryfile, buffersize, isEndpoint, plan, adaptive, withoutCounts, printResults,
      joinlocally) = get_options(argv[1:])
     try:
-        runQuery(queryfile, configfile, res, printResults, planonly)
+        runQuery(queryfile, configfile, res, printResults)
     except Exception as ex:
         print(ex)
 
 
 if __name__ == '__main__':
     main(sys.argv)
+
