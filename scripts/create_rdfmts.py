@@ -129,7 +129,7 @@ def get_external_links(endpoint1, rootType, pred, endpoint2, rdfmt2):
             if limit < 1:
                 break
             continue
-        if numrequ == 100:
+        if numrequ == 10:
             break
         if card > 0:
             for c in rdfmt2:
@@ -657,7 +657,9 @@ def get_rdfs_ranges(referer, p, limit=-1):
             if card < limit:
                 break
             offset += limit
-            time.sleep(2)
+            if offset > 1000:
+                break
+
     else:
         reslist, card = contactRDFSource(RDFS_RANGES, referer)
 
@@ -703,7 +705,8 @@ def find_instance_range(referer, t, p, limit=-1):
             if card < limit:
                 break
             offset += limit
-            time.sleep(2)
+            if offset > 1000:
+                break
     else:
         reslist, card = contactRDFSource(INSTANCE_RANGES, referer)
 
@@ -764,7 +767,7 @@ def get_predicates(referer, t, limit=-1):
             if card < limit:
                 break
             offset += limit
-            time.sleep(2)
+
     else:
         reslist, card = contactRDFSource(query, referer)
 
@@ -814,7 +817,7 @@ def get_preds_of_random_instances(referer, t, limit=-1):
             if card < limit:
                 break
             offset += limit
-            time.sleep(5)
+
     else:
         reslist, card = contactRDFSource(query, referer)
 
@@ -845,7 +848,7 @@ def get_preds_of_instance(referer, inst, limit=-1):
             if card < limit:
                 break
             offset += limit
-            time.sleep(2)
+
     else:
         reslist, card = contactRDFSource(query, referer)
 
