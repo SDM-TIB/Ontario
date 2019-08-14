@@ -25,7 +25,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def runQuery(queryfile, configfile, res, printResults):
+def runQuery(queryfile, configfile, res, printResults, planonly):
 
     query = open(queryfile).read()
     pos = queryfile.rfind("/")
@@ -80,6 +80,9 @@ def runQuery(queryfile, configfile, res, printResults):
         tn = time2
         pt = time2
         printInfo()
+        return
+    if planonly:
+        print(plan)
         return
     pt = time() - time1
     p2 = Process(target=plan.execute, args=(res,))
@@ -231,35 +234,36 @@ def get_options(argv):
             configfile = arg
         elif opt == "-q":
             queryfile = arg
-        elif opt == "-t":
-            tempType = arg
-        elif opt == "-s":
-            isEndpoint = arg == "True"
         elif opt == '-p':
             planonly = eval(arg)
         elif opt == '-j':
             joinlocally = eval(arg)
+        elif opt == '-r':
+            printResults = eval(arg)
 
     if not configfile or not queryfile:
         usage()
         sys.exit(1)
 
-    return (configfile, queryfile, tempType, isEndpoint, plan,
+    return (configfile, queryfile, tempType, isEndpoint, plan, planonly,
             adaptive, withoutCounts, printResults, joinlocally)
 
 
 def usage():
-    usage_str = "Usage: {program} -c <config.json_file>  -q <query_file> \n"
+    usage_str = "Usage: {program} -c <config.json_file>  -q <query_file> -r <PrintResults?>\n Where: <config.json_file> - " \
+                "path to RDF-MT configs\n " \
+                "<query_file> - path to SPARQL query file \n " \
+                "<PrintResults?> - boolean value (True - print rows / False - do not print rows) "
     print(usage_str.format(program=sys.argv[0]), )
 
 
 def main(argv):
     res = Queue()
     time1 = time()
-    (configfile, queryfile, buffersize, isEndpoint, plan, adaptive, withoutCounts, printResults,
+    (configfile, queryfile, buffersize, isEndpoint, plan, planonly, adaptive, withoutCounts, printResults,
      joinlocally) = get_options(argv[1:])
     try:
-        runQuery(queryfile, configfile, res, printResults)
+        runQuery(queryfile, configfile, res, printResults, planonly)
     except Exception as ex:
         print(ex)
 
