@@ -1,7 +1,8 @@
 # Ontario
 Ontario: A Federated SPARQL Query Processor over Semantic Data Lakes
 
-
+# Using Ontario
+Check the `demo` folder for dockerized examples.
 ## Mapping file
 `chebi-tsv-mapping.ttl`
 
@@ -71,18 +72,18 @@ To generate the RDF Molecule Templates, one should prepare a list of data source
 Data Source `type` value can be one of the following:
 
 ```buildoutcfg
-    SPARQL_Endpoint
-    MongoDB
-    Neo4j
+    SPARQL_Endpoint    
     MySQL
-    HADOOP_CSV
-    HADOOP_TSV
-    HADOOP_JSON
-    HADOOP_XML
     LOCAL_CSV
     LOCAL_TSV
     LOCAL_JSON
     LOCAL_XML
+    HADOOP_CSV
+    HADOOP_TSV
+    HADOOP_JSON
+    HADOOP_XML
+    MongoDB
+    Neo4j
 ```
 
 Then run the following:

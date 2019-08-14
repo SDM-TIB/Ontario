@@ -16,7 +16,9 @@ RUN cd /Ontario && pip3 install -r requirements.txt && \
     python3 setup.py install
 
 RUN mkdir /data
-WORKDIR /data
+WORKDIR /Ontario
 
-CMD ["tail", "-f", "/dev/null"]
+#CMD ["tail", "-f", "/dev/null"]
+
+CMD ["/Ontario/start_sparql_service.sh"]
 
