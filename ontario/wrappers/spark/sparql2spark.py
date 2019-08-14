@@ -75,19 +75,19 @@ class SPARKWrapper(object):
         # print(sqlquery)
         if self.spark is None:
             # url = 'spark://node3.research.tib.eu:7077' # self.mapping['url']
-            params = {
-                "spark.driver.cores": "24",
-                "spark.executor.cores": "24",
-                "spark.cores.max": "48",
-                "spark.default.parallelism": "24",
-                "spark.executor.memory": "64g",
-                "spark.driver.memory": "32g",
-                "spark.driver.maxResultSize": "32g",
-                "spark.python.worker.memory": "32g",
-                "spark.local.dir": "/tmp",
-                "spark.debug.maxToStringFields": "500"
-            }
-
+            # params = {
+            #     "spark.driver.cores": "4",
+            #     "spark.executor.cores": "4",
+            #     "spark.cores.max": "6",
+            #     "spark.default.parallelism": "4",
+            #     "spark.executor.memory": "6g",
+            #     "spark.driver.memory": "6g",
+            #     "spark.driver.maxResultSize": "6g",
+            #     "spark.python.worker.memory": "4g",
+            #     "spark.local.dir": "/tmp",
+            #     "spark.debug.maxToStringFields": "500"
+            # }
+            params = self.params
             start = time()
             # self.config['params']
             self.spark = SparkSession.builder.master('local[*]') \
