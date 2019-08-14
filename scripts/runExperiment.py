@@ -75,7 +75,11 @@ def runQuery(queryfile, configfile, res, printResults):
     logger.info("Plan:")
     logger.info(plan)
     if isinstance(plan, list):
-
+        time2 = time() - time1
+        t1 = time2
+        tn = time2
+        pt = time2
+        printInfo()
         return
     pt = time() - time1
     p2 = Process(target=plan.execute, args=(res,))
