@@ -10,15 +10,19 @@ To demonstrate Ontario SDL in action, we use the following setting:
 Demo folder contains:
 
 - `./configureations/` - contains `datasources.json` and `config.json`. Note: `config.json` is created by the RDF-MT creation script. (see below)
-- `./data` - contains  sample datasets for `RDB`, `rdf` and `tsv` files.
+- `./data.tar.gz` - contains  sample datasets for `RDB`, `rdf` and `tsv` files.
 - `./mappings` - contains sample mapping files for raw files in `./data`, i.e., for MySQL data and TSV files
 - `./queries` - contains sample queries 
 - `./docker-compose.yml` - file for creating three docker containers: `ontario`, `drugbankrdb`, and `keggrdf`
 
+### Extract `./data.tar.gz`
+```bash
+tar -xvf data.tar.gz
+```
+
 ### Create the Semantic Data Lake
 To create the containers, run the following:
 ```bash
- cd demo
  docker-compose up -d 
 ```
 
