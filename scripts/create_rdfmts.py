@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 
 import getopt, sys
 from pprint import pprint
@@ -445,7 +445,10 @@ def contactRDFSource(query, endpoint, format="application/sparql-results+json"):
     if 'https' in endpoint:
         server = endpoint.split("https://")[1]
     else:
-        server = endpoint.split("http://")[1]
+        if 'http://' in endpoint:
+            server = endpoint.split("http://")[1]
+        else:
+            server = endpoint
 
     (server, path) = server.split("/", 1)
     # Formats of the response.
