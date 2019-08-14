@@ -18,6 +18,7 @@ Demo folder contains:
 ### Extract `./data.tar.gz`
 ```bash
 tar -xvf data.tar.gz
+tar -xvf data2.tar.gz
 ```
 
 ### Create the Semantic Data Lake
@@ -216,58 +217,7 @@ The excerpt from `myconfig.json` looks like as follows:
           "predicate": "http://bio2rdf.org/ns/chebi#is_conjugate_acid_of",
           "range": []
         },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#url",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#inchi",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#image",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#Status",
-          "range": []
-        },
-        {
-          "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
-          "range": []
-        },
-        {
-          "predicate": "http://purl.org/dc/elements/1.1/identifier",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#is_enantiomer_of",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#smiles",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#xSource",
-          "range": []
-        },
-        {
-          "predicate": "http://www.w3.org/2000/01/rdf-schema#seeAlso",
-          "range": []
-        },
-        {
-          "predicate": "http://purl.org/dc/elements/1.1/title",
-          "range": []
-        },
-        {
-          "predicate": "http://purl.org/dc/elements/1.1/modified",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#xReferencedBy",
-          "range": []
-        }
+        ...
       ],
       "linkedTo": [],
       "datasources": [
@@ -366,6 +316,15 @@ WARNING: Couldn't create 'parsetab'. [Errno 20] Not a directory: '/usr/local/lib
 docker exec -t ontario /Ontario/scripts/runExperiment.py -c /configurations/myconfig.json -q /queries/simpleQueries/SQ2 -r True 
 ```
 Where `-r` indicates whether to print results (rows) or not.
+The following queries are available for testing:
+
+- `/queries/simpleQueries/SQ2`
+- `/queries/simpleQueries/SQ3`
+- `/queries/simpleQueries/SQ4`
+- `/queries/simpleQueries/SQ5`
+- `/queries/complexqueries/CQ1`
+- `/queries/complexqueries/CQ2`
+
 Summary of execution (and raw results) will be printed on your terminal.
 You can inspect `ontario.log` file as: `$ docker exec -t ontario less /Ontario/ontario.log` .
 
