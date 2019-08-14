@@ -862,13 +862,6 @@ def get_options(argv):
         usage()
         sys.exit(1)
 
-    '''
-    Supported output formats:
-        - json (default)
-        - nt
-        - SPARQL-UPDATE (directly store to sparql endpoint)
-    '''
-
     source = None
     output = 'config-output.json'
     for opt, arg in opts:
@@ -899,13 +892,8 @@ def usage():
 
 
 if __name__ == "__main__":
-    # source, output = get_options(sys.argv[1:])
-    # source = "ds_config.json"
-    # output = 'polyweb_config.json'
-    # source = 'dbpedia-config.json'
-    source = 'yago-config.json'
-    # output = 'dbpedia_2016_rdfmts.json'
-    output = 'yago_3_1_rdfmts.json'
+    source, output = get_options(sys.argv[1:])
+
     conf = read_config(source)
     pprint(conf)
     json.dump(conf, open(output, 'w+'))
