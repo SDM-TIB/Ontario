@@ -81,7 +81,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
                                            endpoint="<" + config.datasources[d].url + ">",
                                            triples=star['triples'],
                                            datasource=config.datasources[d],
-                                           rdfmts=star['rdfmts'],
+                                           rdfmts=list(star['datasources'][d].keys()),
                                            star=star)],
                                 star_filters)
                         ], filters=star_filters) for d in sources]

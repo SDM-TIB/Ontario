@@ -234,8 +234,8 @@ class MediatorCatalyst(object):
                               for p in relevant_mts[m].predicates[r].ranges
                               if relevant_mts[m].predicates[r].predicate in connectingtp]
                     srange = list(set(srange).intersection(selectedmolecules[c]))
-                    if len(srange) == 0:
-                        selectedmolecules[s].remove(m)
+                    # if len(srange) == 0:
+                    #     selectedmolecules[s].remove(m)
                     if c in newfilteredonly:
                         newfilteredonly[c].extend(srange)
                     else:

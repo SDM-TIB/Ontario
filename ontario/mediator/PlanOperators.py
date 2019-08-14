@@ -273,7 +273,8 @@ class LeafOperator(object):
             or datasource.dstype == DataSourceType.LOCAL_JSON or \
                 datasource.dstype == DataSourceType.HADOOP_TSV or datasource.dstype == DataSourceType.HADOOP_CSV \
                 or datasource.dstype == DataSourceType.HADOOP_JSON:
-            return DrillWrapper(datasource, self.config, self.rdfmts, self.star)
+            # DrillWrapper(datasource, self.config, self.rdfmts, self.star)
+            return SPARKWrapper(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.NEO4J:
             return SPARQL2Cypher(datasource, self.config, self.rdfmts, self.star)
         elif datasource.dstype == DataSourceType.SPARQL_ENDPOINT:

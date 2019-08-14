@@ -434,7 +434,9 @@ def createLeafs(lss, filters=None):
     for e in el:
         del d[e]
     ls = []
-    lo = sort(lss)
+    slo = [s for s in lss if isinstance(s, Service)]
+    lo = sort(slo)
+    lo.extend([s for s in lss if not isinstance(s, Service)])
 
     for s in lo:
         e = set()
