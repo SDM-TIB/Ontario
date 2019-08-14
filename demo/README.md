@@ -88,38 +88,7 @@ The excerpt from `myconfig.json` looks like as follows:
             "http://bio2rdf.org/ns/kegg#Drug"
           ]
         },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#url",
-          "range": []
-        },
-        {
-          "predicate": "http://purl.org/dc/elements/1.1/identifier",
-          "range": []
-        },
-        {
-          "predicate": "http://purl.org/dc/elements/1.1/title",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#formula",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#mass",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#synonym",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#urlImage",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#xRef",
-          "range": []
-        }
+        ... 
       ],
       "linkedTo": [
         "http://bio2rdf.org/ns/kegg#Drug"
@@ -154,14 +123,7 @@ The excerpt from `myconfig.json` looks like as follows:
           "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
           "range": []
         },
-        {
-          "predicate": "http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/interactionDrug1",
-          "range": []
-        },
-        {
-          "predicate": "http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/text",
-          "range": []
-        }
+         ... 
       ],
       "linkedTo": [],
       "datasources": [
@@ -198,43 +160,7 @@ The excerpt from `myconfig.json` looks like as follows:
         {
           "predicate": "http://bio2rdf.org/ns/chebi#is_tautomer_of",
           "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#synonym",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#is_conjugate_base_of",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#formula",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#has_part",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#iupacName",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#is_a",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#has_functional_parent",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/bio2rdf#xRef",
-          "range": []
-        },
-        {
-          "predicate": "http://bio2rdf.org/ns/chebi#is_conjugate_acid_of",
-          "range": []
-        },
+        },        
         ...
       ],
       "linkedTo": [],
@@ -257,18 +183,7 @@ The excerpt from `myconfig.json` looks like as follows:
             "http://bio2rdf.org/ns/bio2rdf#xRef",
             "http://bio2rdf.org/ns/chebi#is_conjugate_acid_of",
             "http://bio2rdf.org/ns/bio2rdf#url",
-            "http://bio2rdf.org/ns/bio2rdf#inchi",
-            "http://bio2rdf.org/ns/bio2rdf#image",
-            "http://bio2rdf.org/ns/chebi#Status",
-            "http://www.w3.org/2000/01/rdf-schema#label",
-            "http://purl.org/dc/elements/1.1/identifier",
-            "http://bio2rdf.org/ns/chebi#is_enantiomer_of",
-            "http://bio2rdf.org/ns/bio2rdf#smiles",
-            "http://bio2rdf.org/ns/chebi#xSource",
-            "http://www.w3.org/2000/01/rdf-schema#seeAlso",
-            "http://purl.org/dc/elements/1.1/title",
-            "http://purl.org/dc/elements/1.1/modified",
-            "http://bio2rdf.org/ns/chebi#xReferencedBy"
+            "http://bio2rdf.org/ns/bio2rdf#inchi"
           ]
         }
       ]
