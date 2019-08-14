@@ -3,6 +3,8 @@ Ontario: A Federated SPARQL Query Processor over Semantic Data Lakes
 
 # Using Ontario
 Check the `demo` folder for dockerized examples.
+
+
 ## Mapping file
 `chebi-tsv-mapping.ttl`
 
@@ -180,6 +182,10 @@ To run multiple queries in a folder:
 
 If you want to just see the plans, set the last argument `True`
 
+# Creating Docker image
+```bash
+docker build -t ontario:0.3 .
+```
 
 # Publication:
 Endris, Kemele M., Philipp D. Rohde, Maria-Esther Vidal, and Sören Auer. "Ontario: Federated Query Processing against a Semantic Data Lake." DEXA 2019 - Database and Expert Systems Applications. Lecture Notes in Computer Science. Springer, Cham (2019).
