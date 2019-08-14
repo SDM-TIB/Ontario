@@ -59,10 +59,9 @@ def runQuery(queryfile, configfile, res, printResults):
     mc = MediatorCatalyst(query, configuration)
     r = mc.decompose()
     new_query = mc.query
-
     dt = time() - time1
 
-    if new_query is None:  # if the query could not be answered by the endpoints
+    if len(r) == 0 or new_query is None:  # if the query could not be answered by the endpoints
         time2 = time() - time1
         t1 = time2
         tn = time2
@@ -75,6 +74,9 @@ def runQuery(queryfile, configfile, res, printResults):
 
     logger.info("Plan:")
     logger.info(plan)
+    if isinstance(plan, list):
+
+        return
     pt = time() - time1
     p2 = Process(target=plan.execute, args=(res,))
     p2.start()
@@ -120,7 +122,7 @@ def conclude(res, p2, printResults, traces=False):
             print(ri)
             if traces:
                 nexttime(time1)
-                printTraces()
+                # printTraces()
             ri = res.get(True)
 
         nexttime(time1)
@@ -129,7 +131,7 @@ def conclude(res, p2, printResults, traces=False):
     else:
         if ri == "EOF":
             nexttime(time1)
-            printTraces()
+            # printTraces()
             printInfo()
             return
 
@@ -142,7 +144,7 @@ def conclude(res, p2, printResults, traces=False):
 
             if traces:
                 nexttime(time1)
-                printTraces()
+                # printTraces()
             ri = res.get(True)
 
         nexttime(time1)
@@ -172,16 +174,16 @@ def printInfo():
     logger.info(lr)
 
 
-def printTraces():
-    global tn
-    global resulttrace
-    global cn
-
-    if tn == -1:
-        tn = time() - time1
-    l = (qname + "," + str(cn) + "," + str(tn))
-
-    resulttrace.write('\n' + l)
+# def printTraces():
+#     global tn
+#     global resulttrace
+#     global cn
+#
+#     if tn == -1:
+#         tn = time() - time1
+#     l = (qname + "," + str(cn) + "," + str(tn))
+#
+#     resulttrace.write('\n' + l)
 
 
 def onSignal1(s, stackframe):
@@ -243,7 +245,7 @@ def get_options(argv):
 
 
 def usage():
-    usage_str = "Usage: {program} -c <config.json_file>  -q <query_file> -t \n"
+    usage_str = "Usage: {program} -c <config.json_file>  -q <query_file> \n"
     print(usage_str.format(program=sys.argv[0]), )
 
 
