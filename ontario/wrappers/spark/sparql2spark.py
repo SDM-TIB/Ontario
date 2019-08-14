@@ -104,7 +104,7 @@ class SPARKWrapper(object):
             # filename = "hdfs://node3.research.tib.eu:9000" + filename
             # filename = self.datasource.url + "/" + filename
             # filename = "/media/kemele/DataHD/LSLOD-flatfiles/" + filename
-            print(filename, tablename)
+            # print(filename, tablename)
             if self.datasource.dstype == DataSourceType.LOCAL_JSON or \
                     self.datasource.dstype == DataSourceType.SPARK_JSON:
                 df = self.spark.read.json(filename)
@@ -132,7 +132,7 @@ class SPARKWrapper(object):
             runstart = time()
             if isinstance(sqlquery, list):# and len(sqlquery) > 3:
                 sqlquery = " UNION ".join(sqlquery)
-            print(sqlquery)
+            # print(sqlquery)
             if isinstance(sqlquery, list):
                 logger.info(" UNION ".join(sqlquery))
                 res_dict = []
