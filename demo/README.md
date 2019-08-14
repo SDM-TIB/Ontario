@@ -30,13 +30,31 @@ To create the containers, run the following:
 Check if the containers are started:
 ```bash
 CONTAINER ID        IMAGE                      COMMAND                  CREATED             STATUS              PORTS                                             NAMES
-7e6c25df04f7        kemele/ontario:0.3         "/Ontario/start_spar…"   About an hour ago   Up About an hour    0.0.0.0:5001->5000/tcp                            ontario
-13e5d4b6cf47        mysql:5.7.16               "docker-entrypoint.s…"   3 hours ago         Up 3 hours          0.0.0.0:9000->3306/tcp                            drugbankrdb
-2a2568ff7089        kemele/virtuoso:7-stable   "/bin/bash /virtuoso…"   3 hours ago         Up 3 hours          0.0.0.0:1116->1111/tcp, 0.0.0.0:11385->8890/tcp   keggrdf
+76cc25df04f7        kemele/ontario:0.3         "/Ontario/start_spar…"   3 hours ago         3 hours ago         0.0.0.0:5001->5000/tcp                            ontario
+1e5cd4b6cf47        mysql:5.7.16               "docker-entrypoint.s…"   3 hours ago         Up 3 hours          0.0.0.0:9000->3306/tcp                            drugbankrdb
+2256c8ff7089        kemele/virtuoso:7-stable   "/bin/bash /virtuoso…"   3 hours ago         Up 3 hours          0.0.0.0:1116->1111/tcp, 0.0.0.0:11385->8890/tcp   keggrdf
 ```
 
+Wait for some seconds until the data is completely loaded:
+Check logs of virtuoso:
+```bash
+....
+17:32:22 Checkpoint started
+17:32:22 Checkpoint finished, log reused
+17:32:22 HTTP/WebDAV server online at 8890
+17:32:22 Server online at 1111 (pid 103)
+```
+Check logs of MySQl:
+
+```bash
+....
+2019-08-14T17:32:48.816395Z 0 [Note] Event Scheduler: Loaded 0 events
+2019-08-14T17:32:48.816616Z 0 [Note] mysqld: ready for connections.
+Version: '5.7.16'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server (GPL)
+```
 
 ### Create RDF Molecule Templates (RDF-MT) - `myconfig.json`
+After datasets are loaded, run the following script to create configuration file:
 
 ```bash
  docker exec -t ontario /Ontario/scripts/create_rdfmts.py -s /configurations/datasources.json -o /configurations/myconfig.json 
@@ -332,7 +350,8 @@ You can inspect `ontario.log` file as: `$ docker exec -t ontario less /Ontario/o
 ### Execute multiple queries
 ```bash
 # docker exec -t ontario /Ontario/scripts/runOntarioExp.sh  [query_folder] [config_file] [result_file_name] [errors_file_name] [planonlyTrueorFalse] [printResultsTrueorFalse]
-docker exec -it ontario /Ontario/scripts/runOntarioExp.sh /queries/simpleQueries /configurations/myconfig.json /results/result.tsv /results/error.txt False True
+docker exec -it ontario /Ontario/scripts/runOntarioExp.sh /queries/simpleQueries /configurations/myconfig.json /results/result.tsv /results/error.txt False False
 ```
 Summary of execution will be saved in `/results/result.tsv`. 
-You can inspect it as: `$ docker exec -t ontario cat /results/result.tsv` .
+You can inspect it as: `$ docker exec -t ontario cat /results/result.tsv` ,
+OR you can find the file in main directory of Ontario (since `\results`, `\configurations`, and others are bounded as volumes)
