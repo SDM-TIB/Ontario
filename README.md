@@ -188,4 +188,4 @@ docker build -t ontario:0.3 .
 ```
 
 # Publication:
-Endris, Kemele M., Philipp D. Rohde, Maria-Esther Vidal, and Sören Auer. "Ontario: Federated Query Processing against a Semantic Data Lake." DEXA 2019 - Database and Expert Systems Applications. Lecture Notes in Computer Science. Springer, Cham (2019).
+Kemele M. Endris, Philipp D. Rohde, Maria-Esther Vidal, and Sören Auer. "Ontario: Federated Query Processing against a Semantic Data Lake." DEXA 2019 - Database and Expert Systems Applications. Lecture Notes in Computer Science. Springer, Cham (2019).
