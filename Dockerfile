@@ -18,6 +18,8 @@ RUN cd /Ontario && pip3 install -r requirements.txt && \
 RUN mkdir /data
 WORKDIR /Ontario
 
+RUN chmod +x /Ontario/start_sparql_service.sh
+
 #CMD ["tail", "-f", "/dev/null"]
 
 CMD ["/Ontario/start_sparql_service.sh"]
