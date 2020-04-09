@@ -8,7 +8,7 @@ from multiprocessing import Process, Queue
 from multiprocessing.queues import Empty
 from ontario.wrappers.mysql.utils import *
 from ontario.sparql.parser.services import Filter, Expression, Argument, unaryFunctor, binaryFunctor
-from ontario.model.rml_model import TripleMapType, SubjectMap
+from ontario.model.rml_model import TripleMapType, SubjectMap, ObjectReferenceMap
 from time import time
 import logging
 
@@ -69,6 +69,7 @@ class MySQLWrapper(object):
         :return:
         """
         from time import time
+
         if len(self.mappings) == 0:
             print("Empty Mapping")
             queue.put('EOF')
@@ -523,7 +524,7 @@ class MySQLWrapper(object):
                     objectfilters.append(tablealias + '.' + column + " is not null ")
                     objectfilters.append(tablealias + '.' + column + " <> '' ")
             else:
-                var_pred_map = {var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map}
+                var_pred_map = {var: pred for pred, vars in self.star['predicates'].items() for var in vars if pred in predicate_object_map}
                 column = []
                 for var in sparqlprojected:
                     if var not in var_pred_map:
@@ -576,6 +577,9 @@ class MySQLWrapper(object):
             if '/' in database_name:
                 database_name = database_name.split('/')[-1]
             tablename = logicalsource.table_name
+            if '.' in tablename:
+                tablename = tablename.split('.')[-1]
+
             fromclauses.append(tablename + ' ' + tablealias)
             i += 1
 
@@ -583,8 +587,54 @@ class MySQLWrapper(object):
 
                 if '?' not in var:
                     pmap, omap = predicate_object_map[p]
+                    if isinstance(omap.objectt, ObjectReferenceMap):
+                        child_column = omap.objectt.child_column
+                        parent_column = omap.objectt.parent_column
+                        value = omap.objectt.value
 
-                    if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+                        column = []
+                        splits = self.mappings[value].subject_map.subject.value.split('{')
+                        for sp in splits[1:]:
+                            column.append(sp[:sp.find('}')])
+
+                        var = var.replace(splits[0], '').replace('}', '')
+                        if '<' in var and '>' in var:
+                            var = var[1:-1]
+                        var = "'" + var + "'"
+                        tablealias2 = 'Ontario_' + str(i)
+
+                        # if value in list(tm_tablealias.values()):
+                        #     for k,v in tm_tablealias.items():
+                        #         if v == value:
+                        #             tablealias2 = k
+
+                        for col in column:
+                            vcolumn = "`" + col + '`'
+                            constfilters.append(tablealias2 + "." + vcolumn + " = " + var)
+
+                        constfilters.append(tablealias2 + "." + parent_column + " = " + tablealias + '.' + child_column)
+
+                        tm_tablealias[tablealias2] = value
+
+                        triplemap = self.mappings[value]
+                        # subjects[value] = triplemap.subject_map.subject
+
+                        logicalsource = triplemap.logical_source
+                        data_source = logicalsource.data_source
+                        # tablename = data_source.name
+                        # database_name = logicalsource.iterator  #TODO: this is not correct, only works for LSLOD-Custom experiment
+                        database_name = data_source.name
+                        if '/' in database_name:
+                            database_name = database_name.split('/')[-1]
+
+                        tablename = logicalsource.table_name
+                        if '.' in tablename:
+                            tablename = tablename.split('.')[-1]
+
+                        fromclauses.append(tablename + ' ' + tablealias2)
+                        i += 1
+                        column = []
+                    elif omap.objectt.resource_type == TripleMapType.TEMPLATE:
                         # omap.objectt.value
                         splits = omap.objectt.value.split('{')
                         column = []
@@ -745,9 +795,10 @@ class MySQLWrapper(object):
 
     def translate(self, query_filters):
         rdfmts = self.star['rdfmts']
+        # print(self.star['predicates'])
         starpreds = list(self.star['predicates'].keys())
         star_preds = [p for p in starpreds if '?' not in p]
-        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
+        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds and self.star['predicates']['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'][1:-1] in rdfmts:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 
         touninon = {}
@@ -797,3 +848,4 @@ class MySQLWrapper(object):
                 return query, projvartocols, coltotemplates, database_name
             else:
                 return None, None, None, None
+

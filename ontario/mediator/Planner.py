@@ -38,7 +38,10 @@ class MetaWrapperPlanner(object):
                 sblocks.append(UnionBlock(unionBlock))
 
             if len(ub['Optional']) > 0:
-                opblocks.append(Optional(UnionBlock(self.create_plan_tree(ub['Optional']))))
+                # opblocks.append(Optional(UnionBlock(self.create_plan_tree(ub['Optional']))))
+                optblks = self.create_plan_tree(ub['Optional'])
+                for b in optblks:
+                    opblocks.append(Optional(UnionBlock([b])))
 
             bgp_triples = []
             [bgp_triples.extend(BGP['stars'][s]['triples']) for s in BGP['stars']]
@@ -154,10 +157,10 @@ class MetaWrapperPlanner(object):
             dependent_op = False
             if isinstance(l, NodeOperator) and (l.dstype is None or l.dstype != DataSourceType.SPARQL_ENDPOINT) or \
                     isinstance(l, LeafOperator) and l.datasource.dstype != DataSourceType.SPARQL_ENDPOINT:
-                return NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
+                l = NodeOperator(Xgoptional(left.vars, right.vars), all_variables, self.config, l, right)
 
             # Case 1: left operator is highly selective and right operator is low selective
-            if not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
+            elif not (lowSelectivityLeft) and lowSelectivityRight and not (isinstance(right, NodeOperator)):
                 l = NodeOperator(NestedHashOptional(left.vars, right.vars), all_variables, self.config, l, right)
                 dependent_op = True
 
@@ -513,3 +516,4 @@ class MetaWrapperPlanner(object):
                 n.right.tree.service.allTriplesGeneral()):
                     n.right.tree.service.limit = 10000  # Fixed value, this can be learnt in the future
         return n
+

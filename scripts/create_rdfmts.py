@@ -212,7 +212,7 @@ def read_config(filename):
     for d in ds:
         if d['type'] == 'SPARQL_Endpoint':
             rdfmts = get_typed_concepts(d['ID'], d['url'])
-            sparqlendps[d['url']] = rdfmts.copy()
+            sparqlendps[d['ID']] = rdfmts.copy()
 
     eofflags = []
     epros = []

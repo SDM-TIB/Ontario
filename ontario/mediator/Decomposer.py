@@ -108,11 +108,10 @@ class MediatorCatalyst(object):
         :param star: list of triple patterns
         :return: list of predicates
         """
-
-        preds = {utils.getUri(tr.predicate, self.prefixes)[1:-1]:
-                     (utils.getUri(tr.theobject, self.prefixes)
-                      if tr.theobject.constant else tr.theobject.name)
-                 for tr in star if tr.predicate.constant}
+        preds = {}
+        for tr in star:
+            preds.setdefault(utils.getUri(tr.predicate, self.prefixes)[1:-1], []).append((utils.getUri(tr.theobject, self.prefixes)
+                      if tr.theobject.constant else tr.theobject.name))
 
         return preds
 
@@ -464,4 +463,5 @@ def get_filters(triples, filters):
             result.append(f)
 
     return result
+
 
