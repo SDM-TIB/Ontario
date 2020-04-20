@@ -25,7 +25,9 @@ class Xconstruct(object):
             res = {}
             for var in self.vars:
                 var = var[1:]
-                aux = tuple.get(var, None)
+                aux = tuple.get(var, '')
+                if aux == '':
+                    continue
                 res.update({var: aux})
             result = self.get_template_impl(res)
             self.qresults.put(".\n".join(result) + '.')
