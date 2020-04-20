@@ -823,6 +823,7 @@ class Triple(object):
             l.append(self.subject.name)
         if not self.theobject.constant:
             l.append(self.theobject.name)
+        l.extend(self.getPredVars())
         return l
 
     def getConsts(self):
