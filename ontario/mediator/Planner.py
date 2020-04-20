@@ -6,6 +6,8 @@ from ontario.operators.nonblocking.Xunion import Xunion
 from ontario.operators.nonblocking.Xdistinct import Xdistinct
 from ontario.operators.nonblocking.Xfilter import Xfilter
 from ontario.operators.nonblocking.Xproject import Xproject
+from ontario.operators.nonblocking.Xconstruct import Xconstruct
+from ontario.operators.nonblocking.Xask import Xask
 from ontario.operators.nonblocking.Xoffset import Xoffset
 from ontario.operators.nonblocking.Xlimit import Xlimit
 from ontario.operators.nonblocking.Xgoptional import Xgoptional
@@ -14,10 +16,11 @@ from .utility import *
 
 
 class MetaWrapperPlanner(object):
-    def __init__(self, query, decompositions, config):
+    def __init__(self, query, decompositions, config, pushdownjoins=True):
         self.query = query
         self.decompositions = decompositions
         self.config = config
+        self.pushdownjoins = pushdownjoins
 
     def _make_tree(self):
         return self.create_plan_tree(self.decompositions)
@@ -28,7 +31,7 @@ class MetaWrapperPlanner(object):
         opblocks = []
         for ub in decomp:
             BGP = ub['BGP']
-            joinplans, non_match_filters = decompose_block(BGP, ub['Filter'], self.config, isTreeBlock=True)
+            joinplans, non_match_filters = decompose_block(BGP, ub['Filter'], self.config, isTreeBlock=True,pushdownjoins=self.pushdownjoins)
 
             if len(ub['JoinBlock']) > 0:
                 joinBlock = self.create_plan_tree(ub['JoinBlock'])
@@ -66,7 +69,12 @@ class MetaWrapperPlanner(object):
         if operatorTree is None:
             return []
         # Adds the project operator to the plan.
-        operatorTree = NodeOperator(Xproject(self.query.args), operatorTree.vars, self.config, operatorTree)
+        if self.query.query_type == 0:
+            operatorTree = NodeOperator(Xproject(self.query.args, self.query.limit), operatorTree.vars, self.config, operatorTree)
+        elif self.query.query_type == 1:
+            operatorTree = NodeOperator(Xconstruct(self.query.args, self.query.prefs, self.query.limit), operatorTree.vars, self.config, operatorTree)
+        else:
+            operatorTree = NodeOperator(Xask(operatorTree.vars), operatorTree.vars, self.config, operatorTree)
 
         # Adds the distinct operator to the plan.
         if (self.query.distinct):

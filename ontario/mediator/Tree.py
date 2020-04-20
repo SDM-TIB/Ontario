@@ -224,10 +224,14 @@ class Leaf(Tree):
         predictVar = set(self.service.getPredVars())
         variables = [v.lstrip("?$") for v in vs]
         constants = [v for v in cvs]
-        if query.args == []:
-            projvars = vs
+        if query.query_type == 0:
+            if query.args == []:
+                projvars = vs
+            else:
+                projvars = list(set([v.name for v in query.args if not v.constant]))
         else:
-            projvars = list(set([v.name for v in query.args if not v.constant]))
+            projvars = vs
+
         subvars = list((query.join_vars | set(projvars)) & set(vs))
         vars_order_by = [x for v in query.order_by for x in v.getVars() if x in subvars]
         if subvars == []:

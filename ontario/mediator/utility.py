@@ -52,7 +52,7 @@ def push_down_join(services):
     return services
 
 
-def decompose_block(BGP, filters, config, isTreeBlock=False):
+def decompose_block(BGP, filters, config, isTreeBlock=False, pushdownjoins=True):
     joinplans = []
     services = []
     filter_pushed = False
@@ -67,7 +67,7 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
         star_filters = get_filters(list(set(star['triples'])), filters)
         for ID, rdfmt in dss.items():
             for mt, mtpred in rdfmt.items():
-                ppred = [p for p in preds if '?' not in p]
+                ppred = [p for p in preds if '?' not in p and p != '']
                 if len(set(preds).intersection(
                         mtpred + ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) == len(set(preds)) or len(ppred) == 0:
                     sources.add(ID)
@@ -109,7 +109,8 @@ def decompose_block(BGP, filters, config, isTreeBlock=False):
             filter_pushed = True
         else:
             non_match_filters = list(set(filters).difference(star_filters))
-    services = push_down_join(services)
+    if pushdownjoins:
+        services = push_down_join(services)
     if services and joinplans:
         joinplans = services + joinplans
     elif services:
