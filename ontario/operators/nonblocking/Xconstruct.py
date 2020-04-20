@@ -30,7 +30,7 @@ class Xconstruct(object):
             result = self.get_template_impl(res)
             self.qresults.put(".\n".join(result) + '.')
             i += 1
-            if self.limit > 0 and i >= self.limit:
+            if 0 < self.limit <= i:
                 break
 
             tuple = self.left.get(True)
