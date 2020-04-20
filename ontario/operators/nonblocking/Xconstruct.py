@@ -40,6 +40,7 @@ class Xconstruct(object):
         return
 
     def get_template_impl(self, res):
+        # TODO: template triples should be returned as formatted RDF triples for further processing instead of just strings
         result = []
         for t in self.triples:
             if t.subject.constant:
