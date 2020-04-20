@@ -87,8 +87,8 @@ class OntarioConfiguration(object):
         return mappings
 
     def find_rdfmt_by_preds(self, preds):
-        res = []
-        if len(preds) == 0 or (len(preds) == 1 and list(preds)[0] == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'):
+        res = []        
+        if len(preds) == 0 or (len(preds) == 1 and (list(preds)[0] == '' or list(preds)[0] == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type')):
             return self.metadata
             
         for p in preds:
