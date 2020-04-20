@@ -16,6 +16,8 @@ class Query(object):
         self.limit = limit
         self.offset = offset
         self.query_type = qtype
+        if self.query_type == 2:
+            self.limit = 1
         self.filter_nested = filter_nested
         genPred = [] #readGeneralPredicates('ontario/common/parser/generalPredicates')
         self.body.setGeneral(getPrefs(self.prefs), genPred)
