@@ -6,7 +6,7 @@ xsd = "http://www.w3.org/2001/XMLSchema#"
 
 class Query(object):
 
-    def __init__(self, prefs, args, body, distinct, order_by=[], limit=-1, offset=-1, filter_nested=''):
+    def __init__(self, prefs, args, body, distinct, order_by=[], limit=-1, offset=-1, filter_nested='', qtype=0):
         self.prefs = prefs
         self.args = args
         self.body = body
@@ -15,6 +15,7 @@ class Query(object):
         self.order_by = order_by
         self.limit = limit
         self.offset = offset
+        self.query_type = qtype
         self.filter_nested = filter_nested
         genPred = [] #readGeneralPredicates('ontario/common/parser/generalPredicates')
         self.body.setGeneral(getPrefs(self.prefs), genPred)
@@ -60,23 +61,25 @@ class Query(object):
 
     def _show(self, body_str):
         d = ""
-        qtype = "SELECT"
-
-        if self.args is not None:
+        if self.query_type == 0:
+            qtype = "SELECT"
             if len(self.args) == 0:
                 args_str = "*"
             else:
                 args_str = " ".join(map(str, self.args))
 
             args_str += "\n"
+            if self.distinct is not None and self.distinct:
+                d = "DISTINCT "
+            return self.getPrefixes() + qtype + " " + d + args_str + " WHERE {" + body_str + "\n" + self.filter_nested + "\n}"
+
+        elif self.query_type == 1:
+            qtype = "CONSTRUCT"
+            args_str = "\n".join(map(str, self.args))
+            return self.getPrefixes() + qtype + " {" + args_str + "\n}\nWHERE {" + body_str + "\n" + self.filter_nested + "\n}"
         else:
             qtype = "ASK"
-            args_str = ""
-
-        if self.distinct is not None and self.distinct:
-            d = "DISTINCT "
-
-        return self.getPrefixes() + qtype + " " + d + args_str + " WHERE {" + body_str + "\n" + self.filter_nested + "\n}"
+            return self.getPrefixes() + qtype + " " + " WHERE {" + body_str + "\n" + self.filter_nested + "\n}"
 
     def getPrefixes(self):
         r = ""

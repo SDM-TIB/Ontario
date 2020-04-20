@@ -13,6 +13,7 @@ reserved = {
     'OPTIONAL': 'OPTIONAL',
     'SELECT': 'SELECT',
     'ASK': 'ASK',
+    'CONSTRUCT': 'CONSTRUCT',
     'DISTINCT': 'DISTINCT',
     'WHERE': 'WHERE',
     'PREFIX': 'PREFIX',
@@ -181,7 +182,10 @@ def p_parse_sparql_0(p):
     parse_sparql : prefix_list query order_by limit offset
     """
     (vs, ts, d) = p[2]
-    p[0] = Query(p[1], vs, ts, d, p[3], p[4], p[5])
+    qtype = 0
+    if vs is None and d is None:
+        qtype = 2
+    p[0] = Query(p[1], vs, ts, d, p[3], p[4], p[5], qtype=qtype)
 
 
 def p_parse_sparql_1(p):
@@ -189,7 +193,97 @@ def p_parse_sparql_1(p):
     parse_sparql : prefix_list query order_by offset limit
     """
     (vs, ts, d) = p[2]
-    p[0] = Query(p[1], vs, ts, d, p[3], p[5], p[4])
+    qtype = 0
+    if vs is None and d is None:
+        qtype = 2
+    p[0] = Query(p[1], vs, ts, d, p[3], p[5], p[4], qtype=qtype)
+
+
+def p_parse_sparql_2(p):
+    """
+    parse_sparql : prefix_list construct_query order_by offset limit
+    """
+    (vs, ts) = p[2]
+    p[0] = Query(p[1], vs, ts, False, p[3], p[5], p[4], qtype=1)
+
+
+def p_construct_query_0(p):
+    """
+    construct_query : CONSTRUCT template_block WHERE LKEY group_graph_pattern RKEY
+    """
+    if p[2] is None:
+        tmp = get_triple_patterns(p[5])
+
+    else:
+        tmp = p[2]
+    p[0] = (tmp, p[5])
+
+
+def get_triple_patterns(ub):
+
+    triplepatterns = []
+
+    for jb in ub.triples:
+        triplepatterns.extend(get_join_triples(jb))
+
+    return triplepatterns
+
+
+def get_join_triples(jb):
+    triplepatterns = []
+    for bgp in jb.triples:
+        if isinstance(bgp, Triple):
+            triplepatterns.append(bgp)
+        elif isinstance(bgp, Optional):
+            triplepatterns.extend(get_triple_patterns(bgp.bgg))
+        elif isinstance(bgp, UnionBlock):
+            triplepatterns.extend(get_triple_patterns(bgp))
+        elif isinstance(bgp, JoinBlock):
+            triplepatterns.extend(get_join_triples(bgp))
+
+    return triplepatterns
+
+
+def p_template_block_0(p):
+    """
+    template_block : LKEY temp_bgp RKEY
+    """
+    p[0] = p[2]
+
+
+def p_template_block_1(p):
+    """
+    template_block : empty
+    """
+    p[0] = None
+
+
+def p_temp_bgp_0(p):
+    """
+    temp_bgp : triple rest_temp_bgp
+    """
+    p[0] = [p[1]] + p[2]
+
+
+def p_rest_temp_bgp_0(p):
+    """
+    rest_temp_bgp : empty
+    """
+    p[0] = []
+
+
+def p_rest_temp_bgp_1(p):
+    """
+    rest_temp_bgp : POINT triple rest_temp_bgp
+    """
+    p[0] = [p[2]] + p[3]
+
+
+def p_rest_temp_bgp_2(p):
+    """
+    rest_temp_bgp : POINT rest_temp_bgp
+    """
+    p[0] = p[2]
 
 
 def p_prefix_list(p):
