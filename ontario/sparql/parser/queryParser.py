@@ -718,11 +718,11 @@ def p_express_arg_2(p):
         if re.compile(t_NUMBER).fullmatch(c) is not None:
             dtype = int
         elif re.compile(t_DECIMALCONST).fullmatch(c) is not None:
-            ptype = float
+            dtype = float
         elif re.compile(t_DOUBLECONST).fullmatch(c) is not None:
-            ptype = float
+            dtype = float
         elif re.compile(t_BOOLEAN).fullmatch(c) is not None:
-            ptype = bool
+            dtype = bool
 
     p[0] = Argument(p[1], True, dtype=dtype)
     if xsd in p[1]:
@@ -1166,11 +1166,11 @@ def p_object_constant_0(p):
         if re.compile(t_NUMBER).fullmatch(c) is not None:
             dtype = int
         elif re.compile(t_DECIMALCONST).fullmatch(c) is not None:
-            ptype = float
+            dtype = float
         elif re.compile(t_DOUBLECONST).fullmatch(c) is not None:
-            ptype = float
+            dtype = float
         elif re.compile(t_BOOLEAN).fullmatch(c) is not None:
-            ptype = bool
+            dtype = bool
 
     p[0] = Argument(p[1], True, dtype=dtype)
     if xsd in p[1]:
