@@ -23,6 +23,9 @@ class MetaWrapperPlanner(object):
         self.pushdownjoins = pushdownjoins
 
     def _make_tree(self):
+        if self.decompositions is None:
+            print("No valid decompositions is found!")
+            return None
         return self.create_plan_tree(self.decompositions)
 
     def create_plan_tree(self, decomp):
