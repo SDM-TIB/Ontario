@@ -1013,13 +1013,15 @@ class Expression(object):
 
 class Argument(object):
 
-    def __init__(self, name, constant, desc=False, datatype=None, lang=None, isuri=False):
+    def __init__(self, name, constant, desc=False, datatype=None, lang=None, isuri=False, dtype=None):
         self.name = name
         self.constant = constant
         self.desc = desc
         self.datatype = datatype
         self.lang = lang
         self.isUri = isuri
+        self.dtype = dtype
+
 
     def __repr__(self):
         arg = self.name

@@ -37,7 +37,9 @@ reserved = {
     'UCASE': 'UCASE',
     'LCASE': 'LCASE',
     'CONTAINS': 'CONTAINS',
-    'UPPERCASE': 'UPPERCASE'
+    'UPPERCASE': 'UPPERCASE',
+    'TRUE': 'TRUE',
+    'FALSE': 'FALSE'
 }
 
 tokens = [
@@ -152,6 +154,9 @@ t_UNSIGNEDINT = r"xsd\:unsignedInt"
 t_UNSIGNEDSHORT = r"xsd\:unsignedShort"
 t_UNSIGNEDBYTE = r"xsd\:unsignedByte"
 t_POSITIVEINT = r"xsd\:positiveInteger"
+
+# t_LTRUE = r"true"
+# t_LFALSE = r"false"
 
 t_ignore = ' \t\n'
 
@@ -707,18 +712,30 @@ def p_express_arg_2(p):
     express_arg : CONSTANT
     """
     c = p[1].strip()
-    p[0] = Argument(p[1], True)
+    dtype = str
+    if xsd not in p[1] and '@' not in p[1]:
+        import re
+        if re.compile(t_NUMBER).fullmatch(c) is not None:
+            dtype = int
+        elif re.compile(t_DECIMALCONST).fullmatch(c) is not None:
+            ptype = float
+        elif re.compile(t_DOUBLECONST).fullmatch(c) is not None:
+            ptype = float
+        elif re.compile(t_BOOLEAN).fullmatch(c) is not None:
+            ptype = bool
+
+    p[0] = Argument(p[1], True, dtype=dtype)
     if xsd in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^")+1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^")+1:], dtype=dtype)
     if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@")+1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@")+1:], dtype=str)
 
 
 def p_express_arg_3(p):
     """
     express_arg : NUMBER
     """
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, dtype=int)
 
 
 def p_express_arg_03(p):
@@ -726,7 +743,7 @@ def p_express_arg_03(p):
     express_arg : NUMBER POINT NUMBER
     """
     decimalNumber = str(p[1]) + p[2] + str(p[3])
-    p[0] = Argument(decimalNumber, True)
+    p[0] = Argument(decimalNumber, True, dtype=float)
 
 
 def p_express_arg_4(p):
@@ -798,6 +815,20 @@ def p_express_arg_10(p):
     """
     p[0] = Expression(p[2], p[1], p[3])
 
+
+
+def p_express_arg_11(p):
+    """
+    express_arg : TRUE
+    """
+    p[0] = Argument(True, True, dtype=bool)
+
+
+def p_express_arg_12(p):
+    """
+    express_arg : FALSE
+    """
+    p[0] = Argument(False, True, dtype=bool)
 
 def p_arit_op_0(p):
     """
@@ -1129,11 +1160,23 @@ def p_object_constant_0(p):
     object : CONSTANT
     """
     c = p[1].strip()
-    p[0] = Argument(p[1], True)
+    dtype = str
+    if xsd not in p[1] and '@' not in p[1]:
+        import re
+        if re.compile(t_NUMBER).fullmatch(c) is not None:
+            dtype = int
+        elif re.compile(t_DECIMALCONST).fullmatch(c) is not None:
+            ptype = float
+        elif re.compile(t_DOUBLECONST).fullmatch(c) is not None:
+            ptype = float
+        elif re.compile(t_BOOLEAN).fullmatch(c) is not None:
+            ptype = bool
+
+    p[0] = Argument(p[1], True, dtype=dtype)
     if xsd in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^")+1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^")+1:], dtype=dtype)
     if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@")+1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@")+1:], dtype=str)
 
 
 def p_object_constant_1(p):
@@ -1141,11 +1184,9 @@ def p_object_constant_1(p):
     object : DOUBLECONST
     """
     c = p[1].strip()
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, dtype=float)
     if xsd in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
-    if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:], dtype=float)
 
 
 def p_object_constant_2(p):
@@ -1153,11 +1194,9 @@ def p_object_constant_2(p):
     object : DECIMALCONST
     """
     c = p[1].strip()
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, dtype=float)
     if xsd in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
-    if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:], dtype=float)
 
 
 def p_object_constant_3(p):
@@ -1165,11 +1204,23 @@ def p_object_constant_3(p):
     object : NUMBER
     """
     c = p[1].strip()
-    p[0] = Argument(p[1], True)
+    p[0] = Argument(p[1], True, dtype=int)
     if xsd in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:])
-    if "@" in p[1]:
-        p[0] = Argument(c[:c.find("^")], True, datatype="<" + xsd + "string>", lang=c[c.rfind("@") + 1:])
+        p[0] = Argument(c[:c.find("^")], True, datatype=c[c.rfind("^") + 1:], dtype=int)
+
+
+def p_object_constant_4(p):
+    """
+    object : TRUE
+    """
+    p[0] = Argument(True, True, dtype=bool)
+
+
+def p_object_constant_5(p):
+    """
+    object : FALSE
+    """
+    p[0] = Argument(False, True, dtype=bool)
 
 
 def p_error(p):
@@ -1191,6 +1242,7 @@ parser = yacc.yacc(debug=0)
 
 # Helpers
 xstring = ""
+
 
 def getBGPVars(bgp):
 
