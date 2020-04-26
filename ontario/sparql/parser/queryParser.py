@@ -1192,9 +1192,30 @@ parser = yacc.yacc(debug=0)
 # Helpers
 xstring = ""
 
+def getBGPVars(bgp):
+
+    vars = []
+    for tr in bgp:
+        if not tr.subject.constant:
+            vars.append(tr.subject.name)
+        if not tr.predicate.constant:
+            vars.append(tr.predicate.name)
+        if not tr.theobject.constant:
+            vars.append(tr.theobject.name)
+
+    return list(set(vars))
+
 
 def parse(string):
     global xstring
     xstring = string
-    return parser.parse(string, lexer=lexer)
+    query = parser.parse(string, lexer=lexer)
+    if isinstance(query, Query):
+        if query.query_type == 1:
+            temvars = set(getBGPVars(query.args))
+            bodyvars = set(query.body.getVars())
+            if len(temvars) != len(temvars.intersection(bodyvars)):
+                print('INVALID query! CONSTRUCT TEMPLATE contains variables that are not defined in the body of the Query.')
+                return None
+    return query
 
