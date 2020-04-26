@@ -20,7 +20,8 @@ class MediatorCatalyst(object):
         self.pushdownssqjoins = pushdownssqjoins
 
     def decompose(self):
-
+        if self.query is None:
+            return None
         self.decomposition = self.decomposeUnionBlock(self.query.body)
         # unionblocks = self.create_decomposed_query(self.decomposition)
         # self.query.body = UnionBlock(unionblocks)
@@ -70,8 +71,8 @@ class MediatorCatalyst(object):
                 if pub:
                     ijb.extend(pub)
 
-        tl_bgp = {}
-        if tl is not None:
+        tl_bgp = {'stars_conn': {}, 'mts_conn': {}, 'stars': {}, 'bgp_predicates': []}
+        if tl is not None and len(tl) > 0:
             bgp_preds = self.get_preds(tl)
             stars = self.bgp_stars(tl)
             bgpstars, star_conn, mt_conn = self.decompose_bgp(stars, bgp_preds)
