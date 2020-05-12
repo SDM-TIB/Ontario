@@ -14,6 +14,7 @@ RUN apt-get update && \
 COPY . /Ontario
 RUN cd /Ontario && pip3 install -r requirements.txt && \
     python3 setup.py install
+RUN rm /Ontario/ontario.log /Ontario/ontario-sparql2sql.log
 
 RUN mkdir /data
 WORKDIR /Ontario
