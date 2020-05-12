@@ -124,12 +124,32 @@ class Xgjoin(Join):
         if tuple != "EOF":
             # Get the resource associated to the tuples.
             resource = ''
-            #print(tuple)
             for var in self.vars:
                 if var in tuple:
                     val = tuple[var]
-                    if "^^<" in val:
-                        val = val[:val.find('^^<')]
+                    # if isinstance(val, dict) and 'value' in val:
+                    #     val = val['value']
+
+                    suffix = ''
+                    # if 'datatype' in val:
+                    #     if isinstance(val['datatype'], bytes):
+                    #         suffix = "^^<" + val['datatype'].decode('utf-8') + ">"
+                    #     else:
+                    #         suffix = "^^<" + val['datatype'] + ">"
+                    #
+                    if isinstance(val, dict):
+
+                        if "xml:lang" in val:
+                            suffix = '@' + val['xml:lang']
+                        try:
+                            if isinstance(val['value'], bytes):
+                                val = val['value'].decode('utf-8') + suffix
+                            else:
+                                val = val['value'] + suffix
+                        except:
+                            val = val['value'] + suffix
+                    # if "^^<" in val:
+                    #     val = val[:val.find('^^<')]
                     resource = resource + str(val)
 
             # Probe the tuple against its RJT table.

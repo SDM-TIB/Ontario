@@ -96,10 +96,16 @@ class Xfilter(object):
 
     def __repr__(self):
         return str(self.__class__) + ">>  FILTER (" + str(self.filter.expr.left) + " " + str(self.filter.expr.op) + " " + str(self.filter.expr.right) + ")"
-   
+
     # Base case.   
     def evaluateOperator(self, operator, expr_left, expr_right):
-        #print "operator in Filter", operator, expr_left, expr_right, type(expr_left), type(expr_right)
+        #remove quotation if available
+        # if expr_left is not None and len(expr_left) > 0 and ( ('"' == expr_left[0] and '"' == expr_left[-1]) or ("'" == expr_left[0] and "'" == expr_left[-1])):
+        #     expr_left = expr_left[1:-1]
+        # if expr_right is not None and len(expr_right) > 0 and (
+        #         ('"' == expr_right[0] and '"' == expr_right[-1]) or ("'" == expr_right[0] and "'" == expr_right[-1])):
+        #     expr_right = expr_right[1:-1]
+
         if operator in logical_connectives:
             #print "Case: logical connectives"
             return self.evaluateLogicalConnective(operator, expr_left, expr_right)
@@ -132,7 +138,7 @@ class Xfilter(object):
             #print "Case 2"
             res_left = self.evaluateComplexExpression(tuple, expr_left.op, (expr_left.left, type_left), (expr_left.right, type_right))
             if expr_right.constant:
-                res_right = expr_right.name
+                res_right = (expr_right.name, expr_right.dtype)
             else:
                 res_right = self.extractValue(tuple[expr_right.name[1:]])
             res = self.evaluateOperator(operator, res_left, res_right)
@@ -142,7 +148,7 @@ class Xfilter(object):
             #print "Case 3"
             #if expr_left.name[1:] in tuple:
             if expr_left.constant:
-                res_left = (expr_left.name, str)
+                res_left = (expr_left.name, expr_left.dtype)
             else:
                 res_left = self.extractValue(tuple[expr_left.name[1:]])
             res_right = self.evaluateComplexExpression(tuple, expr_right.op, (expr_right.left, type_left), (expr_right.right, type_right))
@@ -159,11 +165,15 @@ class Xfilter(object):
         elif isinstance(expr_left, Argument) and isinstance(expr_right, Argument):
             #print "Case 5", expr_left.constant, expr_right.constant, tuple[expr_left.name[1:]], expr_right.name
             if expr_left.constant:
-                res_left = expr_left.name, str
+                res_left = expr_left.name, expr_left.dtype
             else:
                 res_left = self.extractValue(tuple[expr_left.name[1:]])
+
             if expr_right.constant:
-                res_right = (expr_right.name, str)
+                if expr_right.name[0] == '"' or expr_right.name[0] == "'":
+                    res_right = (expr_right.name[1:-1], str)
+                else:
+                    res_right = (expr_right.name, expr_right.dtype)
             else:
                 res_right = self.extractValue(tuple[expr_right.name[1:]])
             #print "res left, right ", res_left, operator, res_right
@@ -174,7 +184,7 @@ class Xfilter(object):
         elif isinstance(expr_left, Argument):
             #print "Case 6"
             if expr_left.constant:
-                res_left = expr_left.name
+                res_left = expr_left.name, expr_left.dtype
             else:
                 res_left = self.extractValue(tuple[expr_left.name[1:]])
             res = self.evaluateOperator(operator, res_left, None)
@@ -314,19 +324,34 @@ class Xfilter(object):
             raise SPARQLTypeError
 
     def extractValue(self, val):
-        pos = val.find("^^")
-        # Handles when the literal is typed.
-        if pos > -1:
-            for t in data_types.keys():
-                if t in val[pos:]:
-                    (python_type, general_type) = data_types[t]
-                    if general_type == bool:
-                        return (val[:pos], general_type)
-                    else:
-                        return (python_type(val[:pos]), general_type)
+
+        if isinstance(val, dict):
+            value = val['value']
+            if 'datatype' in val:
+                dt = val['datatype']
+                for t in data_types.keys():
+                    if t in dt:
+                        (python_type, general_type) = data_types[t]
+                        if general_type == bool:
+                            return (value, general_type)
+                        else:
+                            return (python_type(value), general_type)
+            else:
+                return (value, str)
         else:
-            return (str(val), str)
-        
+            pos = val.find("^^")
+            # Handles when the literal is typed.
+            if pos > -1:
+                for t in data_types.keys():
+                    if t in val[pos:]:
+                        (python_type, general_type) = data_types[t]
+                        if general_type == bool:
+                            return (val[:pos], general_type)
+                        else:
+                            return (python_type(val[:pos]), general_type)
+            else:
+                return (str(val), str)
+
         
 class SPARQLTypeError(Exception):
     """Base class for exceptions in this module."""

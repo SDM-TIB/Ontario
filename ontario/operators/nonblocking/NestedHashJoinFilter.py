@@ -129,10 +129,38 @@ class NestedHashJoinFilter(Join):
     def getResource(self, tuple):
         resource = ''
         for var in self.vars:
-            val = tuple[var]
-            if "^^<" in val:
-                val = val[:val.find('^^<')]
-            resource = resource + val
+            # val = tuple[var]
+            # if "^^<" in val:
+            #     val = val[:val.find('^^<')]
+            # resource = resource + val
+            if var in tuple:
+                val = tuple[var]
+                # if isinstance(val, dict) and 'value' in val:
+                #     val = val['value']
+
+                suffix = ''
+                # if 'datatype' in val:
+                #     if isinstance(val['datatype'], bytes):
+                #         suffix = "^^<" + val['datatype'].decode('utf-8') + ">"
+                #     else:
+                #         suffix = "^^<" + val['datatype'] + ">"
+                #
+                if isinstance(val, dict):
+
+                    if "xml:lang" in val:
+                        suffix = '@' + val['xml:lang']
+                    try:
+                        if isinstance(val['value'], bytes):
+                            val = val['value'].decode('utf-8') + suffix
+                        else:
+                            val = val['value'] + suffix
+                    except:
+                        val = val['value'] + suffix
+
+                # if "^^<" in val:
+                #     val = val[:val.find('^^<')]
+                resource = resource + str(val)
+
         return resource
 
     def makeInstantiation(self, filter_bag, operators):
@@ -150,20 +178,51 @@ class NestedHashJoinFilter(Join):
                 for var in self.vars:
                     # aux = "?" + var + "==" + tuple[var]
                     v = tuple[var]
-                    if v.find("http") == 0:  # uris must be passed between < .. >
-                        v = "<" + v + ">"
-                        v = "?" + var + "=" + v
-                        and_expr.append(v)
-                    else:
-                        if '^^<' not in v:
-                            v = '"' + v + '"'
-                            vf = "?" + var + "=" + v  # + " || " + "?" + var + "=" + v + "^^<http://www.w3.org/2001/XMLSchema#string>)"
-                            and_expr.append(vf)
-                        else:
-                            loc = v.find('^^<')
-                            vf = '"' + v[:loc] + '"' + v[loc:]
-                            v = "(?" + var + "=" + vf + ' || ' + "?" + var + '="' + v[:loc] + '")'
+                    if isinstance(v, dict):
+                        suffix = ''
+                        if v['type'] == 'uri':
+                            v = "<" + v['value'] + ">"
+                            v = "?" + var + "=" + v
                             and_expr.append(v)
+                        elif v['type'] == 'bnode':   # this could be a problem (semantically), since scope of blank nodes is within a data source
+                            v = v['value']
+                            v = "?" + var + "=" + v
+                            and_expr.append(v)
+                        else:
+                            if 'datatype' in v:
+                                if isinstance(v['datatype'], bytes):
+                                    suffix = "^^<" + v['datatype'].decode('utf-8') + ">"
+                                else:
+                                    suffix = "^^<" + v['datatype'] + ">"
+
+                            if "xml:lang" in v:
+                                suffix = '@' + v['xml:lang']
+                            try:
+                                if isinstance(v['value'], bytes):
+                                    vf = v['value'].decode('utf-8') + suffix
+                                else:
+                                    vf = v['value'] + suffix
+                            except:
+                                vf = v['value'] + suffix
+
+                            v = "(?" + var + "=" + vf + ' || ' + "?" + var + '="' + v['value'].decode('utf-8') + '")'
+                            and_expr.append(v)
+
+                    else:
+                        if v.find("http") == 0:  # uris must be passed between < .. >
+                            v = "<" + v + ">"
+                            v = "?" + var + "=" + v
+                            and_expr.append(v)
+                        else:
+                            if '^^<' not in v:
+                                v = '"' + v + '"'
+                                vf = "?" + var + "=" + v  # + " || " + "?" + var + "=" + v + "^^<http://www.w3.org/2001/XMLSchema#string>)"
+                                and_expr.append(vf)
+                            else:
+                                loc = v.find('^^<')
+                                vf = '"' + v[:loc] + '"' + v[loc:]
+                                v = "(?" + var + "=" + vf + ' || ' + "?" + var + '="' + v[:loc] + '")'
+                                and_expr.append(v)
                 if len(and_expr) > 1:
                     or_expr.append('(' + ' && '.join(and_expr) + ')')
                 else:

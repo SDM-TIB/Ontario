@@ -85,7 +85,35 @@ class Xgoptional(Optional):
         # Get the resource associated to the tuples.
         resource = ''
         for var in self.vars:
-            resource = resource + tuple[var]
+            if var in tuple:
+                val = tuple[var]
+                # if isinstance(val, dict) and 'value' in val:
+                #     val = val['value']
+
+                suffix = ''
+                # if 'datatype' in val:
+                #     if isinstance(val['datatype'], bytes):
+                #         suffix = "^^<" + val['datatype'].decode('utf-8') + ">"
+                #     else:
+                #         suffix = "^^<" + val['datatype'] + ">"
+                #
+                if isinstance(val, dict):
+
+                    if "xml:lang" in val:
+                        suffix = '@' + val['xml:lang']
+                    try:
+                        if isinstance(val['value'], bytes):
+                            val = val['value'].decode('utf-8') + suffix
+                        else:
+                            val = val['value'] + suffix
+                    except:
+                        val = val['value'] + suffix
+                # if "^^<" in val:
+                #     val = val[:val.find('^^<')]
+                resource = resource + str(val)
+
+            #resource = resource + tuple[var]
+
         #print "probe"
         # Probe the tuple against its RJT table.
         probeTS = self.probe(tuple, resource, tuple_rjttable, vars)
@@ -151,6 +179,12 @@ class Xgoptional(Optional):
                 res_right.update({var: ''})
             res = res_right
             res.update(tuple)
+            todel = []
+            for var, val in res.items():
+                if res[var] == '':
+                    todel.append(var)
+            for var in todel:
+                del res[var]
             self.qresults.put(res)
 
         # Put EOF in queue and exit.
@@ -175,6 +209,12 @@ class Xgoptional(Optional):
                     if isinstance(record.tuple, dict):
                         res = record.tuple.copy()
                         res.update(tuple)
+                        todel = []
+                        for var, val in res.items():
+                            if res[var] == '':
+                                todel.append(var)
+                        for var in todel:
+                            del res[var]
                         self.qresults.put(res)
 
                         # Delete tuple from bag.
