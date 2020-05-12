@@ -111,7 +111,8 @@ class MediatorCatalyst(object):
         """
         preds = {}
         for tr in star:
-            preds.setdefault(utils.getUri(tr.predicate, self.prefixes)[1:-1], []).append((utils.getUri(tr.theobject, self.prefixes)
+            if tr.predicate.constant:
+                preds.setdefault(utils.getUri(tr.predicate, self.prefixes)[1:-1], []).append((utils.getUri(tr.theobject, self.prefixes)
                       if tr.theobject.constant else tr.theobject.name))
 
         return preds
