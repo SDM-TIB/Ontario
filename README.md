@@ -184,9 +184,40 @@ If you want to just see the plans, set the last argument `True`
 
 # Creating Docker image
 ```bash
-docker build -t ontario:0.3 .
+docker build -t ontario:0.5 .
 ```
-You can use pre-built image of `kemele/ontario:0.3`
+You can use pre-built image of `kemele/ontario:0.5`
+
+# Using Ontario SPARQL endpoint
+Currently Ontario as a SPARQL endpoint is supported on the docker version `kemele/ontario:0.5`.
+```python
+import urllib.parse as urlparse
+import requests
+import json
+params = urlparse.urlencode({'query': 'SELECT DISTINCT ?Concept WHERE{?s a ?Concept} LIMIT 5'})
+resp = requests.get('http://localhost:5001/sparql', params=params)
+if resp.status_code == 200:
+    result = json.loads(resp.text)      
+    print(result)
+
+```
+
+Output:
+```json
+{'execTime': 0.15656578540802002,
+ 'firstResult': 0.15205996036529541,
+ 'totalRows': 5,
+ 'vars': ['Concept'],
+ 'result': [
+            {'Concept': {'type': 'uri', 'value': 'http://bio2rdf.org/ns/kegg#Drug'}},
+            {'Concept': {'type': 'uri', 'value': 'http://bio2rdf.org/ns/kegg#Enzyme'}},
+            {'Concept': {'type': 'uri', 'value': 'http://bio2rdf.org/ns/kegg#Compound'}},
+            {'Concept': {'type': 'uri', 'value': 'http://bio2rdf.org/ns/kegg#Reaction'}},
+            {'Concept': {'type': 'uri', 'value': 'http://www4.wiwiss.fu-berlin.de/drugbank/resource/drugbank/drug_interactions'}}
+               ]
+}
+
+```
 
 # Publication:
 Kemele M. Endris, Philipp D. Rohde, Maria-Esther Vidal, and Sören Auer. "Ontario: Federated Query Processing against a Semantic Data Lake." DEXA 2019 - Database and Expert Systems Applications. Lecture Notes in Computer Science. Springer, Cham (2019).
