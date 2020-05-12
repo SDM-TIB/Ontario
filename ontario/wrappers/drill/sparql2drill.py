@@ -708,6 +708,9 @@ class DrillWrapper(object):
         rdfmts = self.star['rdfmts']
         starpreds = list(self.star['predicates'].keys())
         star_preds = [p for p in starpreds if '?' not in p]
+        if len(star_preds) == 0 or (len(star_preds) == 1 and star_preds[0] == ''):
+            return None, None, None, None
+
         if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 

@@ -80,23 +80,23 @@ def contactSourceAux(referer, server, path, port, query, queue):
                 if 'results' in res:
                     # print "raw results from endpoint", res
                     for x in res['results']['bindings']:
-                        for key, props in x.items():
-                            # Handle typed-literals and language tags
-                            suffix = ''
-                            if props['type'] == 'typed-literal':
-                                if isinstance(props['datatype'], bytes):
-                                    suffix = "^^<" + props['datatype'].decode('utf-8') + ">"
-                                else:
-                                    suffix = "^^<" + props['datatype'] + ">"
-                            elif "xml:lang" in props:
-                                suffix = '@' + props['xml:lang']
-                            try:
-                                if isinstance(props['value'], bytes):
-                                    x[key] = props['value'].decode('utf-8') + suffix
-                                else:
-                                    x[key] = props['value'] + suffix
-                            except:
-                                x[key] = props['value'] + suffix
+                        # for key, props in x.items():
+                        #     # Handle typed-literals and language tags
+                        #     suffix = ''
+                        #     if 'datatype' in props:
+                        #         if isinstance(props['datatype'], bytes):
+                        #             suffix = "^^<" + props['datatype'].decode('utf-8') + ">"
+                        #         else:
+                        #             suffix = "^^<" + props['datatype'] + ">"
+                        #     elif "xml:lang" in props:
+                        #         suffix = '@' + props['xml:lang']
+                        #     try:
+                        #         if isinstance(props['value'], bytes):
+                        #             x[key] = props['value'].decode('utf-8') + suffix
+                        #         else:
+                        #             x[key] = props['value'] + suffix
+                        #     except:
+                        #         x[key] = props['value'] + suffix
 
                         queue.put(x)
                         reslist += 1

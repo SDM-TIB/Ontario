@@ -33,35 +33,65 @@ class SPARQL2SQL(object):
 
         rdfmts = self.star['rdfmts']
         starpreds = list(self.star['predicates'].keys())
+
         star_preds = [p for p in starpreds if '?' not in p]
+        if len(star_preds) == 0 or (len(star_preds) == 1 and star_preds[0] == ''):
+            return None, None, None, None
+
+        touninon = {}
+        completematch = {}
 
         if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 
-        touninon = {}
-        completematch = {}
-        mapping_preds = {tm: triplemap for tm, triplemap in self.mapping.items() for p in star_preds if p in triplemap.predicate_object_map}
+            sprojs = self.sparql.args
+            if len(sprojs) == 1 and sprojs[0].name == self.star['triples'][0].theobject.name and  len(star_preds) == 0 and not self.star['triples'][0].subject.constant:
+                return 'RDFMTs', None, None, None
 
-        for tm, triplemap in mapping_preds.items():
-            for rdfmt in triplemap.subject_map.rdf_types:
-                if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) == len(set(star_preds)):
-                    completematch[rdfmt] = {}
-                    completematch[rdfmt][tm] = triplemap.predicate_object_map
+        if len(star_preds) == 0 or (len(star_preds) == 1 and star_preds[0] == ''):
+            subjectonly = False
+            for tm, triplemap in self.mapping.items():
+                for rdfmt in triplemap.subject_map.rdf_types:
+                    if rdfmt in rdfmts:
+                        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in starpreds:
+                            touninon.setdefault(rdfmt, {})[tm] = triplemap.subject_map
+                            subjectonly = True
+                        else:
+                            touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+            if len(touninon) > 1 or subjectonly:
+                return self.make_union(touninon, query_filters, subjectonly)
+            elif len(touninon) == 1:
+                query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]],
+                                                                                     query_filters)
+                return query, projvartocols, coltotemplates, database_name
+            else:
+                return None, None, None, None
 
-                if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) > 0:
-                    touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+        else:
+            mapping_preds = {tm: triplemap for tm, triplemap in self.mapping.items() for p in star_preds if p in triplemap.predicate_object_map}
 
-        if len(completematch) > 0:
-            if len(completematch) == 1:
+            for tm, triplemap in mapping_preds.items():
+                for rdfmt in triplemap.subject_map.rdf_types:
+                    if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) == len(set(star_preds)):
+                        completematch[rdfmt] = {}
+                        completematch[rdfmt][tm] = triplemap.predicate_object_map
+
+                    if rdfmt in rdfmts and len(set(star_preds).intersection(list(triplemap.predicate_object_map.keys()))) > 0:
+                        touninon.setdefault(rdfmt, {})[tm] = triplemap.predicate_object_map
+
+            if len(completematch) > 0:
+                if len(completematch) == 1:
+                    query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], query_filters)
+                    return query, projvartocols, coltotemplates, database_name
+                else:
+                    return self.make_union(completematch, query_filters)
+            elif len(touninon) > 1:
+                return self.make_union(touninon, query_filters)
+            elif len(touninon) == 1:
                 query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], query_filters)
                 return query, projvartocols, coltotemplates, database_name
             else:
-                return self.make_union(completematch, query_filters)
-        elif len(touninon) > 1:
-            return self.make_union(touninon, query_filters)
-        elif len(touninon) == 1:
-            query, projvartocols, coltotemplates, database_name = self.make_join(touninon[list(touninon.keys())[0]], query_filters)
-            return query, projvartocols, coltotemplates, database_name
+                return None, None, None, None
 
     def make_join(self, mapping_preds, query_filters):
         tables, subjects, tm_tablealias, database_name = self.get_table_names(mapping_preds)
@@ -226,22 +256,31 @@ class SPARQL2SQL(object):
             column = predicate_object_map.subject.value
         else:
             column = []
+        sprojs = [c.name for c in self.sparql.args]
         if isinstance(column, list):
             j = 0
             for col in column:
                 vcolumn = "`" + col + '`'
-                if var in [c.name for c in self.sparql.args]:
-                    projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
-                    projvartocol.setdefault(var[1:], []).append(col)
+
+                projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
+                projvartocol.setdefault(var[1:], []).append(col)
+                if not self.star['triples'][0].theobject.constant and self.star['triples'][0].theobject.name in sprojs:
+                    for t in predicate_object_map.rdf_types:
+                        projvartocol.setdefault('RDFMT_OBJ_' + self.star['triples'][0].theobject.name[1:], []).append(t)
+
                 objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                 objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
                 j += 1
         else:
             col = column
             column = "`" + column + '`'
-            if var in [c.name for c in self.sparql.args]:
-                projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
-                projvartocol[var[1:]] = col
+
+            projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
+            projvartocol[var[1:]] = col
+            if not self.star['triples'][0].theobject.constant and self.star['triples'][0].theobject.name in sprojs:
+                for t in predicate_object_map.rdf_types:
+                    projvartocol.setdefault('RDFMT_OBJ_' + self.star['triples'][0].theobject.name[1:], []).append(t)
+
             objectfilters.append(tablealias + '.' + column + " is not null ")
             if self.datasource.dstype == DataSourceType.MYSQL:
                 objectfilters.append(tablealias + '.' + column + " <> '' ")
@@ -309,47 +348,59 @@ class SPARQL2SQL(object):
 
     def predicate_object_map(self, predicate_object_map, star_variables, tablealias, var_pred_map, coltotemplates, projections, projvartocol, objectfilters):
 
-        var_pred_map.update({var: pred for pred, var in self.star['predicates'].items() if pred in predicate_object_map})
+        var_pred_map.update({v: pred for pred, var in self.star['predicates'].items() for v in var if pred == '' or pred in predicate_object_map})
         column = []
         for var in star_variables:
             if var not in var_pred_map:
                 continue
             p = var_pred_map[var]
-            pmap, omap = predicate_object_map[p]
-            if omap.objectt.resource_type == TripleMapType.TEMPLATE:
-                coltotemplates[var[1:]] = omap.objectt.value
-                splits = omap.objectt.value.split('{')
-                column = []
-                for sp in splits[1:]:
-                    column.append(sp[:sp.find('}')])
-                if len(column) == 1:
-                    column = column[0]
-            elif omap.objectt.resource_type == TripleMapType.REFERENCE:
-                column = omap.objectt.value
+            if p == '':
+                predicate = [pr.predicate.name[1:] for pr in self.star['triples'] if not pr.predicate.constant and pr.theobject.name == var]
+                for p in predicate_object_map:
+                    pmap, omap = predicate_object_map[p]
+                    self.extract_cols(omap, var, tablealias, coltotemplates, projections, projvartocol, objectfilters)
+                    projvartocol.setdefault('RDFMT_OBJ_' + predicate[0], []).append(p)
+                # print(projvartocol)
             else:
-                column = []
-            if isinstance(column, list):
-                j = 0
-                for col in column:
-                    vcolumn = "`" + col + '`'
-                    if var in [c.name for c in self.sparql.args]:
-                        projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[
-                                                                                                             1:] + '_Ontario_' + str(
-                            j) + '`'
-                        projvartocol.setdefault(var[1:], []).append(col)
-                    objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
-                    if self.datasource.dstype == DataSourceType.MYSQL:
-                        objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
-                    j += 1
-            else:
-                col = column
-                column = "`" + column + '`'
+                pmap, omap = predicate_object_map[p]
+                self.extract_cols(omap, var,  tablealias, coltotemplates, projections, projvartocol, objectfilters)
+
+    def extract_cols(self, omap, var,  tablealias, coltotemplates, projections, projvartocol, objectfilters):
+
+        if omap.objectt.resource_type == TripleMapType.TEMPLATE:
+            coltotemplates[var[1:]] = omap.objectt.value
+            splits = omap.objectt.value.split('{')
+            column = []
+            for sp in splits[1:]:
+                column.append(sp[:sp.find('}')])
+            if len(column) == 1:
+                column = column[0]
+        elif omap.objectt.resource_type == TripleMapType.REFERENCE:
+            column = omap.objectt.value
+        else:
+            column = []
+        if isinstance(column, list):
+            j = 0
+            for col in column:
+                vcolumn = "`" + col + '`'
                 if var in [c.name for c in self.sparql.args]:
-                    projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
-                    projvartocol[var[1:]] = col
-                objectfilters.append(tablealias + '.' + column + " is not null ")
+                    projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[
+                                                                                                         1:] + '_Ontario_' + str(
+                        j) + '`'
+                    projvartocol.setdefault(var[1:], []).append(col)
+                objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                 if self.datasource.dstype == DataSourceType.MYSQL:
-                    objectfilters.append(tablealias + '.' + column + " <> '' ")
+                    objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
+                j += 1
+        else:
+            col = column
+            column = "`" + column + '`'
+            if var in [c.name for c in self.sparql.args]:
+                projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
+                projvartocol[var[1:]] = col
+            objectfilters.append(tablealias + '.' + column + " is not null ")
+            if self.datasource.dstype == DataSourceType.MYSQL:
+                objectfilters.append(tablealias + '.' + column + " <> '' ")
 
     def filter_clauses(self, query_filters, constfilters, tm, predicate_object_map, var_pred_map, coltotemplates, tablealias):
         for f in query_filters:

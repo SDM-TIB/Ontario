@@ -87,6 +87,14 @@ class MySQLWrapper(object):
         #     self.query.offset = offset
         start = time()
         sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
+        if sqlquery == 'RDFMTs':
+            sprojs = self.query.args
+            var = sprojs[0].name
+            for rdfmt in self.rdfmts:
+                queue.put({var[1:]: {'type': 'uri', 'value':rdfmt} })
+            queue.put('EOF')
+            return
+
         # print(sqlquery)
         if sqlquery is None or len(sqlquery) == 0:
             queue.put("EOF")
@@ -289,25 +297,36 @@ class MySQLWrapper(object):
                     if s in res:
                         val = res[s]
                         if 'http://' in row[r]:
-                            res[s] = row[r]
+                            res[s] = {'type': 'uri', 'value': row[r]}
                         else:
-                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            res[s] = {'type': 'uri', 'value': val['value'].replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))}
                     else:
                         if 'http://' in r:
-                            res[s] = r
+                            res[s] = {'type': 'literal', 'value': r}
                         else:
-                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                               row[r].replace(" ", '_'))
+                            res[s] = {'type': 'uri', 'value': coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                               row[r].replace(" ", '_'))}
                 elif r in projvartocols and r in coltotemplates:
                     if 'http://' in row[r]:
-                        res[r] = row[r]
+                        res[r] = {'type': 'uri', 'value': row[r]}
                     else:
-                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                        res[r] = {'type': 'uri', 'value': coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))}
                 else:
-                    res[r] = row[r]
-
+                    res[r] = {'type': 'literal', 'value': row[r]}
             if not skip:
-                queue.put(res)
+                skip = False
+                for oc in projvartocols:
+                    if 'RDFMT_OBJ_' in oc:
+                        skip = True
+                        res[oc[10:]] = projvartocols[oc]
+                        for t in projvartocols[oc]:
+                            res[oc[10:]] = {'type': 'uri', 'value':t}
+                            queue.put(res)
+                if not skip:
+                    queue.put(res)
+            #
+            # if not skip:
+            #     queue.put(res)
                 # if 'drugbor' in res and res['drugbor'] == 'http://tcga.deri.ie/TCGA-22-5483-D14623':
                 #     print(res)
                 # if 'petient' in res and res['patient'] == 'http://tcga.deri.ie/TCGA-22-5483':
@@ -507,12 +526,20 @@ class MySQLWrapper(object):
                     column = predicate_object_map.subject.value
                 else:
                     column = []
+
+                sprojs = [c.name for c in self.query.args]
                 if isinstance(column, list):
                     j = 0
                     for col in column:
                         vcolumn = "`" + col + '`'
                         projections[var[1:] + '_Ontario_' + str(j)] = tablealias + "." + vcolumn + " AS `" + var[1:] + '_Ontario_' + str(j) + '`'
                         projvartocol.setdefault(var[1:], []).append(col)
+                        if not self.star['triples'][0].theobject.constant and self.star['triples'][0].theobject.name in sprojs:
+
+                            for t in predicate_object_map.rdf_types:
+                                projvartocol.setdefault('RDFMT_OBJ_' + self.star['triples'][0].theobject.name[1:], []).append(t)
+
+
                         objectfilters.append(tablealias + '.' + vcolumn + " is not null ")
                         objectfilters.append(tablealias + '.' + vcolumn + " <> '' ")
                         j += 1
@@ -521,10 +548,15 @@ class MySQLWrapper(object):
                     column = "`" + column + '`'
                     projections[var[1:]] = tablealias + "." + column + " AS `" + var[1:] + '`'
                     projvartocol[var[1:]] = col
+                    if not self.star['triples'][0].theobject.constant and self.star['triples'][
+                        0].theobject.name in sprojs:
+                        for t in predicate_object_map.rdf_types:
+                            projvartocol.setdefault('RDFMT_OBJ_' + self.star['triples'][0].theobject.name[1:], []).append(t)
+
                     objectfilters.append(tablealias + '.' + column + " is not null ")
                     objectfilters.append(tablealias + '.' + column + " <> '' ")
             else:
-                var_pred_map = {var: pred for pred, vars in self.star['predicates'].items() for var in vars if pred in predicate_object_map}
+                var_pred_map = {var: pred for pred, vars in self.star['predicates'].items() for var in vars if pred == '' or pred in predicate_object_map}
                 column = []
                 for var in sparqlprojected:
                     if var not in var_pred_map:
@@ -798,13 +830,19 @@ class MySQLWrapper(object):
         # print(self.star['predicates'])
         starpreds = list(self.star['predicates'].keys())
         star_preds = [p for p in starpreds if '?' not in p]
-        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds and self.star['predicates']['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'][1:-1] in rdfmts:
+        if len(star_preds) == 0 or (len(star_preds) == 1 and star_preds[0] == '') :
+                return None, None, None, None
+        if 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' in star_preds:  # and self.star['predicates']['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'][1:-1] in rdfmts:
             star_preds.remove('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
+            sprojs = self.query.args
+            if len(sprojs) == 1 and sprojs[0].name == self.star['triples'][0].theobject.name and len(
+                    star_preds) == 0 and not self.star['triples'][0].subject.constant:
+                return 'RDFMTs', None, None, None
 
         touninon = {}
         completematch = {}
 
-        if len(star_preds) == 0:
+        if len(star_preds) == 0 or (len(star_preds) == 1 and star_preds[0] == ''):
             subjectonly = False
             for tm, triplemap in self.mappings.items():
                 for rdfmt in triplemap.subject_map.rdf_types:

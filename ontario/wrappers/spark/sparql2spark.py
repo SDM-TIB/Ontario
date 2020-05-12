@@ -71,8 +71,20 @@ class SPARKWrapper(object):
         sparql2sql = SPARQL2SQL(query, self.mappings, self.datasource, self.rdfmts, self.star)
 
         sqlquery, projvartocols, coltotemplates, filenametablename = sparql2sql.translate()
+
         # sqlquery, projvartocols, coltotemplates, filenametablename = self.translate(query_filters)
-        # print(sqlquery)
+        if sqlquery == 'RDFMTs':
+            sprojs = self.query.args
+            var = sprojs[0].name
+            for rdfmt in self.rdfmts:
+                queue.put({var[1:]: {'type': 'uri', 'value':rdfmt} })
+            queue.put('EOF')
+            return
+        if sqlquery is None:
+            queue.put('EOF')
+            return
+
+        print(sqlquery)
         if self.spark is None:
             # url = 'spark://node3.research.tib.eu:7077' # self.mapping['url']
             # params = {
@@ -98,13 +110,13 @@ class SPARKWrapper(object):
             self.spark = self.spark.getOrCreate()
             logger.info("SPARK Initialization cost:" + str(time()-start))
         start = time()
-
+        emptytables = []
         for filename, tablename in filenametablename.items():
             # schema = self.make_schema(schemadict[filename])
             # filename = "hdfs://node3.research.tib.eu:9000" + filename
             # filename = self.datasource.url + "/" + filename
             # filename = "/media/kemele/DataHD/LSLOD-flatfiles/" + filename
-            # print(filename, tablename)
+            print(filename, tablename)
             if self.datasource.dstype == DataSourceType.LOCAL_JSON or \
                     self.datasource.dstype == DataSourceType.SPARK_JSON:
                 df = self.spark.read.json(filename)
@@ -124,13 +136,22 @@ class SPARKWrapper(object):
                                          header=True)
 
             df.createOrReplaceTempView(tablename)
+            print( df.columns)
+            if len(df.columns) == 0:
+                emptytables.append(tablename)
 
         logger.info("time for reading file" + str(filenametablename) + str(time() - start))
 
         totalres = 0
         try:
             runstart = time()
-            if isinstance(sqlquery, list):# and len(sqlquery) > 3:
+            if isinstance(sqlquery, list) and len(sqlquery) > 3:
+                removes = []
+                for sql in sqlquery.copy():
+                    for emp in emptytables:
+                        if emp in sql:
+                            sqlquery.remove(sql)
+
                 sqlquery = " UNION ".join(sqlquery)
             # print(sqlquery)
             if isinstance(sqlquery, list):
@@ -165,7 +186,6 @@ class SPARKWrapper(object):
             #         continue
             #     else:
             #         res_dict.append(rowtxt)
-
             res = {}
             skip = False
             for r in row:
@@ -179,25 +199,34 @@ class SPARKWrapper(object):
                     if s in res:
                         val = res[s]
                         if 'http://' in row[r]:
-                            res[s] = row[r]
+                            res[s] = {'type': 'uri', 'value': row[r]}
                         else:
-                            res[s] = val.replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))
+                            res[s] = {'type': 'uri', 'value': val['value'].replace('{' + r[r.find("_") + 1:] + '}', row[r].replace(" ", '_'))}
                     else:
                         if 'http://' in r:
-                            res[s] = r
+                            res[s] = {'type': 'uri', 'value': r}
                         else:
-                            res[s] = coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
-                                                               row[r].replace(" ", '_'))
+                            res[s] = {'type': 'uri', 'value': coltotemplates[s].replace('{' + r[r.find("_") + 1:] + '}',
+                                                               row[r].replace(" ", '_'))}
                 elif r in projvartocols and r in coltotemplates:
                     if 'http://' in row[r]:
-                        res[r] = row[r]
+                        res[r] = {'type': 'uri', 'value': row[r]}
                     else:
-                        res[r] = coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))
+                        res[r] = {'type': 'uri', 'value': coltotemplates[r].replace('{' + projvartocols[r] + '}', row[r].replace(" ", '_'))}
                 else:
-                    res[r] = row[r]
+                    res[r] = {'type': 'literal', 'value': row[r]}
 
             if not skip:
-                queue.put(res)
+                skip = False
+                for oc in projvartocols:
+                    if 'RDFMT_OBJ_' in oc:
+                        skip = True
+                        res[oc[10:]] = projvartocols[oc]
+                        for t in projvartocols[oc]:
+                            res[oc[10:]] = {'type': 'uri', 'value': t}
+                            queue.put(res)
+                if not skip:
+                    queue.put(res)
                 # if 'keggCompoundId' in res:
                 #     print(res['keggCompoundId'])
         return c
