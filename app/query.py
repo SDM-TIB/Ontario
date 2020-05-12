@@ -179,11 +179,16 @@ def execute_query(query, output=Queue(), isblocking=True):
 
     i = 0
     r = output.get()
-    variables = [p.name[1:] for p in mc.query.args]
+    if mc.query.query_type == 0:
+        variables = [p.name[1:] for p in mc.query.args if not isinstance(p, Triple)]
+    else:
+        variables = []
+
     first = time() - start
     if isblocking:
         while r != "EOF":
-            if len(variables) == 0 or (len(variables) == 1 and variables[0] == '*'):
+            logger.info(r)
+            if mc.query.query_type == 0 and ( len(variables) == 0 or (len(variables) == 1 and variables[0] == '*')):
                 variables = [k for k in r.keys()]
             res.append(r)
             r = output.get()
@@ -196,7 +201,7 @@ def execute_query(query, output=Queue(), isblocking=True):
             logger.info("END of results ....")
             session['total'] = time() - start
         else:
-            if len(variables) == 0 or (len(variables) == 1 and variables[0] == '*'):
+            if mc.query.query_type == 0 and ( len(variables) == 0 or (len(variables) == 1 and variables[0] == '*')):
                 variables = [k for k in r.keys()]
             res.append(r)
             i += 1
