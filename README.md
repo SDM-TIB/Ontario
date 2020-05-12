@@ -203,7 +203,7 @@ if resp.status_code == 200:
 ```
 
 Output:
-```json
+```
 {'execTime': 0.15656578540802002,
  'firstResult': 0.15205996036529541,
  'totalRows': 5,
