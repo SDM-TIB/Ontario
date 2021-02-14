@@ -91,7 +91,7 @@ class DataSourceType(Enum):
 
 
 def get_links(endpoint1, rdfmt1, endpoint2, rdfmt2, q):
-    # print 'between endpoints:', endpoint1, ' --> ', endpoint2
+    # print('between endpoints:', endpoint1, ' --> ', endpoint2)
     found = False
     for c in rdfmt1:
         for p in c['predicates']:
@@ -212,7 +212,7 @@ def read_config(filename):
     for d in ds:
         if d['type'] == 'SPARQL_Endpoint':
             rdfmts = get_typed_concepts(d['ID'], d['url'])
-            sparqlendps[d['ID']] = rdfmts.copy()
+            sparqlendps[d['url']] = rdfmts.copy()
 
     eofflags = []
     epros = []
