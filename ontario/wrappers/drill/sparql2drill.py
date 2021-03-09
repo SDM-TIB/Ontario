@@ -32,6 +32,9 @@ class DrillWrapper(object):
         self.star = star
         self.query = None
         self.prefixes = {}
+
+        if '//' in self.url:
+            self.url = self.url.split('//')[1]
         if ':' in self.url:
             self.host, self.port = self.url.split(':')
         else:
@@ -47,7 +50,7 @@ class DrillWrapper(object):
     def executeQuery(self, query, queue=Queue(), limit=-1, offset=0):
         """
         Entry point for query execution on csv files
-        :param querystr: string query
+        :param query: string query
         :return:
         """
         from time import time
